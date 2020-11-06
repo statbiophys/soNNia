@@ -23,9 +23,25 @@ pip install sonia
 ## References
 Isacchini G, Walczak AM, Mora T, Nourmohammad A, Deep generative selection models of T and B cell receptor repertoires with soNNia, (2020) bioRxiv, https://www.biorxiv.org/content/10.1101/2020.11.05.370346v1
 
-## Documentation
+## Soia modules in a Python script
+In order to incorporate the core algorithm into an analysis pipeline (or to write your own script wrappers) all that is needed is to import the modules. Each module defines some classes that only a few methods get called on.
 
-TODO
+The modules are:
+
+| Module name                                    | Classes                                          |    
+|------------------------------------------------|--------------------------------------------------|
+| evaluate_model_paired.py                       | EvaluateModel                                    |
+| sequence_generation_paired.py                  | SequenceGeneration                               |
+| processing.py                                  | Processing                                       |
+| classifiers.py                                 | Linear, SoniaRatio                               |
+| sonia_paired.py                                | SoniaPaired                                      |
+| sonnia_paired.py                               | SoNNiaPaired                                     |
+| sonnia.py                                      | SoNNia                                           |
+| utils.py                                       | N/A (contains util functions)                    |
+
+
+
+
 
 ## Contact
 
