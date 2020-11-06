@@ -33,16 +33,15 @@ The modules are:
 |------------------------------------------------|--------------------------------------------------|
 | evaluate_model_paired.py                       | EvaluateModel                                    |
 | sequence_generation_paired.py                  | SequenceGeneration                               |
-| processing.py                                  | Processing                                       |
-| classifiers.py                                 | Linear, SoniaRatio                               |
 | sonia_paired.py                                | SoniaPaired                                      |
 | sonnia_paired.py                               | SoNNiaPaired                                     |
+| sonnia_transfer.py                             | SoNNiaTransfer                                   |
 | sonnia.py                                      | SoNNia                                           |
 | utils.py                                       | N/A (contains util functions)                    |
+| processing.py                                  | Processing                                       |
+| classifiers.py                                 | Linear, SoniaRatio                               |
 
-
-
-
+The classes EvaluateModel, SequenceGeneration, SoniaPaired, SoNNiaPaired, SoNNiaTransfer and SoNNia have similar behaviour to the ones defined in the [SONIA](https://github.com/statbiophys/SONIA) package and we refer to its documentation for the usage.
 
 ## Contact
 
