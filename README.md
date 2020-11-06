@@ -2,7 +2,7 @@
 
 
 SoNNia is a python 3.6 software which extends the functionality of the [SONIA](https://github.com/statbiophys/SONIA) package.  It  expands  the  choice  of selection  models that can be inferred. Non linear single-chain models and (non-)linear paired-chain models are included in the package. The pre-processing pipeline implemented in the corresponding paper is also included as a separate class. Finally the likelihood ratio classifier and a linear logistic classifier for functional annotation are also included and can be directly applied to T- and B-cell receptor repertoire datasets.
-![image](docs/summary_fig.pdf)
+![image](docs/summary_fig.png)
 
 
 ## Version
