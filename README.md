@@ -34,7 +34,3 @@ Any issues or questions should be addressed to [us](mailto:giulioisac@gmail.com)
 ## License
 
 Free use of soNNia is granted under the terms of the GNU General Public License version 3 (GPLv3).
-=======
-![](docs/logo.jpg)
-Some extensions to the default sonia package
->>>>>>> f1550ba3c94da7711b9054861aa27a8b6c41fa56
