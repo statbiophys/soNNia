@@ -72,6 +72,32 @@ qm=SoNNiaPaired()
 
 In the examples folder there is a python notebook  (or alternatively the example_pipeline script) which shows the main properties of the software.
 
+
+## Command line console scripts
+
+There are three command line console scripts (the scripts can still be called as executables if SoNNia is not installed):
+1. ```sonnia-evaluate```
+  * evaluates Ppost, Pgen or selection factors of sequences according to a generative V(D)J model and selection model.
+2. ```sonnia-generate```
+  * generates CDR3 sequences, before (like olga) or after selection
+3. ```sonnia-infer```
+  * infers a selection model with respect to a generative V(D)J model
+
+For any of them you can execute with the -h or --help flags to get the options.
+
+###
+We offer a quick demonstration of the console scripts. This will show how to generate and evaluate sequences and infer a selection model using the default generation model for human TCR beta chains that ships with the SONIA software. In order to run the commands below you need to download the examples folder. 
+
+1. ```$ sonnia-infer --humanTRB -i examples/data_seqs.txt -d ';' -m 10000```
+  * This reads in the full file example_seqs.txt, infers a selection model and saves to the folder sel_model
+
+
+2. ```$ sonnia-generate --set_custom_model_VDJ examples/sonnia_model --post -n 100```
+  * Generate 100 human TRB CDR3 sequences from the post-selection repertoire and print to stdout along with the V and J genes used to generate them.
+3. ```$ sonnia-evaluate --set_custom_model_VDJ examples/sonnia_model -i examples/data_seqs.txt --ppost -m 100 -d ';' ```
+  * This computes Ppost,Pgen and Q of the first 100 seqs in the data_seqs file.  
+
+  
 ## Contact
 
 Any issues or questions should be addressed to [us](mailto:giulioisac@gmail.com).
