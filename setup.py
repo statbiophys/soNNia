@@ -25,6 +25,10 @@ setup(name='sonnia',
             ],
       packages=find_packages(),
       install_requires=['numpy','tensorflow','matplotlib','olga>=1.1.3','tqdm','sonia'],
+      entry_points = {'console_scripts': [
+            'sonnia-infer=sonnia.infer:main',
+            'sonnia-generate=sonnia.generate:main',
+            'sonnia-evaluate=sonnia.evaluate:main'], },
       data_files = data_files_to_include,
       include_package_data=True,
       zip_safe=False)

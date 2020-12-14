@@ -6,7 +6,6 @@ import olga.load_model as load_model
 import olga.generation_probability as pgen
 import olga.sequence_generation as seq_gen
 import os
-import sonia
 import sonia.sonia_leftpos_rightpos
 from sonia.utils import gene_to_num_str
 

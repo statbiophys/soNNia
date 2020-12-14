@@ -65,6 +65,9 @@ from sonnia.sonnia_paired import SoNNiaPaired
 qm=SoNNiaPaired()
 
 ```
+
+In the examples folder there is a python notebook  (or alternatively the example_pipeline script) which shows the main properties of the software.
+
 ## Contact
 
 Any issues or questions should be addressed to [us](mailto:giulioisac@gmail.com).
