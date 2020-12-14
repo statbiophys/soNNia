@@ -52,13 +52,13 @@ translates into the deep version as
 from sonnia.sonnia import SoNNia
 qm=SoNNia()
 ```
-translates into the linear paired-chain (alpha-beta for TCRs) version as 
+translates into the linear paired-chain (i.e. alpha-beta for TCRs) version as 
 
 ```
 from sonnia.sonia_paired import SoniaPaired
 qm=SoniaPaired()
 ```
-translates into the deep paired (alpha-beta for TCRs) version as 
+translates into the deep paired (i.e. alpha-beta for TCRs) version as 
 
 ```
 from sonnia.sonnia_paired import SoNNiaPaired
