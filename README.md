@@ -42,7 +42,25 @@ The modules are:
 | classifiers.py                                 | Linear, SoniaRatio                               |
 
 The classes EvaluateModel, SequenceGeneration, SoniaPaired, SoNNiaPaired, SoNNiaTransfer and SoNNia have similar behaviour to the ones defined in the [SONIA](https://github.com/statbiophys/SONIA) package and we refer to its documentation for the usage.
+As an example, the basic import and initialization of the signle chain SoniaLeftposRightpos model
+```
+from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
+qm=SoniaLeftposRightpos()
+```
 
+translates into the deep version as 
+```
+from sonnia.sonnia import SoNNia
+qm=SoNNia()
+```
+```
+translates into the linear paired-chain (alpha-beta for TCRs) version as 
+from sonnia.sonia_paired import SoniaPaired()
+```
+```
+translates into the deep paired (alpha-beta for TCRs) version as 
+from sonnia.sonnia_paired import SoNNiaPaired()
+```
 ## Contact
 
 Any issues or questions should be addressed to [us](mailto:giulioisac@gmail.com).
