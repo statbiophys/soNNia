@@ -47,18 +47,19 @@ As an example, the basic import and initialization of the signle chain SoniaLeft
 from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
 qm=SoniaLeftposRightpos()
 ```
-
 translates into the deep version as 
 ```
 from sonnia.sonnia import SoNNia
 qm=SoNNia()
 ```
-```
 translates into the linear paired-chain (alpha-beta for TCRs) version as 
+
+```
 from sonnia.sonia_paired import SoniaPaired()
 ```
-```
 translates into the deep paired (alpha-beta for TCRs) version as 
+
+```
 from sonnia.sonnia_paired import SoNNiaPaired()
 ```
 ## Contact
