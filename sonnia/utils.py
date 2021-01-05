@@ -8,10 +8,11 @@ import os
 import itertools
 import subprocess
 import numpy as np
+import sonia.sonia_leftpos_rightpos
 def run_terminal(string):
     return [i.decode("utf-8").split('\n') for i in subprocess.Popen(string, shell=True, stdout=subprocess.PIPE,stderr = subprocess.PIPE).communicate()]
 
-def sample_olga(num_gen_seqs=1,custom_model_folder=None,VJ=False,chain_type='human_T_beta'):
+def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):
     
     #Load generative model
     if custom_model_folder is None:
