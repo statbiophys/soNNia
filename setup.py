@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 data_files_to_include = [('', ['README.md', 'LICENSE'])]
 
 setup(name='sonnia',
-      version='0.0.3',
+      version='0.0.4',
       description='Infer and compute selection factors of CDR3 sequences',
       long_description='Some extensions to sonia',
       url='https://github.com/statbiophys/soNNia',
@@ -24,7 +24,7 @@ setup(name='sonnia',
             'Programming Language :: Python :: 3.6',
             ],
       packages=find_packages(),
-      install_requires=['numpy','tensorflow','matplotlib','olga>=1.1.3','tqdm','sonia'],
+      install_requires=['numpy','tensorflow>=2.1.0','matplotlib','olga>=1.1.3','tqdm','sonia'],
       entry_points = {'console_scripts': [
             'sonnia-infer=sonnia.infer:main',
             'sonnia-generate=sonnia.generate:main',
