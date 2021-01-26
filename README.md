@@ -97,7 +97,16 @@ We offer a quick demonstration of the console scripts. This will show how to gen
 3. ```$ sonnia-evaluate --set_custom_model_VDJ examples/sonnia_model -i examples/data_seqs.txt --ppost -m 100 -d ';' ```
   * This computes Ppost,Pgen and Q of the first 100 seqs in the data_seqs file.  
 
-  
+# Notes about CDR3 sequence definition and Dataset size
+
+This code is quite flexible, however it does demand a very consistent definition of CDR3 sequences.
+
+CHECK THE DEFINITION OF THE CDR3 REGION OF THE SEQUENCES YOU INPUT. This will likely be the most often problem that occurs.
+
+The default models/genomic data are set up to define the CDR3 region from the conserved cysteine C (INCLUSIVE) in the V region to the conserved F or W (INCLUSIVE) in the J. This corresponds to positions X and X according to IMGT. 
+
+Neural Network models suffer from overfitting issues in the low data regime. While the use of appropriate regularization could reduce the risk of overfitting, it is recommended to use the linear SONIA model for datasets with fewer than 100 000 receptor sequences.
+
 ## Contact
 
 Any issues or questions should be addressed to [us](mailto:giulioisac@gmail.com).
