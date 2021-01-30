@@ -51,7 +51,8 @@ def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='hum
     return [[seq[1], genomic_data.genV[seq[2]][0].split('*')[0], genomic_data.genJ[seq[3]][0].split('*')[0]] for seq in [sg_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ') for _ in range(int(num_gen_seqs))]]
 
 def correct_olga_heavy(qm):
-
+    # this corrects only the V gene distribution.
+    # P(D,J)= P(D|J)P(J)
     old_pv=qm.generative_model.PV
     old_names=qm.pgen_model.V_allele_names
     old_ns=[gene_to_num_str(v,'V') for v in old_names]
@@ -112,7 +113,7 @@ def correct_olga_light(qm):
     for v in list(p_allele_given_j): weigths_j[int(v.split('_')[1])]=p_allele_given_j[v]
 
     # compute probabilities data
-    VJ_pair= [gene_to_num_str(v,'V')+','+gene_to_num_str(j,'J') for v,j in np.array(qm.data_seqs)[:,4:]]
+    VJ_pair= [gene_to_num_str(v,'V')+','+gene_to_num_str(j,'J') for v,j in np.array(qm.data_seqs)[:,1:]]
     vj_data,count_data=np.unique(VJ_pair,return_counts=True)
     freq_data=count_data/np.sum(count_data)
     dict_data=dict(zip(vj_data,freq_data))
