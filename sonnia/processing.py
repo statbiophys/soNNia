@@ -33,11 +33,12 @@ default_chain_types = { 'humanTRA': 'human_T_alpha', 'human_T_alpha': 'human_T_a
 
 class Processing(object):
     
-    def __init__(self,read_thresh=None,custom_model_folder=None,chain_type='human_T_beta',drop_unproductive=True,max_length=30,vj=False):
+    def __init__(self,read_thresh=None,custom_model_folder=None,chain_type='human_T_beta',drop_unproductive=True,max_length=30,vj=False,verbose=True):
         
         self.read_thresh=read_thresh
         self.custom_model_folder=custom_model_folder
         self.max_length=max_length
+        self.verbose = verbose
         self.chain_type=default_chain_types[chain_type]
         if chain_type not in default_chain_types.keys():
             print('Unrecognized chain_type (not a default OLGA model).'
@@ -78,7 +79,7 @@ class Processing(object):
         Select read count above threshold
         '''
         self.df['selection_read']=self.df.read_count>self.read_thresh
-        print ('low reads:',np.sum(np.logical_not(self.df['selection_read'].values[self.df['selection'].values])))
+        if self.verbose: print ('low reads:',np.sum(np.logical_not(self.df['selection_read'].values[self.df['selection'].values])))
         self.df['selection']=np.logical_and(self.df['selection'].values,self.df['selection_read'])        
             
     def select_good_genes(self):   
@@ -93,7 +94,7 @@ class Processing(object):
                                           self.df['v_gene'].apply(lambda x: x in self.bad_vs))
         recognised_genes=np.logical_or(selv,selj)
         self.df['selection_genes']=np.logical_not(np.logical_or(bad_genes,recognised_genes))
-        print ('bad genes:',np.sum(np.logical_not(self.df['selection_genes'].values[self.df['selection'].values])))
+        if self.verbose: print ('bad genes:',np.sum(np.logical_not(self.df['selection_genes'].values[self.df['selection'].values])))
         self.df['selection']=np.logical_and(self.df['selection'].values,self.df['selection_genes'].values)
         
     def select_productive(self):
@@ -102,7 +103,7 @@ class Processing(object):
         '''
         bad_cdr3=self.df.amino_acid.str.contains('\*|_|~',na=True,regex=True)
         self.df['selection_productive']=np.logical_not(bad_cdr3)
-        print ('unproductive:',np.sum(np.logical_not(self.df['selection_productive'].values[self.df['selection'].values])))
+        if self.verbose: print ('unproductive:',np.sum(np.logical_not(self.df['selection_productive'].values[self.df['selection'].values])))
         self.df['selection']=np.logical_and(self.df['selection'].values,self.df['selection_productive'].values)
 
         
@@ -114,7 +115,7 @@ class Processing(object):
         string='^C.*'+'$|^C.*'.join(list(conserved_J_residues))+'$'
         self.df['select_bound']=self.df['amino_acid'].str.contains(string,na=False)
         #self.df['select_bound']=self.df['amino_acid'].str.contains('^C.*F$|^C.*YV$|^C.*W$',na=False)
-        print ('wrong bounds:',np.sum(np.logical_not(self.df['select_bound'].values[self.df['selection'].values])))
+        if self.verbose: print ('wrong bounds:',np.sum(np.logical_not(self.df['select_bound'].values[self.df['selection'].values])))
         self.df['selection']=np.logical_and(self.df['selection'].values,self.df['select_bound'].values)
     
     def select_cdr3_length(self):
@@ -122,7 +123,7 @@ class Processing(object):
         select cdr3 length smaller than max_length
         '''
         self.df['selection_length']=self.df.amino_acid.fillna('nan').apply(len)<self.max_length
-        print ('long cdr3s:',np.sum(np.logical_not(self.df['selection_length'].values[self.df['selection'].values])))
+        if self.verbose: print ('long cdr3s:',np.sum(np.logical_not(self.df['selection_length'].values[self.df['selection'].values])))
         self.df['selection']=np.logical_and(self.df['selection'].values,self.df['selection_length'].values)
         
     def define_models(self):
