@@ -34,7 +34,7 @@ def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='hum
     if not os.path.isfile(J_anchor_pos_file):
         J_anchor_pos_file = os.path.join(os.path.dirname(olga_load_model.__file__), 'default_models', self.chain_type, 'J_gene_CDR3_anchors.csv')
 
-    if VJ:
+    if vj:
         genomic_data = load_model.GenomicDataVJ()
         genomic_data.load_igor_genomic_data(params_file_name, V_anchor_pos_file, J_anchor_pos_file)
         generative_model = load_model.GenerativeModelVJ()
