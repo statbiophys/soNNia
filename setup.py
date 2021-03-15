@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 data_files_to_include = [('', ['README.md', 'LICENSE'])]
 
 setup(name='sonnia',
-      version='0.0.5',
+      version='0.0.6',
       description='Infer and compute selection factors of CDR3 sequences',
       long_description='Some extensions to sonia',
       url='https://github.com/statbiophys/soNNia',
