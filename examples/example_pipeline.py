@@ -37,7 +37,7 @@ qm.infer_selection(epochs=30,batch_size=int(1e4))
 # # do some plotting
 plot_sonia=Plotter(qm)
 plot_sonia.plot_model_learning()
-lot_sonia.plot_vjl()
+plot_sonia.plot_vjl()
 plot_sonia.plot_logQ()
 
 
@@ -73,5 +73,5 @@ plot_sonia.plot_prob(Q_data,Q_gen,Q_model,ptype='Q',bin_min=-4,bin_max=2)
 
 print(qm.seq_gen_model.gen_rnd_prod_CDR3())
 print(qm.genomic_data.genJ[1])
-print(m.pgen_model.PinsDJ)
+print(qm.pgen_model.PinsDJ)
 
