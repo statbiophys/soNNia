@@ -16,6 +16,10 @@ from sonia.sonia import Sonia
 from sonia.utils import gene_to_num_str
 import sonia.sonia
 from copy import copy
+from tensorflow.keras.backend import sum as ksum
+from tensorflow.keras.backend import log as klog
+from tensorflow.keras.backend import exp as kexp
+from tensorflow.keras.backend import clip as kclip
 import itertools
 import multiprocessing as mp
 from tensorflow import cast,boolean_mask,Variable
