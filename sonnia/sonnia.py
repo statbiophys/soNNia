@@ -10,6 +10,7 @@ logging.getLogger('tensorflow').disabled = True
 from tensorflow.keras.models import load_model as lm
 from tensorflow.keras.callbacks import ModelCheckpoint
 import tensorflow.keras.backend as K
+from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow import keras
 from sonia.sonia import Sonia
 from sonia.utils import gene_to_num_str
@@ -17,7 +18,8 @@ import sonia.sonia
 from copy import copy
 import itertools
 import multiprocessing as mp
-
+from tensorflow import cast,boolean_mask,Variable
+from tensorflow import math
 #Set input = raw_input for python 2
 try:
     import __builtin__
@@ -29,10 +31,12 @@ class SoNNia(Sonia):
     
     def __init__(self, data_seqs = [], gen_seqs = [], chain_type = 'humanTRB',
                  load_dir = None, feature_file = None, data_seq_file = None, gen_seq_file = None, log_file = None, load_seqs = True,
-                 max_depth = 25, max_L = 30, include_indep_genes = True, include_joint_genes = False, min_energy_clip = -5, max_energy_clip = 10, seed = None,custom_pgen_model=None ,deep=True, l2_reg=0.,l1_reg=0.,joint_vjl=False,vj=False):        
+                 max_depth = 25, max_L = 30, include_indep_genes = True, include_joint_genes = False, min_energy_clip = -5, max_energy_clip = 10, seed = None,
+                 custom_pgen_model=None ,deep=True, l2_reg=0.,l1_reg=0.,joint_vjl=False,vj=False,gamma=0.1):        
         self.max_depth=max_depth
         self.max_L = max_L
         self.deep=deep
+        self.gamma=gamma
         self.include_indep_genes=include_indep_genes
         self.include_joint_genes=include_joint_genes
         self.joint_vjl=joint_vjl
@@ -214,7 +218,7 @@ class SoNNia(Sonia):
                                      kernel_regularizer=keras.regularizers.l2(l2_reg))(merge)
                 output_layer=keras.layers.Dense(1,
                                                 activation='linear',
-                                                use_bias=False,
+                                                use_bias=True,
                                                 kernel_initializer='lecun_normal', 
                                                 kernel_regularizer=keras.regularizers.l2(l2_reg))(h)
 
@@ -222,6 +226,13 @@ class SoNNia(Sonia):
         clipped_out=keras.layers.Lambda(lambda x: K.clip(x,min_clip,max_clip))(output_layer)
         self.model = keras.models.Model(inputs=input_layer, outputs=clipped_out)
         self.optimizer = keras.optimizers.RMSprop()
+
+        if self.objective=='BCE':
+            self.model.compile(optimizer=self.optimizer, loss=BinaryCrossentropy(from_logits=True),metrics=[self._likelihood, BinaryCrossentropy(from_logits=True,name='binary_crossentropy')])
+        else:
+            self.model.compile(optimizer=self.optimizer, loss=self._loss, 
+                               metrics=[self._likelihood, BinaryCrossentropy(from_logits=True,name='binary_crossentropy')])
+
         self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
         self.model_params = self.model.get_weights()
         return True 
@@ -282,6 +293,30 @@ class SoNNia(Sonia):
             self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
         elif verbose:
             print('Cannot find model file --  no model parameters loaded.')
+
+    def _loss(self, y_true, y_pred):
+        
+        """
+        
+        This is the "I" loss in the arxiv paper with added regularization
+        
+        """
+        y=cast(y_true,dtype='bool')
+        data= math.reduce_mean(boolean_mask(y_pred,math.logical_not(y)))
+        gen= math.reduce_logsumexp(-boolean_mask(y_pred,y))-klog(ksum(y_true))
+        return gen+data+self.gamma*gen*gen
+
+    def _likelihood(self, y_true, y_pred):
+        
+        """
+        
+        This is the "I" loss in the arxiv paper with added regularization
+        
+        """
+        y=cast(y_true,dtype='bool')
+        data= math.reduce_mean(boolean_mask(y_pred,math.logical_not(y)))
+        gen= math.reduce_logsumexp(-boolean_mask(y_pred,y))-klog(ksum(y_true))
+        return gen+data
 
 
 class EmbedViaMatrix(keras.layers.Layer):
