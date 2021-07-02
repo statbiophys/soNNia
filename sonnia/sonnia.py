@@ -32,13 +32,14 @@ class SoNNia(Sonia):
     def __init__(self, data_seqs = [], gen_seqs = [], chain_type = 'humanTRB',
                  load_dir = None, feature_file = None, data_seq_file = None, gen_seq_file = None, log_file = None, load_seqs = True,
                  max_depth = 25, max_L = 30, include_indep_genes = True, include_joint_genes = False, min_energy_clip = -5, max_energy_clip = 10, seed = None,
-                 custom_pgen_model=None ,deep=True, l2_reg=0.,l1_reg=0.,joint_vjl=False,vj=False,gamma=0.1):        
+                 custom_pgen_model=None ,deep=True, l2_reg=0.,l1_reg=0.,joint_vjl=False,vj=False,gamma=0.1,objective='likelihood'):        
         self.max_depth=max_depth
         self.max_L = max_L
         self.deep=deep
         self.gamma=gamma
         self.include_indep_genes=include_indep_genes
         self.include_joint_genes=include_joint_genes
+        self.objective=objective
         self.joint_vjl=joint_vjl
         self.custom_pgen_model=custom_pgen_model
         Sonia.__init__(self, data_seqs=data_seqs, gen_seqs=gen_seqs, chain_type=chain_type, 
