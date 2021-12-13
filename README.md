@@ -70,8 +70,7 @@ qm=SoNNiaPaired()
 
 ```
 
-In the examples folder there is a python notebook  (or alternatively the example_pipeline script) which shows the main properties of the software.
-
+In the examples folder there is a python notebook  (or alternatively the example_pipeline script) which shows the main properties of the software. The fig2_paper folder contains all scripts and explanations needed to reproduce figure 2 of the soNNia paper.
 
 ## Command line console scripts
 
@@ -106,6 +105,7 @@ CHECK THE DEFINITION OF THE CDR3 REGION OF THE SEQUENCES YOU INPUT. This will li
 The default models/genomic data are set up to define the CDR3 region from the conserved cysteine C (INCLUSIVE) in the V region to the conserved F or W (INCLUSIVE) in the J. This corresponds to positions X and X according to IMGT. 
 
 Neural Network models suffer from overfitting issues in the low data regime. While the use of appropriate regularization could reduce the risk of overfitting, it is recommended to use the linear SONIA model for datasets with fewer than 100 000 receptor sequences.
+
 
 ## Contact
 
