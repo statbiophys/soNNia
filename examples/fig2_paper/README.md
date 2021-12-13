@@ -1,5 +1,7 @@
 # Reproduce fig2 of soNNia paper
 
+Step 0: Download emerson files from https://clients.adaptivebiotech.com/pub/emerson-2017-natgen 
+
 Step1: put all emerson files in the emerson-nat directory
 
 Step2: pip install sonnia (and possibly other dependencies that are missing)
