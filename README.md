@@ -69,7 +69,7 @@ from sonnia.sonnia_paired import SoNNiaPaired
 qm=SoNNiaPaired()
 
 ```
-SoNNia keeps all the functionality of SONIA. As an example you can infer a linear SONIA model using SoNNia using the following definition of the model:
+SoNNia keeps all the functionalities of SONIA. As an example you can infer a linear SONIA model with SoNNia using the following definition of the model:
 
 ```
 from sonnia.sonnia import SoNNia
