@@ -13,6 +13,7 @@ import itertools
 import seaborn as sns
 from sonnia.utils import sample_olga
 from sklearn.metrics import roc_curve, auc
+import scipy.spatial as sp, scipy.cluster.hierarchy as hc
 
 class Compare(object):
     
@@ -107,9 +108,10 @@ class Compare(object):
         return roc_auc
     
     def plot_dist_matrix(self):
+		linkage = hc.linkage(sp.distance.squareform(self.dist_matrix), method='average', optimal_ordering=True)
         my_df=pd.DataFrame(self.dist_matrix,columns=self.labels)
         my_df.index=self.labels
-        g=sns.clustermap(my_df,cbar_kws={'label': 'bits'},figsize=(8,8))
+        g=sns.clustermap(my_df,cbar_kws={'label': 'bits'},figsize=(8,8),row_linkage=linkage, col_linkage=linkage)
         plt.setp(g.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
         plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
         g.cax.figure.axes[-1].yaxis.label.set_size(30)
