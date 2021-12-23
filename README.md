@@ -6,7 +6,7 @@ SoNNia is a python 3.6 software which extends the functionality of the [SONIA](h
 
 
 ## Version
-Latest released version: 0.0.6
+Latest released version: 0.0.9
 
 ## Installation
 SoNNia is a python /3.6 software. It is available on PyPI and can be downloaded and installed through pip:
@@ -69,6 +69,15 @@ from sonnia.sonnia_paired import SoNNiaPaired
 qm=SoNNiaPaired()
 
 ```
+SoNNia keeps all the functionality of SONIA. As an example you can infer a linear SONIA model using SoNNia using the following definition of the model:
+
+```
+from sonnia.sonnia import SoNNia
+qm=SoNNia(deep=False, include_joint_genes=True, include_indep_genes=False)
+
+```
+ The above commands specifies that the network architecture must be linear and that the V and J genes should form joint features.
+
 
 In the examples folder there is a python notebook  (or alternatively the example_pipeline script) which shows the main properties of the software. The fig2_paper folder contains all scripts and explanations needed to reproduce figure 2 of the soNNia paper.
 
