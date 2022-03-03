@@ -78,7 +78,6 @@ qm=SoNNia(deep=False, include_joint_genes=True, include_indep_genes=False)
 ```
  The above commands specifies that the network architecture must be linear and that the V and J genes should form joint features.
 
-
 In the examples folder there is a python notebook  (or alternatively the example_pipeline script) which shows the main properties of the software. The fig2_paper folder contains all scripts and explanations needed to reproduce figure 2 of the soNNia paper.
 
 ## Command line console scripts
