@@ -28,6 +28,9 @@ from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
 from sonnia.sonnia import SoNNia
 from sonia.evaluate_model import EvaluateModel
 from sonia.utils import gene_to_num_str
+import sonia
+from sonia.evaluate_model import EvaluateModel
+
 import olga.load_model as olga_load_model
 import olga.generation_probability as generation_probability
 import numpy as np
@@ -93,7 +96,7 @@ def main():
     (options, args) = parser.parse_args()
 
     #Check that the model is specified properly
-    main_folder = os.path.dirname(__file__)
+    main_folder = os.path.dirname(sonia.evaluate_model.__file__)
 
     default_models = {}
     default_models['humanTRA'] = [os.path.join(main_folder, 'default_models', 'human_T_alpha'),  'VJ']

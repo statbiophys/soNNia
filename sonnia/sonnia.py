@@ -261,7 +261,6 @@ class SoNNia(Sonia):
         models from saved feature energies directly.
         """
 
-
         if feature_file is None and verbose:
             print('No feature file provided --  no features loaded.')
         elif os.path.isfile(feature_file):
@@ -270,12 +269,17 @@ class SoNNia(Sonia):
             gen_marginals=[]
             model_marginals=[]
             with open(feature_file, 'r') as features_file:
-                all_lines = features_file.read().strip().split('\n')[1:] #skip header
-                splitted=[l.split(',') for l in all_lines]
+                lines = features_file.read().strip().split('\n') #skip header
+                sonia_or_sonnia=lines[0].split(',')[1]
+                if sonia_or_sonnia=='marginal_data':
+                    k=0
+                else:
+                    k=1
+                splitted=[l.split(',') for l in lines[1:]]
                 features = np.array([l[0].split(';') for l in splitted])
-                data_marginals=[float(l[1]) for l in splitted]
-                model_marginals=[float(l[2]) for l in splitted]
-                gen_marginals=[float(l[3]) for l in splitted]
+                data_marginals=[float(l[1+k]) for l in splitted]
+                model_marginals=[float(l[2+k]) for l in splitted]
+                gen_marginals=[float(l[3+k]) for l in splitted]
             
             self.features = np.array(features)
             self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
