@@ -108,7 +108,7 @@ class Compare(object):
         return roc_auc
     
     def plot_dist_matrix(self):
-		linkage = hc.linkage(sp.distance.squareform(self.dist_matrix), method='average', optimal_ordering=True)
+        linkage = hc.linkage(sp.distance.squareform(self.dist_matrix), method='average', optimal_ordering=True)
         my_df=pd.DataFrame(self.dist_matrix,columns=self.labels)
         my_df.index=self.labels
         g=sns.clustermap(my_df,cbar_kws={'label': 'bits'},figsize=(8,8),row_linkage=linkage, col_linkage=linkage)
