@@ -107,11 +107,12 @@ class Compare(object):
         ax.annotate('AUC = %0.2f' % roc_auc, xy=(0.25,0.1),fontsize=20) 
         return roc_auc
     
-    def plot_dist_matrix(self):
+    def plot_dist_matrix(self,vmax=None):
+        if vmax is None: vmax=np.max(self.dist_matrix)
         linkage = hc.linkage(sp.distance.squareform(self.dist_matrix), method='average', optimal_ordering=True)
         my_df=pd.DataFrame(self.dist_matrix,columns=self.labels)
         my_df.index=self.labels
-        g=sns.clustermap(my_df,cbar_kws={'label': 'bits'},figsize=(8,8),row_linkage=linkage, col_linkage=linkage)
+        g=sns.clustermap(my_df,cbar_kws={'label': 'bits'},figsize=(8,8),row_linkage=linkage, col_linkage=linkage,vmax=vmax)
         plt.setp(g.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
         plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
         g.cax.figure.axes[-1].yaxis.label.set_size(30)
