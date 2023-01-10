@@ -7,23 +7,16 @@ import os
 import numpy as np
 import logging
 logging.getLogger('tensorflow').disabled = True
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 from tensorflow.keras.models import load_model as lm
-from tensorflow.keras.callbacks import ModelCheckpoint
 import tensorflow.keras.backend as K
-from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow import keras
-from sonia.sonia import Sonia
+from sonnia.sonia import Sonia
 from sonia.utils import gene_to_num_str
 import sonia.sonia
 from copy import copy
-from tensorflow.keras.backend import sum as ksum
-from tensorflow.keras.backend import log as klog
-from tensorflow.keras.backend import exp as kexp
-from tensorflow.keras.backend import clip as kclip
 import itertools
 import multiprocessing as mp
-from tensorflow import cast,boolean_mask,Variable
-from tensorflow import math
 #Set input = raw_input for python 2
 try:
     import __builtin__
@@ -33,128 +26,14 @@ except (ImportError, AttributeError):
 
 class SoNNia(Sonia):
     
-    def __init__(self, data_seqs = [], gen_seqs = [], chain_type = 'humanTRB',
-                 load_dir = None, feature_file = None, data_seq_file = None, gen_seq_file = None, log_file = None, load_seqs = True,
-                 max_depth = 25, max_L = 30, include_indep_genes = True, include_joint_genes = False, min_energy_clip = -5, max_energy_clip = 10, seed = None,
-                 custom_pgen_model=None ,deep=True, l2_reg=0.,l1_reg=0.,joint_vjl=False,vj=False,gamma=0.1,objective='likelihood'):        
-        self.max_depth=max_depth
-        self.max_L = max_L
+    def __init__(self, data_seqs = [], gen_seqs = [], chain_type = 'humanTRB',load_dir = None, custom_pgen_model=None ,
+                min_energy_clip = -5, max_energy_clip = 10, seed = None, l2_reg=0.,l1_reg=0.,vj=False,gamma=0.1,objective='BCE',
+                max_depth = 25, max_L = 30, include_indep_genes = True, include_joint_genes = False, deep=True,joint_vjl=False,include_aminoacids=True):        
         self.deep=deep
-        self.gamma=gamma
-        self.include_indep_genes=include_indep_genes
-        self.include_joint_genes=include_joint_genes
-        self.objective=objective
-        self.joint_vjl=joint_vjl
-        self.custom_pgen_model=custom_pgen_model
-        Sonia.__init__(self, data_seqs=data_seqs, gen_seqs=gen_seqs, chain_type=chain_type, 
-                       min_energy_clip = min_energy_clip, max_energy_clip = max_energy_clip, seed = seed,l2_reg=l2_reg,l1_reg=l1_reg,vj=vj)
-        
-        if any([x is not None for x in [load_dir, feature_file]]):
-            self.load_model(load_dir = load_dir, feature_file = feature_file, data_seq_file = data_seq_file, 
-                            gen_seq_file = gen_seq_file, log_file = log_file, load_seqs = load_seqs)
-        else:
-            self.add_features(custom_pgen_model = custom_pgen_model)
-        
-    def add_features(self, custom_pgen_model=None):
-        """Generates a list of feature_lsts for L/R pos model.
-
-        Parameters
-        ----------
-        custom_pgen_model: string
-            path to folder of custom olga model.
-
-        """
-        features = []
-        import olga.load_model as olga_load_model
-        import olga.generation_probability as pgen
-        import olga.sequence_generation as seq_gen
-        if custom_pgen_model is None:
-            main_folder = os.path.join(os.path.dirname(sonia.sonia.__file__), 'default_models', self.chain_type)
-        else:
-            main_folder = custom_pgen_model
-        params_file_name = os.path.join(main_folder,'model_params.txt')
-        marginals_file_name = os.path.join(main_folder,'model_marginals.txt')
-        V_anchor_pos_file = os.path.join(main_folder,'V_gene_CDR3_anchors.csv')
-        J_anchor_pos_file = os.path.join(main_folder,'J_gene_CDR3_anchors.csv')
-            
-        if self.vj: 
-            self.genomic_data = olga_load_model.GenomicDataVJ()
-            self.generative_model = olga_load_model.GenerativeModelVJ()
-            self.genomic_data.load_igor_genomic_data(params_file_name, V_anchor_pos_file, J_anchor_pos_file)
-            self.generative_model.load_and_process_igor_model(marginals_file_name)
-            self.seq_gen_model = seq_gen.SequenceGenerationVJ(self.generative_model, self.genomic_data)
-            self.pgen_model = pgen.GenerationProbabilityVJ(self.generative_model, self.genomic_data)
-        else: 
-            self.genomic_data = olga_load_model.GenomicDataVDJ()
-            self.generative_model = olga_load_model.GenerativeModelVDJ()
-            self.genomic_data.load_igor_genomic_data(params_file_name, V_anchor_pos_file, J_anchor_pos_file)
-            self.generative_model.load_and_process_igor_model(marginals_file_name)
-            self.seq_gen_model = seq_gen.SequenceGenerationVDJ(self.generative_model, self.genomic_data)
-            self.pgen_model = pgen.GenerationProbabilityVDJ(self.generative_model, self.genomic_data)
-            
-        if self.joint_vjl:
-            features += [[v, j, 'l'+str(l)] for v in set([gene_to_num_str(genV[0],'V')for genV in self.genomic_data.genV]) for j in set([gene_to_num_str(genJ[0],'J') for genJ in self.genomic_data.genJ]) for l in range(1, self.max_L + 1)]
-        else:
-            features += [['l' + str(L)] for L in range(1, self.max_L + 1)]
-            
-        for aa in self.amino_acids:
-            features += [['a' + aa + str(L)] for L in range(self.max_depth)]
-            features += [['a' + aa + str(L)] for L in range(-self.max_depth, 0)]  
-            
-        if self.include_indep_genes:
-            features += [[v] for v in set([gene_to_num_str(genV[0],'V') for genV in self.genomic_data.genV])]
-            features += [[j] for j in set([gene_to_num_str(genJ[0],'J') for genJ in self.genomic_data.genJ])]
-        if self.include_joint_genes:
-            features += [[v, j] for v in set([gene_to_num_str(genV[0],'V') for genV in self.genomic_data.genV]) for j in set([gene_to_num_str(genJ[0],'J') for genJ in self.genomic_data.genJ])]
-
-        self.update_model(add_features=features)
-
-    def find_seq_features(self, seq, features = None):
-        """Finds which features match seq
-
-
-        If no features are provided, the left/right indexing amino acid model
-        features will be assumed.
-
-        Parameters
-        ----------
-        seq : list
-            CDR3 sequence and any associated genes
-        features : ndarray
-            Array of feature lists. Each list contains individual subfeatures which
-            all must be satisfied.
-
-        Returns
-        -------
-        seq_features : list
-            Indices of features seq projects onto.
-
-        """
-        if features is None:
-            seq_feature_lsts = [['l' + str(len(seq[0]))]]
-            seq_feature_lsts += [['a' + aa + str(i)] for i, aa in enumerate(seq[0])]
-            seq_feature_lsts += [['a' + aa + str(-1-i)] for i, aa in enumerate(seq[0][::-1])]
-            v_genes = [gene for gene in seq[1:] if 'v' in gene.lower()]
-            j_genes = [gene for gene in seq[1:] if 'j' in gene.lower()]
-            #Allow for just the gene family match
-            v_genes += [gene.split('-')[0] for gene in seq[1:] if 'v' in gene.lower()]
-            j_genes += [gene.split('-')[0] for gene in seq[1:] if 'j' in gene.lower()]
-
-            try:
-                seq_feature_lsts += [[gene_to_num_str(gene,'V')] for gene in v_genes]
-                seq_feature_lsts += [[gene_to_num_str(gene,'J')] for gene in j_genes]
-                seq_feature_lsts += [[gene_to_num_str(v_gene,'V'), gene_to_num_str(j_gene,'J')] for v_gene in v_genes for j_gene in j_genes]
-                seq_feature_lsts += [[gene_to_num_str(v_gene,'V'), gene_to_num_str(j_gene,'J'),'l' + str(len(seq[0]))] for v_gene in v_genes for j_gene in j_genes]
-            except ValueError:
-                pass
-            seq_features = list(set([self.feature_dict[tuple(f)] for f in seq_feature_lsts if tuple(f) in self.feature_dict]))
-        else:
-            seq_features = []
-            for feature_index,feature_lst in enumerate(features):
-                if self.seq_feature_proj(feature_lst, seq):
-                    seq_features += [feature_index]
-
-        return seq_features
+        Sonia.__init__(self, data_seqs=data_seqs, gen_seqs=gen_seqs, chain_type=chain_type,load_dir=load_dir, custom_pgen_model=custom_pgen_model,
+                       min_energy_clip = min_energy_clip, max_energy_clip = max_energy_clip, seed = seed,l2_reg=l2_reg,l1_reg=l1_reg,vj=vj,
+                       objective=objective,gamma=gamma,include_indep_genes=include_indep_genes,include_joint_genes=include_joint_genes,joint_vjl=joint_vjl,
+                       include_aminoacids=include_aminoacids,max_depth=max_depth,max_L=max_L)
         
     def update_model_structure(self,output_layer=[],input_layer=[],initialize=False):
         """ Defines the model structure and compiles it.
@@ -237,8 +116,6 @@ class SoNNia(Sonia):
         else:
             self.model.compile(optimizer=self.optimizer, loss=self._loss, 
                                metrics=[self._likelihood, BinaryCrossentropy(from_logits=True,name='binary_crossentropy')])
-
-        self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
         self.model_params = self.model.get_weights()
         return True 
 
@@ -276,7 +153,7 @@ class SoNNia(Sonia):
                 else:
                     k=1
                 splitted=[l.split(',') for l in lines[1:]]
-                features = np.array([l[0].split(';') for l in splitted])
+                features = np.array([l[0].split(';') for l in splitted],dtype=object)
                 data_marginals=[float(l[1+k]) for l in splitted]
                 model_marginals=[float(l[2+k]) for l in splitted]
                 gen_marginals=[float(l[3+k]) for l in splitted]
@@ -303,30 +180,11 @@ class SoNNia(Sonia):
         elif verbose:
             print('Cannot find model file --  no model parameters loaded.')
 
-    def _loss(self, y_true, y_pred):
-        
-        """
-        
-        This is the "I" loss in the arxiv paper with added regularization
-        
-        """
-        y=cast(y_true,dtype='bool')
-        data= math.reduce_mean(boolean_mask(y_pred,math.logical_not(y)))
-        gen= math.reduce_logsumexp(-boolean_mask(y_pred,y))-klog(ksum(y_true))
-        return gen+data+self.gamma*gen*gen
-
-    def _likelihood(self, y_true, y_pred):
-        
-        """
-        
-        This is the "I" loss in the arxiv paper with added regularization
-        
-        """
-        y=cast(y_true,dtype='bool')
-        data= math.reduce_mean(boolean_mask(y_pred,math.logical_not(y)))
-        gen= math.reduce_logsumexp(-boolean_mask(y_pred,y))-klog(ksum(y_true))
-        return gen+data
-
+    def set_gauge(self):
+        '''
+        placeholder for gauges.
+        '''
+        pass
 
 class EmbedViaMatrix(keras.layers.Layer):
     """

@@ -26,10 +26,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from optparse import OptionParser
 from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
 from sonnia.sonnia import SoNNia
-from sonia.evaluate_model import EvaluateModel
 from sonia.utils import gene_to_num_str
 import sonia
-from sonia.evaluate_model import EvaluateModel
 
 import olga.load_model as olga_load_model
 import olga.generation_probability as generation_probability
@@ -96,7 +94,7 @@ def main():
     (options, args) = parser.parse_args()
 
     #Check that the model is specified properly
-    main_folder = os.path.dirname(sonia.evaluate_model.__file__)
+    main_folder = os.path.dirname(sonia.__file__)
 
     default_models = {}
     default_models['humanTRA'] = [os.path.join(main_folder, 'default_models', 'human_T_alpha'),  'VJ']
@@ -233,13 +231,10 @@ def main():
     skip_empty = options.skip_empty
     
     # choose sonia model type
-    sonia_model=SoNNia(load_dir=model_folder,vj=recomb_type == 'VJ', custom_pgen_model=model_folder)
+    sonia_model=SoNNia(load_dir=model_folder,vj=recomb_type == 'VJ')
     if options.recompute_productive_norm: 
         print('Recompute productive normalization.')
         sonia_model.norm_productive=pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
-
-    # load Evaluate model class
-    ev=EvaluateModel(sonia_model,custom_olga_model=pgen_model)
 
     if options.infile_name is None: #No infile specified -- args should be the input seq
         print_warnings = True
@@ -281,7 +276,7 @@ def main():
             if options.J_mask is None: J_mask=['']
 
             v,j=V_mask[0],J_mask[0]
-            Q,pgen,ppost=ev.evaluate_seqs([[seq,v,j]])
+            Q,pgen,ppost=sonia_model.evaluate_seqs([[seq,v,j]])
             print('Ppost of ' + seq + ' '+v+ ' '+j+ ': ' + str(ppost[0]))
             print('Pgen of ' + seq + ' '+v+ ' '+j+ ': ' + str(pgen[0]))
             print('Q of ' + seq + ' '+v+ ' '+j+ ': ' + str(Q[0]))
@@ -290,7 +285,7 @@ def main():
             if options.V_mask is None: V_mask=['']
             if options.J_mask is None: J_mask=['']
             v,j=V_mask[0],J_mask[0]
-            Q=ev.evaluate_selection_factors([[seq,v,j]])
+            Q=sonia_model.evaluate_selection_factors([[seq,v,j]])
             print('Q of ' + seq + ' '+v+ ' '+j+ ': ' + str(Q[0]))
         elif options.pgen:
             pgen=pgen_model.compute_aa_CDR3_pgen(seq,V_mask,J_mask)
@@ -403,27 +398,27 @@ def main():
                     return -1
                 for t in tqdm(chunks(zipped,options.chunck_size)):
                     if options.ppost:
-                        Q,pgen,ppost=ev.evaluate_seqs(t)
+                        Q,pgen,ppost=sonia_model.evaluate_seqs(t)
                         for i in range(len(Q)):file.write(str(Q[i])+delimiter_out+str(pgen[i])+delimiter_out+str(ppost[i])+'\n')
                     elif options.Q:
-                        Q=ev.evaluate_selection_factors(t)
+                        Q=sonia_model.evaluate_selection_factors(t)
                         for i in range(len(Q)):file.write(str(Q[i])+'\n')
                     elif options.pgen:
-                        pgens=ev.compute_all_pgens(t)
+                        pgens=sonia_model.compute_all_pgens(t)
                         for i in range(len(pgens)):file.write(str(pgens[i])+'\n')
 
         else: #print to stdout
             for t in chunks(zipped,options.chunck_size):
                 if options.ppost:
-                    Q,pgen,ppost=ev.evaluate_seqs(t)
+                    Q,pgen,ppost=sonia_model.evaluate_seqs(t)
                     print ('Q, Pgen, Ppost')
                     for i in range(len(Q)):print(Q[i],pgen[i],ppost[i])
                 elif options.Q:
-                    Q=ev.evaluate_selection_factors(t)
+                    Q=sonia_model.evaluate_selection_factors(t)
                     print ('Q')
                     print(Q)
                 elif options.pgen:
-                    pgens=ev.compute_all_pgens(t)
+                    pgens=sonia_model.compute_all_pgens(t)
                     print ('Pgen')
                     print(pgens)
                 else:

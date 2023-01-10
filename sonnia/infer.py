@@ -27,7 +27,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from optparse import OptionParser
 import olga.sequence_generation as sequence_generation
 from sonnia.sonnia import SoNNia
-from sonia.evaluate_model import EvaluateModel
 import time
 from sonia.utils import gene_to_num_str
 import olga.load_model as olga_load_model
@@ -97,7 +96,7 @@ def main():
         tf.random.set_seed(options.seed)
 
     #Check that the model is specified properly
-    main_folder = os.path.dirname(sonia.evaluate_model.__file__)
+    main_folder = os.path.dirname(sonia.__file__)
     
     default_models = {}
     default_models['humanTRA'] = [os.path.join(main_folder, 'default_models', 'human_T_alpha'),  'VJ']
@@ -434,7 +433,7 @@ def main():
                                              include_joint_genes=joint_genes,
                                              include_indep_genes=independent_genes)
 
-        if generate_sequences: sonia_model.add_generated_seqs(n_gen_seqs,custom_model_folder=model_folder) 
+        if generate_sequences: sonia_model.add_generated_seqs(n_gen_seqs) 
 
         if recompute_productive_norm: sonia_model.norm_productive=pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
         
