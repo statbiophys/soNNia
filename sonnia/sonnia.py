@@ -10,6 +10,7 @@ logging.getLogger('tensorflow').disabled = True
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 from tensorflow.keras.models import load_model as lm
 import tensorflow.keras.backend as K
+from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow import keras
 from sonnia.sonia import Sonia
 from sonia.utils import gene_to_num_str

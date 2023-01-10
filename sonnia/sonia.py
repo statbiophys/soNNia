@@ -23,15 +23,7 @@ from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.callbacks import ModelCheckpoint
 import olga.load_model as olga_load_model
 import olga.generation_probability as pgen
-
-# check for C++ implementation of generation.
-try: 
-    import olha
-    olha=True
-except:
-    import olga.sequence_generation as seq_gen
-    olha=False
-
+import olga.sequence_generation as seq_gen
 from copy import copy
 from tqdm import tqdm
 from sonia.utils import compute_pgen_expand,compute_pgen_expand_novj,partial_joint_marginals,gene_to_num_str
@@ -823,16 +815,14 @@ class Sonia(object):
             self.generative_model = olga_load_model.GenerativeModelVDJ()
             self.generative_model.load_and_process_igor_model(self.marginals_file_name)
             self.pgen_model = pgen.GenerationProbabilityVDJ(self.generative_model, self.genomic_data)
-            if olha: self.seqgen_model = olha.SequenceGeneration(self.genomic_data,self.generative_model)
-            else:  self.seqgen_model = seq_gen.SequenceGenerationVDJ(self.generative_model, self.genomic_data)
+            self.seqgen_model = seq_gen.SequenceGenerationVDJ(self.generative_model, self.genomic_data)
         else:
             self.genomic_data = olga_load_model.GenomicDataVJ()
             self.genomic_data.load_igor_genomic_data(self.params_file_name, self.V_anchor_pos_file, self.J_anchor_pos_file)
             self.generative_model = olga_load_model.GenerativeModelVJ()
             self.generative_model.load_and_process_igor_model(self.marginals_file_name)
             self.pgen_model = pgen.GenerationProbabilityVJ(self.generative_model, self.genomic_data)
-            if olha: self.seqgen_model = olha.SequenceGeneration(self.genomic_data,self.generative_model)
-            else:  self.seqgen_model = seq_gen.SequenceGenerationVJ(self.generative_model, self.genomic_data)
+            self.seqgen_model = seq_gen.SequenceGenerationVJ(self.generative_model, self.genomic_data)
 
         with open(self.params_file_name,'r') as file:
             sep=0
