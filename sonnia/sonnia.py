@@ -149,10 +149,8 @@ class SoNNia(Sonia):
             with open(feature_file, 'r') as features_file:
                 lines = features_file.read().strip().split('\n') #skip header
                 sonia_or_sonnia=lines[0].split(',')[1]
-                if sonia_or_sonnia=='marginal_data':
-                    k=0
-                else:
-                    k=1
+                if sonia_or_sonnia=='marginal_data':k=0
+                else:k=1
                 splitted=[l.split(',') for l in lines[1:]]
                 features = np.array([l[0].split(';') for l in splitted],dtype=object)
                 data_marginals=[float(l[1+k]) for l in splitted]

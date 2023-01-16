@@ -21,6 +21,8 @@ from tensorflow import cast,boolean_mask,Variable
 from tensorflow import math
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow import keras
+
 import olga.load_model as olga_load_model
 import olga.generation_probability as pgen
 import olga.sequence_generation as seq_gen
@@ -779,20 +781,29 @@ class Sonia(object):
             print('No feature file provided --  no features loaded.')
         elif os.path.isfile(feature_file):
             with open(feature_file, 'r') as features_file:
-                all_lines = features_file.read().strip().split('\n')[1:] #skip header
-                splitted=[l.split(',') for l in all_lines]
-                features = np.array([l[0].split(';') for l in splitted], dtype=object)
-                feature_energies = np.array([float(l[1]) for l in splitted]).reshape((len(features), 1))
-                data_marginals=[float(l[2])  for l in splitted]
-                model_marginals=[float(l[3])  for l in splitted]
-                gen_marginals=[float(l[4])  for l in splitted]
+                lines = features_file.read().strip().split('\n') #skip header
+                sonia_or_sonnia=lines[0].split(',')[1]
+                if sonia_or_sonnia=='marginal_data':k=0
+                else:k=1
+                splitted=[l.split(',') for l in lines[1:]]
+                features = np.array([l[0].split(';') for l in splitted],dtype=object)
+                data_marginals=[float(l[1+k]) for l in splitted]
+                model_marginals=[float(l[2+k]) for l in splitted]
+                gen_marginals=[float(l[3+k]) for l in splitted]
             self.features = features
             self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
             self.data_marginals=data_marginals
             self.model_marginals=model_marginals
             self.gen_marginals=gen_marginals
-            self.update_model_structure(initialize=True)
-            self.model.set_weights([feature_energies])
+
+            if k==1:
+                feature_energies = np.array([float(l[1]) for l in splitted]).reshape((len(features), 1))
+                self.update_model_structure(initialize=True)
+                self.model.set_weights([feature_energies])
+            else:
+                self.model = keras.models.load_model(model_file, custom_objects={'loss': self._loss,'likelihood': self._likelihood}, compile = False)
+                self.optimizer = keras.optimizers.RMSprop()
+                self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
 
     def define_models(self,recompute_norm=True):
         '''
