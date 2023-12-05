@@ -217,31 +217,14 @@ class Sonia(object):
             Indices of features seq projects onto.
 
         """
-        if features is None:
-            seq_feature_lsts = [['l' + str(len(seq[0]))]]
-            seq_feature_lsts += [['a' + aa + str(i)] for i, aa in enumerate(seq[0])]
-            seq_feature_lsts += [['a' + aa + str(-1-i)] for i, aa in enumerate(seq[0][::-1])]
-            v_genes = [gene for gene in seq[1:] if 'v' in gene.lower()]
-            j_genes = [gene for gene in seq[1:] if 'j' in gene.lower()]
-            #Allow for just the gene family match
-            v_genes += [gene.split('-')[0] for gene in seq[1:] if 'v' in gene.lower()]
-            j_genes += [gene.split('-')[0] for gene in seq[1:] if 'j' in gene.lower()]
-
-            try:
-                seq_feature_lsts += [[gene_to_num_str(gene,'V')] for gene in v_genes]
-                seq_feature_lsts += [[gene_to_num_str(gene,'J')] for gene in j_genes]
-                seq_feature_lsts += [[gene_to_num_str(v_gene,'V'), gene_to_num_str(j_gene,'J')] for v_gene in v_genes for j_gene in j_genes]
-                seq_feature_lsts += [[gene_to_num_str(v_gene,'V'), gene_to_num_str(j_gene,'J'),'l' + str(len(seq[0]))] for v_gene in v_genes for j_gene in j_genes]
-            except ValueError:
-                pass
-            seq_features = list(set([self.feature_dict[tuple(f)] for f in seq_feature_lsts if tuple(f) in self.feature_dict]))
-        else:
-            seq_features = []
-            for feature_index,feature_lst in enumerate(features):
-                if self.seq_feature_proj(feature_lst, seq):
-                    seq_features += [feature_index]
-
-        return seq_features
+        seq1,invseq=seq[0],seq[0][::-1]
+        seq_feature_lsts = [['l' + str(len(seq1))]]
+        for i in range(len(seq[0])):
+            seq_feature_lsts += [['a' + seq1[i] + str(i)],['a' + invseq[i] + str(-1-i)]]
+        v=gene_to_num_str(seq[1],'V')
+        j=gene_to_num_str(seq[2],'J')
+        seq_feature_lsts += [[v,j],[v],[j]]
+        return list(set([self.feature_dict[tuple(f)] for f in seq_feature_lsts if tuple(f) in self.feature_dict]))
 
     def seq_feature_proj(self, feature, seq):
         """Checks if a sequence matches all subfeatures of the feature list
@@ -1152,3 +1135,4 @@ class Sonia(object):
             Q= np.exp(-energies)/self.Z # compute Q
             self.dkl=np.mean(Q*np.log2(Q))
         return self.dkl
+    

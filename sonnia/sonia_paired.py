@@ -15,6 +15,7 @@ from sonnia.sonia import Sonia
 import sonia
 import olga.generation_probability as generation_probability
 from tqdm import tqdm
+
 class SoniaPaired(Sonia):
     
     def __init__(self, data_seqs = [], gen_seqs = [], chain_type_heavy='human_T_beta',chain_type_light='human_T_alpha', load_dir = None, 
@@ -110,11 +111,11 @@ class SoniaPaired(Sonia):
         
     def find_seq_features(self, seq, features = None):
         """Finds which features match seq
-        
-        
+
+
         If no features are provided, the left/right indexing amino acid model
         features will be assumed.
-        
+
         Parameters
         ----------
         seq : list
@@ -122,47 +123,29 @@ class SoniaPaired(Sonia):
         features : ndarray
             Array of feature lists. Each list contains individual subfeatures which
             all must be satisfied.
-    
+
         Returns
         -------
         seq_features : list
             Indices of features seq projects onto.
-        
+
         """
-        #0-2 is heavy 3-5 is light
-        if features is None:
-            seq_feature_lsts = [['l_h' + str(len(seq[0]))]]
-            seq_feature_lsts += [['l_l' + str(len(seq[3]))]]
+        seq1,invseq=seq[0],seq[0][::-1]
+        seq_feature_lsts = [['l_h' + str(len(seq1))]]
+        for i in range(len(seq1)):
+            seq_feature_lsts += [['a_h' + seq1[i] + str(i)],['a_h' + invseq[i] + str(-1-i)]]
+        seq1,invseq=seq[3],seq[3][::-1]
+        seq_feature_lsts += [['l_l' + str(len(seq1))]]
+        for i in range(len(seq1)):
+            seq_feature_lsts += [['a_l' + seq1[i] + str(i)],['a_l' + invseq[i] + str(-1-i)]]
+        vh='v_h' + gene_to_num_str(seq[1],'V')[1:]
+        jh='j_h' + gene_to_num_str(seq[2],'J')[1:]
+        vl='v_l' + gene_to_num_str(seq[4],'V')[1:]
+        jl='j_l' + gene_to_num_str(seq[5],'J')[1:]
+        seq_feature_lsts += [[vh,jh],[vh],[jh],[vl,jl],[vl],[jl]]
+        return list(set([self.feature_dict[tuple(f)] for f in seq_feature_lsts if tuple(f) in self.feature_dict]))
 
-            seq_feature_lsts += [['a_h' + aa + str(i)] for i, aa in enumerate(seq[0])]
-            seq_feature_lsts += [['a_h' + aa + str(-1-i)] for i, aa in enumerate(seq[0][::-1])]
-
-            seq_feature_lsts += [['a_l' + aa + str(i)] for i, aa in enumerate(seq[3])]
-            seq_feature_lsts += [['a_l' + aa + str(-1-i)] for i, aa in enumerate(seq[3][::-1])]
-
-            v_genes_heavy = [gene for gene in seq[1:3] if 'v' in gene.lower()]
-            j_genes_heavy = [gene for gene in seq[1:3] if 'j' in gene.lower()]
-            v_genes_light = [gene for gene in seq[4:7] if 'v' in gene.lower()]
-            j_genes_light = [gene for gene in seq[4:7] if 'j' in gene.lower()]
-            
-            try:
-                seq_feature_lsts += [['v_h' + gene_to_num_str(gene,'V')[1:]] for gene in v_genes_heavy]
-                seq_feature_lsts += [['j_h' + gene_to_num_str(gene,'J')[1:]] for gene in j_genes_heavy]
-                seq_feature_lsts += [['v_l' + gene_to_num_str(gene,'V')[1:]] for gene in v_genes_light]
-                seq_feature_lsts += [['j_l' + gene_to_num_str(gene,'J')[1:]] for gene in j_genes_light]
-                seq_feature_lsts += [['v_h' + gene_to_num_str(v_gene,'V')[1:], 'j_h' + gene_to_num_str(j_gene,'J')[1:]] for v_gene in v_genes_heavy for j_gene in j_genes_heavy]
-                seq_feature_lsts += [['v_l' + gene_to_num_str(v_gene,'V')[1:], 'j_l' +  gene_to_num_str(j_gene,'J')[1:]] for v_gene in v_genes_light for j_gene in j_genes_light]
-            except ValueError:
-                pass
-            seq_features = list(set([self.feature_dict[tuple(f)] for f in seq_feature_lsts if tuple(f) in self.feature_dict]))
-        else:
-            seq_features = []
-            for feature_index,feature_lst in enumerate(features):
-                if self.seq_feature_proj(feature_lst, seq):
-                    seq_features += [feature_index]
-                
-        return seq_features
-
+        
     def generate_sequences_pre(self, num_seqs = 1,nucleotide=False):
         """Generates MonteCarlo sequences for gen_seqs using OLGA.
         Only generates seqs from a V(D)J model. Requires the OLGA package
