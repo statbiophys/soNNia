@@ -6,8 +6,8 @@ import olga.load_model as load_model
 import olga.generation_probability as pgen
 import olga.sequence_generation as seq_gen
 import os
-import sonia.sonia_leftpos_rightpos
-from sonia.utils import gene_to_num_str
+import sonnia.sonnia
+from sonnia.utils import gene_to_num_str
 
 translate_header = {
     'sequenceStatus': 'frame_type',
@@ -134,7 +134,7 @@ class Processing(object):
         if self.custom_model_folder is not None:
             main_folder = self.custom_model_folder
         else:
-            main_folder=os.path.join(os.path.dirname(sonia.sonia_leftpos_rightpos.__file__),'default_models',self.chain_type)
+            main_folder=os.path.join(os.path.dirname(sonnia.__file__),'default_models',self.chain_type)
 
         params_file_name = os.path.join(main_folder,'model_params.txt')
         marginals_file_name = os.path.join(main_folder,'model_marginals.txt')

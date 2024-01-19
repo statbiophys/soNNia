@@ -13,8 +13,7 @@ import tensorflow.keras.backend as K
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow import keras
 from sonnia.sonia import Sonia
-from sonia.utils import gene_to_num_str
-import sonia.sonia
+from sonnia.utils import gene_to_num_str
 from copy import copy
 import itertools
 import multiprocessing as mp
@@ -142,31 +141,22 @@ class SoNNia(Sonia):
         if feature_file is None and verbose:
             print('No feature file provided --  no features loaded.')
         elif os.path.isfile(feature_file):
-            features = []
-            data_marginals=[]
-            gen_marginals=[]
-            model_marginals=[]
             with open(feature_file, 'r') as features_file:
                 lines = features_file.read().strip().split('\n') #skip header
                 sonia_or_sonnia=lines[0].split(',')[1]
                 if sonia_or_sonnia=='marginal_data':k=0
                 else:k=1
                 splitted=[l.split(',') for l in lines[1:]]
-                features = np.array([l[0].split(';') for l in splitted],dtype=object)
-                data_marginals=[float(l[1+k]) for l in splitted]
-                model_marginals=[float(l[2+k]) for l in splitted]
-                gen_marginals=[float(l[3+k]) for l in splitted]
-            
-            self.features = np.array(features)
-            self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
-            self.data_marginals=data_marginals
-            self.model_marginals=model_marginals
-            self.gen_marginals=gen_marginals
-            
-            initial=np.array([s[0][0] for s in self.features])
-            self.l_length=len(np.arange(len(initial))[initial=='l'])
-            self.a_length=len(np.arange(len(initial))[initial=='a'])
-            self.vj_length=len(set(np.arange(len(initial))[initial=='v'])|set(np.arange(len(initial))[initial=='j']))
+                self.features = np.array([l[0].split(';') for l in splitted],dtype=object)
+                self.data_marginals=[float(l[1+k]) for l in splitted]
+                self.model_marginals=[float(l[2+k]) for l in splitted]
+                self.gen_marginals=[float(l[3+k]) for l in splitted]
+                self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
+
+                initial=np.array([s[0][0] for s in self.features])
+                self.l_length=len(np.arange(len(initial))[initial=='l'])
+                self.a_length=len(np.arange(len(initial))[initial=='a'])
+                self.vj_length=len(set(np.arange(len(initial))[initial=='v'])|set(np.arange(len(initial))[initial=='j']))
         elif verbose:
             print('Cannot find features file or model file --  no features loaded.')
 

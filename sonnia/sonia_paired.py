@@ -10,11 +10,11 @@ import multiprocessing as mp
 import numpy as np
 import olga.load_model as load_model
 import olga.sequence_generation as seq_gen
-from sonia.utils import gene_to_num_str
+from sonnia.utils import gene_to_num_str
 from sonnia.sonia import Sonia
-import sonia
 import olga.generation_probability as generation_probability
 from tqdm import tqdm
+import sonnia.sonnia
 
 class SoniaPaired(Sonia):
     
@@ -34,9 +34,9 @@ class SoniaPaired(Sonia):
 
     def define_models(self,recompute_norm=False):
 
-        if self.custom_pgen_model_light is None: main_folder_light = os.path.join(os.path.dirname(sonia.__file__), 'default_models', self.chain_type_light)
+        if self.custom_pgen_model_light is None: main_folder_light = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', self.chain_type_light)
         else: main_folder_light=self.custom_pgen_model_light
-        if self.custom_pgen_model_heavy is None: main_folder_heavy = os.path.join(os.path.dirname(sonia.__file__), 'default_models', self.chain_type_heavy)
+        if self.custom_pgen_model_heavy is None: main_folder_heavy = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', self.chain_type_heavy)
         else: main_folder_heavy=self.custom_pgen_model_heavy
 
         marginals_file_name = os.path.join(main_folder_light,'model_marginals.txt')
@@ -213,10 +213,10 @@ class SoniaPaired(Sonia):
     def _save_pgen_model(self,save_dir):
         import shutil
         try:
-            if self.custom_pgen_model_light is None: main_folder = os.path.join(os.path.dirname(sonia.__file__), 'default_models', self.chain_type_light)
+            if self.custom_pgen_model_light is None: main_folder = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', self.chain_type_light)
             else: main_folder=self.custom_pgen_model_light
         except:
-            main_folder = os.path.join(os.path.dirname(sonia.__file__), 'default_models', self.chain_type)
+            main_folder = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', self.chain_type)
 
         light_chain_dir=os.path.join(save_dir,'light_chain')
 
@@ -226,10 +226,10 @@ class SoniaPaired(Sonia):
         shutil.copy2(os.path.join(main_folder,'V_gene_CDR3_anchors.csv'),light_chain_dir)
         shutil.copy2(os.path.join(main_folder,'J_gene_CDR3_anchors.csv'),light_chain_dir)
         try:
-            if self.custom_pgen_model_heavy is None: main_folder = os.path.join(os.path.dirname(sonia.__file__), 'default_models', self.chain_type_heavy)
+            if self.custom_pgen_model_heavy is None: main_folder = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', self.chain_type_heavy)
             else: main_folder=self.custom_pgen_model_heavy
         except:
-            main_folder = os.path.join(os.path.dirname(sonia.__file__), 'default_models', self.chain_type)
+            main_folder = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', self.chain_type)
         heavy_chain_dir=os.path.join(save_dir,'heavy_chain')
         if not os.path.isdir(heavy_chain_dir):os.mkdir(heavy_chain_dir)
         shutil.copy2(os.path.join(main_folder,'model_params.txt'),heavy_chain_dir)

@@ -22,16 +22,15 @@ from tensorflow import math
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow import keras
-
+import sonnia.sonnia
 import olga.load_model as olga_load_model
 import olga.generation_probability as pgen
 import olga.sequence_generation as seq_gen
 from copy import copy
 from tqdm import tqdm
-from sonia.utils import compute_pgen_expand,compute_pgen_expand_novj,partial_joint_marginals,gene_to_num_str
+from sonnia.utils import compute_pgen_expand,compute_pgen_expand_novj,partial_joint_marginals,gene_to_num_str
 import itertools
 import multiprocessing as mp
-import sonia
 
 #Set input = raw_input for python 2
 try:
@@ -265,7 +264,7 @@ class Sonia(object):
         Parameters
         ----------
         seqs_features : list
-            list of encoded sequences into sonia features.
+            list of encoded sequences into sonnia features.
         Returns
         -------
         E : float
@@ -655,10 +654,10 @@ class Sonia(object):
     def _save_pgen_model(self,save_dir):
         import shutil
         try:
-            if self.custom_pgen_model is None: main_folder = os.path.join(os.path.dirname(sonia.__file__), 'default_models', self.chain_type)
+            if self.custom_pgen_model is None: main_folder = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', self.chain_type)
             else: main_folder=self.custom_pgen_model
         except:
-            main_folder = os.path.join(os.path.dirname(sonia.__file__), 'default_models', self.chain_type)
+            main_folder = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', self.chain_type)
         shutil.copy2(os.path.join(main_folder,'model_params.txt'),save_dir)
         shutil.copy2(os.path.join(main_folder,'model_marginals.txt'),save_dir)
         shutil.copy2(os.path.join(main_folder,'V_gene_CDR3_anchors.csv'),save_dir)
@@ -769,18 +768,14 @@ class Sonia(object):
                 if sonia_or_sonnia=='marginal_data':k=0
                 else:k=1
                 splitted=[l.split(',') for l in lines[1:]]
-                features = np.array([l[0].split(';') for l in splitted],dtype=object)
-                data_marginals=[float(l[1+k]) for l in splitted]
-                model_marginals=[float(l[2+k]) for l in splitted]
-                gen_marginals=[float(l[3+k]) for l in splitted]
-            self.features = features
-            self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
-            self.data_marginals=data_marginals
-            self.model_marginals=model_marginals
-            self.gen_marginals=gen_marginals
+                self.features = np.array([l[0].split(';') for l in splitted],dtype=object)
+                self.data_marginals=[float(l[1+k]) for l in splitted]
+                self.model_marginals=[float(l[2+k]) for l in splitted]
+                self.gen_marginals=[float(l[3+k]) for l in splitted]
+                self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
 
             if k==1:
-                feature_energies = np.array([float(l[1]) for l in splitted]).reshape((len(features), 1))
+                feature_energies = np.array([float(l[1]) for l in splitted]).reshape((len(self.features), 1))
                 self.update_model_structure(initialize=True)
                 self.model.set_weights([feature_energies])
             else:
@@ -796,7 +791,7 @@ class Sonia(object):
         if self.custom_pgen_model is not None:
             main_folder = self.custom_pgen_model
         else:
-            main_folder=os.path.join(os.path.dirname(sonia.__file__),'default_models',self.chain_type)
+            main_folder=os.path.join(os.path.dirname(sonnia.__file__),'default_models',self.chain_type)
 
         self.params_file_name = os.path.join(main_folder,'model_params.txt')
         self.marginals_file_name = os.path.join(main_folder,'model_marginals.txt')
@@ -1136,3 +1131,9 @@ class Sonia(object):
             self.dkl=np.mean(Q*np.log2(Q))
         return self.dkl
     
+    def load_default_model(self,chain_type=None):
+        if chain_type is None:
+            chain_type=self.chain_type
+        load_dir=os.path.join(os.path.dirname(sonnia.__file__), 'default_models', chain_type)
+        if chain_type in ['human_T_alpha','human_B_kappa','human_B_lambda','mouse_T_alpha']: self.vj=True
+        self.load_model(load_dir = load_dir)

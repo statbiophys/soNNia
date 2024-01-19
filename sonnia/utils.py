@@ -1,4 +1,3 @@
-from sonia.utils import gene_to_num_str
 import olga.generation_probability as generation_probability
 import olga.sequence_generation as sequence_generation
 import olga.load_model as load_model
@@ -211,3 +210,67 @@ def correct_olga_paired(qm):
     qm.seq_gen_model_light = sequence_generation.SequenceGenerationVJ(qm.generative_model_light, qm.genomic_data_light)
     qm.pgen_model_light = generation_probability.GenerationProbabilityVJ(qm.generative_model_light, qm.genomic_data_light)
 
+def add_random_error(nt, p):
+    """ Take a nucleotide seq then simulate a sequencing
+    error on it. Explicitely, each nucleotide has a probability p
+    of being randomly modified. Adapted from Thomas Dupic.
+    @ Arguments:
+    * nt: amino-acid sequence
+    * p: the error rate
+    """
+    rand = np.random.choice(["A", "T", "G", "C"], len(nt))
+    return "".join([(a, r)[np.random.random() < p] for a, r in zip(nt, rand)])
+
+def gene_to_num_str(gene_name, gene_type):
+    """Strips excess gene name info to number string.
+
+    Parameters
+    ----------
+    gene_name : str
+        Gene or allele name
+    gene_type : char
+        Genomic cassette type. (i.e. V, D, or J)
+    Returns
+    -------
+    num_str : str
+        Reduced gene or allele name with leading zeros and excess
+        characters removed.
+
+    """
+    # get rid of allele
+    gene_name=gene_name.split('*')[0]
+    num_str = gene_type.lower().join([g.lstrip('0') for g in gene_name.lower().split(gene_type.lower())[1:]])
+    num_str = '-'.join([g.lstrip('0') for g in num_str.split('-')])
+    return gene_type.lower() + num_str.replace('/', '')
+
+def compute_pgen_expand(x):
+    # compute pgen conditioned on gene usage
+    return x[1].compute_aa_CDR3_pgen(x[0][0],x[0][1],x[0][2])
+
+def compute_pgen_expand_novj(x):
+    # compute pgen unconditioned on gene usage
+    return x[1].compute_aa_CDR3_pgen(x[0][0])
+
+def generate_sequence(x):
+    seq_gen_model=x[0]
+    genomic_data=x[1]
+    np.random.seed(x[2])
+    seq=seq_gen_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+    return [seq[1], genomic_data.genV[seq[2]][0].split('*')[0], genomic_data.genJ[seq[3]][0].split('*')[0],seq[0]]
+
+def partial_joint_marginals(args):
+    # compute joint marginals on subset of seqs.
+    features = args[0]
+    Qs = args[1]
+    marginals=args[2]
+    l=int(np.sqrt(len(marginals)))
+    Z=0
+    for seq_features,Q in zip(features,Qs):
+        for i,j in itertools.combinations(np.array(seq_features),2):
+            if i>j:marginals[i,j] += Q
+            else: marginals[j,i] += Q
+        Z += Q
+    return [marginals,Z]
+
+def parallel_function(x):
+    return x[0](x[1])

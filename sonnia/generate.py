@@ -27,7 +27,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from optparse import OptionParser
 import olga.sequence_generation as sequence_generation
 from sonnia.sonnia import SoNNia
-import sonia
+import sonnia.sonnia
 import olga.load_model as olga_load_model
 import numpy as np
 from tqdm import tqdm
@@ -72,7 +72,7 @@ def main():
     (options, args) = parser.parse_args()
 
     #Check that the model is specified properly
-    main_folder = os.path.dirname(sonia.__file__)
+    main_folder = os.path.dirname(sonnia.__file__)
 
     default_models = {}
     default_models['humanTRA'] = [os.path.join(main_folder, 'default_models', 'human_T_alpha'),  'VJ']

@@ -24,6 +24,7 @@ pip install matplotlib
 pip install olga
 pip install sonia 
  ```
+For mac user on new metal devices, make sure to install additional dependencies. Currently, I the configuration tensorflow-macos==2.9 and tensorflow-metal==0.5.0 should work.
 
 ## References
 Isacchini G, Walczak AM, Mora T, Nourmohammad A, Deep generative selection models of T and B cell receptor repertoires with soNNia, (2021) PNAS, https://www.pnas.org/content/118/14/e2023141118.short

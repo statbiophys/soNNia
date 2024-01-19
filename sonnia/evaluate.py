@@ -24,10 +24,9 @@ from __future__ import print_function, division,absolute_import
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from optparse import OptionParser
-from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
 from sonnia.sonnia import SoNNia
-from sonia.utils import gene_to_num_str
-import sonia
+from sonnia.utils import gene_to_num_str
+import sonnia.sonnia
 
 import olga.load_model as olga_load_model
 import olga.generation_probability as generation_probability

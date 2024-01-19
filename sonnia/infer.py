@@ -28,12 +28,12 @@ from optparse import OptionParser
 import olga.sequence_generation as sequence_generation
 from sonnia.sonnia import SoNNia
 import time
-from sonia.utils import gene_to_num_str
+from sonnia.utils import gene_to_num_str
 import olga.load_model as olga_load_model
 import olga.generation_probability as generation_probability
 import numpy as np
 from tqdm import tqdm
-import sonia
+import sonnia.sonnia
 
 
 #Set input = raw_input for python 2
@@ -62,6 +62,7 @@ def main():
     parser.add_option('--batch_size', type='int', default = 5000, dest='batch_size' ,help='size of batch for the stochastic gradient descent')
     parser.add_option('--validation_split', type='float', default = 0.2, dest='validation_split' ,help='fraction of sequences used for validation.')
     parser.add_option('--joint_genes', '--include_joint_genes', action='store_true', dest='joint_genes', default=False, help='Join gene features.')
+    parser.add_option('--linear', action='store_true', dest='linear_model', default=False, help='Join gene features.')
 
     #location of seqs
     parser.add_option('--seq_in', '--seq_index', type='int', metavar='INDEX', dest='seq_in_index', default = 0, help='specifies sequences to be read in are in column INDEX. Default is index 0 (the first column).')
@@ -96,7 +97,7 @@ def main():
         tf.random.set_seed(options.seed)
 
     #Check that the model is specified properly
-    main_folder = os.path.dirname(sonia.__file__)
+    main_folder = os.path.dirname(sonnia.__file__)
     
     default_models = {}
     default_models['humanTRA'] = [os.path.join(main_folder, 'default_models', 'human_T_alpha'),  'VJ']
@@ -426,12 +427,12 @@ def main():
 
         # choose sonia model type
 
-        sonia_model=SoNNia(data_seqs=data_seqs,
-                                             gen_seqs=gen_seqs,
-                                             custom_pgen_model=model_folder,
-                                             vj=recomb_type == 'VJ',
-                                             include_joint_genes=joint_genes,
-                                             include_indep_genes=independent_genes)
+        sonia_model = SoNNia(data_seqs=data_seqs,
+                             gen_seqs=gen_seqs,
+                             custom_pgen_model=model_folder,
+                             vj=recomb_type == 'VJ',
+                             include_joint_genes=joint_genes,
+                             include_indep_genes=independent_genes,deep=not options.linear_model)
 
         if generate_sequences: sonia_model.add_generated_seqs(n_gen_seqs) 
 
