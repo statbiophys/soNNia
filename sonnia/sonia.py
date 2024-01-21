@@ -1183,7 +1183,9 @@ class Sonia(object):
 
         # Overhead of parallel is too long for small amount of sequences.
         if len(seq_model_features) < int(1e5):
-            two_points_marginal, Z = partial_joint_marginals(seq_model_features, Qs, np.zeros((l, l)))
+            two_points_marginal, Z = partial_joint_marginals((seq_model_features,
+                                                              Qs,
+                                                              np.zeros((l, l))))
             return two_points_marginals / Z
 
         # Create size segments list
