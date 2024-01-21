@@ -1,18 +1,24 @@
+import itertools
+import os
+import subprocess
+
+import numpy as np
+
 import olga.generation_probability as generation_probability
 import olga.sequence_generation as sequence_generation
 import olga.load_model as load_model
 import olga.generation_probability as pgen
 import olga.sequence_generation as seq_gen
-import os
-import itertools
-import subprocess
-import numpy as np
+
 import sonia.sonia_leftpos_rightpos
+
 def run_terminal(string):
-    return [i.decode("utf-8").split('\n') for i in subprocess.Popen(string, shell=True, stdout=subprocess.PIPE,stderr = subprocess.PIPE).communicate()]
+    return [i.decode("utf-8").split('\n')
+            for i in subprocess.Popen(string, shell=True,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE).communicate()]
 
 def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):
-    
     #Load generative model
     if custom_model_folder is None:
         main_folder = os.path.join(os.path.dirname(sonia.sonia_leftpos_rightpos.__file__), 'default_models', chain_type)
@@ -55,31 +61,31 @@ def correct_olga_heavy(qm):
     old_pv=qm.generative_model.PV
     old_names=qm.pgen_model.V_allele_names
     old_ns=[gene_to_num_str(v,'V') for v in old_names]
-    
+
     #P(allele|V)
     p_allele_given_v={}
     for v in set(old_ns):
         indices=np.arange(len(old_ns))[np.array(old_ns)==v]
         alleles_probs=np.nan_to_num(old_pv[indices]/np.sum(old_pv[indices]),1)
         for i,j in enumerate(alleles_probs):
-            p_allele_given_v[str(i)+'_'+str(indices[i])+'_' +v]=j    
+            p_allele_given_v[str(i)+'_'+str(indices[i])+'_' +v]=j
     weigths=np.zeros(len(old_names))
     for v in list(p_allele_given_v): weigths[int(v.split('_')[1])]=p_allele_given_v[v]
-    
+
     # compute probabilities data
     v_data,count_data=np.unique(np.array(qm.data_seqs)[:,1],return_counts=True)
     freq_data=count_data/np.sum(count_data)
     v_data_ns=[gene_to_num_str(v,'V') for v in v_data]
     dict_data=dict(zip(v_data_ns,freq_data))
-    
+
     new_pv=np.zeros(len(old_ns))
     for i,v in enumerate(old_ns):
         if v in v_data_ns: new_pv[i]=weigths[i]*dict_data[v]
-        
+
     qm.generative_model.PV=np.array(new_pv)
     qm.seq_gen_model = sequence_generation.SequenceGenerationVDJ(qm.generative_model, qm.genomic_data)
     qm.pgen_model = generation_probability.GenerationProbabilityVDJ(qm.generative_model, qm.genomic_data)
-    
+
 def correct_olga_light(qm):
 
     old_pvj=qm.generative_model.PVJ
@@ -95,7 +101,7 @@ def correct_olga_light(qm):
         new_probs=old_pvj[indices].sum(axis=-1)
         alleles_probs=np.nan_to_num(new_probs/np.sum(new_probs),1)
         for i,j in enumerate(alleles_probs):
-            p_allele_given_v[str(i)+'_'+str(indices[i])+'_' +v]=j   
+            p_allele_given_v[str(i)+'_'+str(indices[i])+'_' +v]=j
 
     weigths_v={}
     for v in list(p_allele_given_v): weigths_v[int(v.split('_')[1])]=p_allele_given_v[v]
@@ -107,7 +113,7 @@ def correct_olga_light(qm):
         new_probs=old_pvj.T[indices].sum(axis=-1)
         alleles_probs=np.nan_to_num(new_probs/np.sum(new_probs),1)
         for i,j in enumerate(alleles_probs):
-            p_allele_given_j[str(i)+'_'+str(indices[i])+'_' +v]=j   
+            p_allele_given_j[str(i)+'_'+str(indices[i])+'_' +v]=j
     weigths_j={}
     for v in list(p_allele_given_j): weigths_j[int(v.split('_')[1])]=p_allele_given_j[v]
 
@@ -122,50 +128,50 @@ def correct_olga_light(qm):
         for k,j in enumerate(old_ns_j):
             if v+','+j in vj_data: new_pvj[i,k]=dict_data[v+','+j]*weigths_v[i]*weigths_j[k]
     new_pvj=new_pvj/np.sum(new_pvj)
-    
+
     qm.generative_model.PVJ=np.array(new_pvj)
     qm.seq_gen_model = sequence_generation.SequenceGenerationVJ(qm.generative_model, qm.genomic_data)
     qm.pgen_model = generation_probability.GenerationProbabilityVJ(qm.generative_model, qm.genomic_data)
-    
-    
+
+
 def correct_olga_paired(qm):
 
     #####################
     ### heavy chain #####
     #####################
-    
+
     old_pv=qm.generative_model_heavy.PV
     old_names=qm.pgen_model_heavy.V_allele_names
     old_ns=[gene_to_num_str(v,'V') for v in old_names]
-    
+
     #P(allele|V)
     p_allele_given_v={}
     for v in set(old_ns):
         indices=np.arange(len(old_ns))[np.array(old_ns)==v]
         alleles_probs=np.nan_to_num(old_pv[indices]/np.sum(old_pv[indices]),1)
         for i,j in enumerate(alleles_probs):
-            p_allele_given_v[str(i)+'_'+str(indices[i])+'_' +v]=j    
+            p_allele_given_v[str(i)+'_'+str(indices[i])+'_' +v]=j
     weigths=np.zeros(len(old_names))
     for v in list(p_allele_given_v): weigths[int(v.split('_')[1])]=p_allele_given_v[v]
-    
+
     # compute probabilities data
     v_data,count_data=np.unique(np.array(qm.data_seqs)[:,1],return_counts=True)
     freq_data=count_data/np.sum(count_data)
     v_data_ns=[gene_to_num_str(v,'V') for v in v_data]
     dict_data=dict(zip(v_data_ns,freq_data))
-    
+
     new_pv=np.zeros(len(old_ns))
     for i,v in enumerate(old_ns):
         if v in v_data_ns: new_pv[i]=weigths[i]*dict_data[v]
-        
+
     qm.generative_model_heavy.PV=np.array(new_pv)
     qm.seq_gen_model_heavy = sequence_generation.SequenceGenerationVDJ(qm.generative_model_heavy, qm.genomic_data_heavy)
     qm.pgen_model_heavy = generation_probability.GenerationProbabilityVDJ(qm.generative_model_heavy, qm.genomic_data_heavy)
-    
+
     #####################
     ### light chain #####
     #####################
-    
+
     old_pvj=qm.generative_model_light.PVJ
     old_names_v=qm.pgen_model_light.V_allele_names
     old_names_j=qm.pgen_model_light.J_allele_names
@@ -179,7 +185,7 @@ def correct_olga_paired(qm):
         new_probs=old_pvj[indices].sum(axis=-1)
         alleles_probs=np.nan_to_num(new_probs/np.sum(new_probs),1)
         for i,j in enumerate(alleles_probs):
-            p_allele_given_v[str(i)+'_'+str(indices[i])+'_' +v]=j   
+            p_allele_given_v[str(i)+'_'+str(indices[i])+'_' +v]=j
 
     weigths_v={}
     for v in list(p_allele_given_v): weigths_v[int(v.split('_')[1])]=p_allele_given_v[v]
@@ -191,7 +197,7 @@ def correct_olga_paired(qm):
         new_probs=old_pvj.T[indices].sum(axis=-1)
         alleles_probs=np.nan_to_num(new_probs/np.sum(new_probs),1)
         for i,j in enumerate(alleles_probs):
-            p_allele_given_j[str(i)+'_'+str(indices[i])+'_' +v]=j   
+            p_allele_given_j[str(i)+'_'+str(indices[i])+'_' +v]=j
     weigths_j={}
     for v in list(p_allele_given_j): weigths_j[int(v.split('_')[1])]=p_allele_given_j[v]
 
@@ -221,8 +227,11 @@ def add_random_error(nt, p):
     rand = np.random.choice(["A", "T", "G", "C"], len(nt))
     return "".join([(a, r)[np.random.random() < p] for a, r in zip(nt, rand)])
 
-def gene_to_num_str(gene_name, gene_type):
-    """Strips excess gene name info to number string.
+def gene_to_num_str(gene_name: str,
+                    gene_type: str
+                   ) -> str:
+    """
+    Strip excess gene name info to number string.
 
     Parameters
     ----------
@@ -230,18 +239,17 @@ def gene_to_num_str(gene_name, gene_type):
         Gene or allele name
     gene_type : char
         Genomic cassette type. (i.e. V, D, or J)
+
     Returns
     -------
     num_str : str
         Reduced gene or allele name with leading zeros and excess
         characters removed.
-
     """
-    # get rid of allele
-    gene_name=gene_name.split('*')[0]
-    num_str = gene_type.lower().join([g.lstrip('0') for g in gene_name.lower().split(gene_type.lower())[1:]])
-    num_str = '-'.join([g.lstrip('0') for g in num_str.split('-')])
-    return gene_type.lower() + num_str.replace('/', '')
+    gene_name = gene_name.partition('*')[0].lower()
+    gene_type = gene_type.lower()
+    pre_hyphen, hyphen, post_hyphen = gene_name.partition(gene_type)[-1].partition('-')
+    return gene_type + (pre_hyphen.lstrip('0') + hyphen + post_hyphen.lstrip('0')).replace('/', '')
 
 def compute_pgen_expand(x):
     # compute pgen conditioned on gene usage
@@ -262,15 +270,22 @@ def partial_joint_marginals(args):
     # compute joint marginals on subset of seqs.
     features = args[0]
     Qs = args[1]
-    marginals=args[2]
-    l=int(np.sqrt(len(marginals)))
-    Z=0
-    for seq_features,Q in zip(features,Qs):
-        for i,j in itertools.combinations(np.array(seq_features),2):
-            if i>j:marginals[i,j] += Q
-            else: marginals[j,i] += Q
+    marginals = args[2]
+    Z = 0
+
+    for seq_features, Q in zip(features, Qs):
+        pairs = np.stack(np.meshgrid(seq_features, seq_features), -1).reshape(-1, 2)
+        marginals[pairs[:, 0], pairs[:, 1]] += Q
         Z += Q
-    return [marginals,Z]
+        # NOTE No performance difference using bool instead of np.tril and np.fill_diagonal.
+        #tril_bool = pairs[:, 0] > pairs[:, 1]
+        #marginals[pairs[:, 0][tril_bool], pairs[:, 1][tril_bool]] += Q
+
+    # Consistent with previous versions, return only the lower triangle with
+    # diagonal containing 0.
+    marginals = np.tril(marginals)
+    np.fill_diagonal(marginals, 0)
+    return [marginals, Z]
 
 def parallel_function(x):
     return x[0](x[1])
