@@ -3,21 +3,22 @@
 """
 @author: Giulio Isacchini
 """
-
-
-import os
-import numpy as np
-import os
-import logging
-logging.getLogger('tensorflow').disabled = True
-from tensorflow.keras.models import load_model as lm
-from tensorflow.keras.callbacks import ModelCheckpoint
-import tensorflow.keras.backend as K
-from tensorflow import keras
 from copy import copy
-import itertools
-from sonnia.sonia_paired import SoniaPaired
+import logging
 import multiprocessing as mp
+import os
+from typing import Any, Dict, Iterable, List, Tuple
+
+logging.getLogger('tensorflow').disabled = True
+
+import numpy as np
+from tensorflow import keras
+import tensorflow.keras.backend as K
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.models import load_model as lm
+
+from sonnia.sonia_paired import SoniaPaired
+
 #Set input = raw_input for python 2
 try:
     import __builtin__
@@ -26,20 +27,27 @@ except (ImportError, AttributeError):
     pass
 
 class SoNNiaPaired(SoniaPaired):
-    
-    def __init__(self, data_seqs = [], gen_seqs = [],chain_type_heavy='human_T_beta',chain_type_light='human_T_alpha',
-                 load_dir = None, feature_file = None, data_seq_file = None, gen_seq_file = None, log_file = None, load_seqs = True,
-                 max_depth = 25, max_L = 30, include_indep_genes = False, include_joint_genes = True, min_energy_clip = -10, max_energy_clip = 10, seed = None,custom_olga_model_light=None,custom_olga_model_heavy=None,deep=True,l2_reg=1e-3,independent_chains=False):
-        self.max_depth = max_depth
+    def __init__(self,
+                 *args: Tuple[Any],
+                 min_energy_clip: int = -10,
+                 max_energy_clip: int = 10,
+                 deep: bool = True,
+                 l2_reg: float = 1e-3,
+                 independent_chains: bool = False,
+                 include_genes: bool = True,
+                 **kwargs: Dict[str, Any]
+                ) -> None:
         self.deep=deep
-        self.include_genes=include_joint_genes or include_indep_genes
-        self.independent_chains=independent_chains
-        SoniaPaired.__init__(self, data_seqs = data_seqs, gen_seqs = gen_seqs,
-                 load_dir = load_dir, feature_file = feature_file, data_seq_file = data_seq_file, gen_seq_file = gen_seq_file, log_file = log_file, load_seqs = load_seqs,chain_type_heavy=chain_type_heavy,chain_type_light=chain_type_light,
-                 max_depth = max_depth, max_L = max_L, include_indep_genes = include_indep_genes, include_joint_genes = include_joint_genes, min_energy_clip = min_energy_clip, max_energy_clip = max_energy_clip, seed = seed, custom_olga_model_light=custom_olga_model_light, custom_olga_model_heavy=custom_olga_model_heavy)
-        self.l2_reg=l2_reg
-        
-    def update_model_structure(self,output_layer=[],input_layer=[],initialize=False):
+        self.independent_chains = independent_chains
+        self.include_genes = include_genes
+        SoniaPaired.__init__(self, *args, min_energy_clip=min_energy_clip,
+                             max_energy_clip=max_energy_clip, l2_reg=l2_reg)
+
+    def update_model_structure(self,
+                               output_layer: List = [],
+                               input_layer: List = [],
+                               initialize: bool = False
+                              ) -> bool:
         """ Defines the model structure and compiles it.
 
         Parameters
@@ -50,113 +58,127 @@ class SoNNiaPaired(SoniaPaired):
             if True, it initializes to linear model, otherwise it updates to new structure
 
         """
-        initial=np.array([s[0][:3] for s in self.features])
-        self.l_length_light=len(np.arange(len(initial))[initial=='l_l'])
-        self.l_length_heavy=len(np.arange(len(initial))[initial=='l_h'])
+        initial = np.array([s[0][:3] for s in self.features])
+        self.l_length_light = np.count_nonzero(initial == 'l_l')
+        self.l_length_heavy = np.count_nonzero(initial == 'l_h')
 
-        self.a_length_light=len(np.arange(len(initial))[initial=='a_l'])
-        self.a_length_heavy=len(np.arange(len(initial))[initial=='a_h'])
+        self.a_length_light = np.count_nonzero(initial == 'a_l')
+        self.a_length_heavy = np.count_nonzero(initial == 'a_h')
 
-        self.vj_length_light=len(np.arange(len(initial))[np.logical_or(initial=='v_l',initial=='j_l')])
-        self.vj_length_heavy=len(np.arange(len(initial))[np.logical_or(initial=='v_h',initial=='j_h')])
-        
-        self.lengt_encoding=np.max([len(self.features),1])
-        
-        min_clip=copy(self.min_energy_clip)
-        max_clip=copy(self.max_energy_clip)
-        l2_reg=copy(self.l2_reg)
+        self.vj_length_light = np.count_nonzero((initial == 'v_l') | (initial == 'j_l'))
+        self.vj_length_heavy = np.count_nonzero((initial == 'v_h') | (initial == 'j_h'))
+
+        self.lengt_encoding = np.max([len(self.features), 1])
+
+        min_clip = copy(self.min_energy_clip)
+        max_clip = copy(self.max_energy_clip)
+        l2_reg = copy(self.l2_reg)
+
         if initialize:
-            input_l_light= keras.layers.Input(shape=(self.l_length_light,))
-            input_l_heavy= keras.layers.Input(shape=(self.l_length_heavy,))
+            input_l_light = keras.layers.Input(shape=(self.l_length_light,))
+            input_l_heavy = keras.layers.Input(shape=(self.l_length_heavy,))
 
-            input_cdr3_light= keras.layers.Input(shape=(self.max_depth*2,20,))
-            input_cdr3_heavy= keras.layers.Input(shape=(self.max_depth*2,20,))
-            
-            input_vj_light= keras.layers.Input(shape=(self.vj_length_light,))
-            input_vj_heavy= keras.layers.Input(shape=(self.vj_length_heavy,))
-            input_layer=[input_l_light,input_l_heavy,input_cdr3_light,input_cdr3_heavy,input_vj_light,input_vj_heavy]
-            
+            input_cdr3_light = keras.layers.Input(shape=(self.max_depth * 2, 20,))
+            input_cdr3_heavy = keras.layers.Input(shape=(self.max_depth * 2, 20,))
+
+            input_vj_light = keras.layers.Input(shape=(self.vj_length_light,))
+            input_vj_heavy = keras.layers.Input(shape=(self.vj_length_heavy,))
+            input_layer = [input_l_light, input_l_heavy,
+                           input_cdr3_light, input_cdr3_heavy,
+                           input_vj_light, input_vj_heavy]
+
             if not self.deep:
-                l_l=input_l_light
-                cdr3_l=keras.layers.Flatten()(input_cdr3_light)
-                vj_l=input_vj_light
+                l_l = input_l_light
+                cdr3_l = keras.layers.Flatten()(input_cdr3_light)
+                vj_l = input_vj_light
 
-                l_h=input_l_heavy
-                cdr3_h=keras.layers.Flatten()(input_cdr3_heavy)
-                vj_h=input_vj_heavy
+                l_h = input_l_heavy
+                cdr3_h = keras.layers.Flatten()(input_cdr3_heavy)
+                vj_h = input_vj_heavy
 
-                merge=keras.layers.Concatenate()([l_l,l_h,cdr3_l,cdr3_h,vj_l,vj_h])
-                output_layer=keras.layers.Dense(1,use_bias=False,activation='linear', activity_regularizer=keras.regularizers.l2(l2_reg),kernel_initializer='zeros')(merge)
-                
+                merge = keras.layers.Concatenate()([l_l, l_h, cdr3_l, cdr3_h, vj_l, vj_h])
+                output_layer = keras.layers.Dense(1, use_bias=False, activation='linear',
+                                                  activity_regularizer=keras.regularizers.l2(l2_reg),
+                                                  kernel_initializer='zeros')(merge)
             else:
+                merge_l = keras.layers.Concatenate()([input_l_light, input_vj_light])
+                merge_l = keras.layers.Dense(20, activation='tanh',
+                                             kernel_regularizer=keras.regularizers.l2(l2_reg))(merge_l)
+                merge_l = keras.layers.BatchNormalization()(merge_l)
 
-                merge_l=keras.layers.Concatenate()([input_l_light,input_vj_light])
-                merge_l=keras.layers.Dense(20,activation='tanh',kernel_regularizer=keras.regularizers.l2(l2_reg))(merge_l)
-                merge_l=keras.layers.BatchNormalization()(merge_l)
+                merge_h = keras.layers.Concatenate()([input_l_heavy, input_vj_heavy])
+                merge_h = keras.layers.Dense(20, activation='tanh',
+                                             kernel_regularizer=keras.regularizers.l2(l2_reg))(merge_h)
+                merge_h = keras.layers.BatchNormalization()(merge_h)
 
-                merge_h=keras.layers.Concatenate()([input_l_heavy,input_vj_heavy])
-                merge_h=keras.layers.Dense(20,activation='tanh',kernel_regularizer=keras.regularizers.l2(l2_reg))(merge_h)
-                merge_h=keras.layers.BatchNormalization()(merge_h)
-
-                merge=keras.layers.Concatenate()([merge_l,merge_h])
+                merge = keras.layers.Concatenate()([merge_l, merge_h])
                 if not self.independent_chains:
-                    merge=keras.layers.Dense(20,activation='tanh',kernel_regularizer=keras.regularizers.l2(l2_reg))(merge) # joint features
+                    merge = keras.layers.Dense(20, activation='tanh',
+                                               kernel_regularizer=keras.regularizers.l2(l2_reg))(merge) # joint features
 
-                cdr3_h=EmbedViaMatrix(5)(input_cdr3_heavy)
-                cdr3_h=keras.layers.Activation('tanh')(cdr3_h)
-                cdr3_h=keras.layers.Flatten()(cdr3_h)
-                cdr3_l=EmbedViaMatrix(5)(input_cdr3_light)
-                cdr3_l=keras.layers.Activation('tanh')(cdr3_l)
-                cdr3_l=keras.layers.Flatten()(cdr3_l)
-        
-                final=keras.layers.Concatenate()([merge,cdr3_l,cdr3_h])
-                output_layer = keras.layers.Dense(1,use_bias=False,activation='linear',
-                                                  activity_regularizer=keras.regularizers.l2(l2_reg),kernel_initializer='lecun_normal')(final) #normal glm model
-                
+                cdr3_h = EmbedViaMatrix(5)(input_cdr3_heavy)
+                cdr3_h = keras.layers.Activation('tanh')(cdr3_h)
+                cdr3_h = keras.layers.Flatten()(cdr3_h)
+                cdr3_l = EmbedViaMatrix(5)(input_cdr3_light)
+                cdr3_l = keras.layers.Activation('tanh')(cdr3_l)
+                cdr3_l = keras.layers.Flatten()(cdr3_l)
+
+                final = keras.layers.Concatenate()([merge,cdr3_l, cdr3_h])
+                output_layer = keras.layers.Dense(1, use_bias=False, activation='linear',
+                                                  activity_regularizer=keras.regularizers.l2(l2_reg),
+                                                  kernel_initializer='lecun_normal')(final) #normal glm model
+
         # Define model
-        clipped_out=keras.layers.Lambda(lambda x: K.clip(x,min_clip,max_clip))(output_layer)
+        clipped_out = keras.layers.Lambda(lambda x: K.clip(x,min_clip,max_clip))(output_layer)
         self.model = keras.models.Model(inputs=input_layer, outputs=clipped_out)
         self.optimizer = keras.optimizers.RMSprop()
-        self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
+        self.model.compile(optimizer=self.optimizer, loss=self._loss, metrics=[self._likelihood])
         self.model_params = self.model.get_weights()
-        return True 
+        return True
 
-    def _encode_data(self,seq_features):
-        length_input=len(self.features)
-        data=np.array(seq_features)
-        data_enc = np.zeros((len(data), length_input), dtype=np.int8)
-        for i in range(len(data_enc)): data_enc[i][data[i]] = 1
-        encl_l,enca_l,encv_l=[],[],[]
-        encl_h,enca_h,encv_h=[],[],[]
-        l=self.l_length_light+self.l_length_heavy
-        a=self.a_length_light+self.a_length_heavy
-        for x in data_enc:
-            encl_l.append(x[:self.l_length_light])
-            encl_h.append(x[self.l_length_light:l])
+    def _encode_data(self,
+                 seq_features: Iterable[Iterable[int]]
+                ) -> List[np.ndarray]:
+        length_input = len(self.features)
+        length_seq_features = len(seq_features)
+        data_enc = np.zeros((length_seq_features, length_input), dtype=np.int8)
+        for i, seq_feats in enumerate(seq_features): data_enc[i][seq_feats] = 1
 
-            enca_l.append(x[l: l+self.a_length_light ].reshape(20,self.max_depth*2).T)
-            enca_h.append(x[l+self.a_length_light:l+a].reshape(20,self.max_depth*2).T)
+        l_length_total = self.l_length_light + self.l_length_heavy
+        a_length_total = self.a_length_light + self.a_length_heavy
 
-            encv_l.append(x[l+a:l+a+self.vj_length_light])
-            encv_h.append(x[l+a+self.vj_length_light:])
-        return [np.array(encl_l),np.array(encl_h),np.array(enca_l),np.array(enca_h),np.array(encv_l),np.array(encv_h)]
+        encl_l = data_enc[:, :self.l_length_light]
+        encl_h = data_enc[:, self.l_length_light:l_length_total]
 
-    def _loss(self, y_true, y_pred):
+        enca_l = (data_enc[:, l_length_total:l_length_total + self.a_length_light]
+                  .reshape(length_seq_features, 20, self.max_depth * 2)
+                  .swapaxes(1, 2))
+        enca_h = (data_enc[:, l_length_total+ self.a_length_light:l_length_total + a_length_total]
+                  .reshape(length_seq_features, 20, self.max_depth * 2)
+                  .swapaxes(1, 2))
+
+        encv_l = data_enc[:, l_length_total + a_length_total:l_length_total + a_length_total + self.vj_length_light]
+        encv_h = data_enc[:, l_length_total + a_length_total + self.vj_length_light:]
+        return [encl_l, encl_h, enca_l, enca_h, encv_l, encv_h]
+
+    def _loss(self,
+              y_true,
+              y_pred
+             ) -> float:
         """Loss function for keras training"""
-        gamma=1e0
-        data= K.sum((-y_pred)*(1.-y_true))/K.sum(1.-y_true)
-        gen= K.log(K.sum(K.exp(-y_pred)*y_true))-K.log(K.sum(y_true))
-        reg= K.exp(gen)-1.
-        return gen-data+gamma*reg*reg
-    
-    def _load_features_and_model(self, feature_file, model_file, verbose = True):
+        gamma = 1e0
+        data = K.sum((-y_pred) * (1. - y_true)) / K.sum(1. - y_true)
+        gen = K.log(K.sum(K.exp(-y_pred) * y_true)) - K.log(K.sum(y_true))
+        reg = K.exp(gen) - 1.
+        return gen - data + gamma * reg * reg
+
+    def _load_features_and_model(self,
+                                 feature_file: str,
+                                 model_file: str,
+                                 verbose: bool = True
+                                ) -> None:
         """Loads features and model.
-
-        This is set as an internal function to allow daughter classes to load
-        models from saved feature energies directly.
         """
-
-
         if feature_file is None and verbose:
             print('No feature file provided --  no features loaded.')
         elif os.path.isfile(feature_file):
@@ -164,37 +186,46 @@ class SoNNiaPaired(SoniaPaired):
             data_marginals=[]
             gen_marginals=[]
             model_marginals=[]
+            initial = []
+
             with open(feature_file, 'r') as features_file:
-                all_lines = features_file.read().strip().split('\n')[1:] #skip header
-                splitted=[l.split(',') for l in all_lines]
-                features = np.array([l[0].split(';') for l in splitted])
-                data_marginals=[float(l[1]) for l in splitted]
-                model_marginals=[float(l[2]) for l in splitted]
-                gen_marginals=[float(l[3]) for l in splitted]
-            
-            self.features = np.array(features)
+                next(features_file)
+
+                for line in features_file:
+                    splitted = line.strip().split(',')
+                    features.append(splitted[0].split(';'))
+                    initial.append(features[-1][0][:3])
+                    data_marginals.append(float(splitted[1]))
+                    model_marginals.append(float(splitted[2]))
+                    gen_marginals.append(float(splitted[3]))
+
+            self.features = np.array(features, dtype=object)
             self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
-            self.data_marginals=data_marginals
-            self.model_marginals=model_marginals
-            self.gen_marginals=gen_marginals
-            
-            initial=np.array([s[0][:3] for s in self.features])
+            self.data_marginals = data_marginals
+            self.model_marginals = model_marginals
+            self.gen_marginals = gen_marginals
 
-            self.l_length_light=len(np.arange(len(initial))[initial=='l_l'])
-            self.l_length_heavy=len(np.arange(len(initial))[initial=='l_h'])
+            initial = np.array(initial)
 
-            self.a_length_light=len(np.arange(len(initial))[initial=='a_l'])
-            self.a_length_heavy=len(np.arange(len(initial))[initial=='a_h'])
+            self.l_length_light = np.count_nonzero(initial == 'l_l')
+            self.l_length_heavy = np.count_nonzero(initial == 'l_h')
 
-            self.vj_length_light=len(np.arange(len(initial))[np.logical_or(initial=='v_l',initial=='j_l')])
-            self.vj_length_heavy=len(np.arange(len(initial))[np.logical_or(initial=='v_h',initial=='j_h')])
+            self.a_length_light = np.count_nonzero(initial == 'a_l')
+            self.a_length_heavy = np.count_nonzero(initial == 'a_h')
+
+            self.vj_length_light = np.count_nonzero((initial == 'v_l') | (initial == 'j_l'))
+            self.vj_length_heavy = np.count_nonzero((initial == 'v_h') | (initial == 'j_h'))
         elif verbose:
             print('Cannot find features file or model file --  no features loaded.')
 
         if model_file is None and verbose:
             print('No model file provided -- no model parameters loaded.')
         elif os.path.isfile(model_file):
-            self.model = keras.models.load_model(model_file, custom_objects={'loss': self._loss,'likelihood': self._likelihood,"EmbedViaMatrix":EmbedViaMatrix}, compile = False)
+            self.model = keras.models.load_model(model_file,
+                                                 custom_objects={'loss': self._loss,
+                                                                 'likelihood': self._likelihood,
+                                                                 'EmbedViaMatrix': EmbedViaMatrix},
+                                                 compile=False)
             self.optimizer = keras.optimizers.RMSprop()
             self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
         elif verbose:
@@ -218,7 +249,7 @@ class EmbedViaMatrix(keras.layers.Layer):
         self.kernel = self.add_weight(
             name='kernel', shape=(input_shape[2], self.embedding_dim), initializer='uniform', trainable=True)
         super(EmbedViaMatrix, self).build(input_shape)  # Be sure to call this at the end
-        
+
     def get_config(self):
         config = super(EmbedViaMatrix,self).get_config().copy()
         config.update({'embedding_dim': self.embedding_dim})

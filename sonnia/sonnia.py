@@ -7,7 +7,7 @@ import itertools
 import logging
 import multiprocessing as mp
 import os
-from typing import Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 logging.getLogger('tensorflow').disabled = True
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -29,36 +29,12 @@ except (ImportError, AttributeError):
 
 class SoNNia(Sonia):
     def __init__(self,
-                 data_seqs: List[Iterable[str]] = [],
-                 gen_seqs: List[Iterable[str]] = [],
-                 chain_type: str = 'humanTRB',
-                 load_dir: Optional[str] = None,
-                 custom_pgen_model: Optional[str] = None,
-                 min_energy_clip: float = -5,
-                 max_energy_clip: float = 10,
-                 seed: Optional[int] = None,
-                 l2_reg: float = 0.,
-                 l1_reg: float = 0.,
-                 vj: bool = False,
-                 gamma: float = 0.1,
-                 objective: str = 'BCE',
-                 max_depth: int = 25,
-                 max_L: int = 30,
-                 include_indep_genes: bool = True,
-                 include_joint_genes: bool = False,
+                 *args: Tuple[Any],
                  deep: bool = True,
-                 joint_vjl: bool = False,
-                 include_aminoacids: bool = True
+                 **kwargs: Dict[str, Any],
                 ) -> None:
         self.deep = deep
-        Sonia.__init__(self, data_seqs=data_seqs, gen_seqs=gen_seqs, chain_type=chain_type,
-                       load_dir=load_dir, custom_pgen_model=custom_pgen_model,
-                       min_energy_clip=min_energy_clip, max_energy_clip=max_energy_clip,
-                       seed=seed, l2_reg=l2_reg, l1_reg=l1_reg, vj=vj, objective=objective,
-                       gamma=gamma, include_indep_genes=include_indep_genes,
-                       include_joint_genes=include_joint_genes, joint_vjl=joint_vjl,
-                       include_aminoacids=include_aminoacids, max_depth=max_depth,
-                       max_L=max_L)
+        Sonia.__init__(self, *args, **kwargs)
 
     def update_model_structure(self,
                                output_layer: List = [],
@@ -155,7 +131,7 @@ class SoNNia(Sonia):
         return True
 
     def _encode_data(self,
-                     seq_features: Iterable[int]
+                     seq_features: Iterable[Iterable[int]]
                     ) -> List[np.ndarray]:
         length_input = len(self.features)
         length_seq_features = len(seq_features)

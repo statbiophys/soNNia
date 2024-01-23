@@ -4,13 +4,13 @@
 Created on Wed Jan 30 12:06:58 2019
 @author: Giulio Isacchini and Zachary Sethna
 """
-from __future__ import print_function, division,absolute_import
+from __future__ import print_function, division, absolute_import
 from copy import copy
 import itertools
 import multiprocessing as mp
 import os
 from typing import Iterable, List, Optional, Tuple
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 import numpy as np
 from tensorflow import (boolean_mask, cast, math, keras, Variable)
@@ -19,20 +19,18 @@ from tensorflow.keras.backend import sum as ksum
 from tensorflow.keras.backend import log as klog
 from tensorflow.keras.backend import exp as kexp
 from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.layers import Input,Dense,Lambda
+from tensorflow.keras.layers import Dense, Input, Lambda
 from tensorflow.keras.losses import BinaryCrossentropy
-from tensorflow.keras.models import Model,load_model
+from tensorflow.keras.models import load_model, Model
 from tensorflow.keras.optimizers import RMSprop
-from tensorflow.keras.regularizers import l2, l1_l2
+from tensorflow.keras.regularizers import l1_l2, l2
 from tqdm import tqdm
 
-import olga.load_model as olga_load_model
-import olga.generation_probability as pgen
-import olga.sequence_generation as seq_gen
-
-import sonnia.sonnia
 from sonnia.utils import (compute_pgen_expand, compute_pgen_expand_novj,
-                          partial_joint_marginals, gene_to_num_str)
+                          define_pgen_model, gene_to_num_str, partial_joint_marginals,
+                          DEFAULT_CHAIN_TYPES, PRODUCTIVE_NORMS)
+
+FILEDIR = os.path.dirname(os.path.abspath(__file__))
 
 #Set input = raw_input for python 2
 try:
@@ -115,6 +113,7 @@ class Sonia(object):
                  max_depth: int = 25,
                  max_L: int = 30,
                  load_dir: Optional[str] = None,
+                 load_seqs: bool = True,
                  l2_reg: float = 0.,
                  l1_reg: float = 0.,
                  min_energy_clip: int = -5,
@@ -125,7 +124,6 @@ class Sonia(object):
                  processes: Optional[int] = None,
                  objective: str = 'BCE',
                  gamma: int = 1,
-                 include_indep_genes: bool = True,
                  include_joint_genes: bool = False,
                  joint_vjl: bool = False,
                  include_aminoacids: bool =True
@@ -148,7 +146,6 @@ class Sonia(object):
         self.likelihood_test = []
         self.objective = objective
         self.custom_pgen_model = custom_pgen_model
-        self.include_indep_genes = include_indep_genes
         self.include_joint_genes = include_joint_genes
         self.joint_vjl = joint_vjl
         self.include_aminoacids = include_aminoacids
@@ -158,20 +155,12 @@ class Sonia(object):
         self.gamma = gamma
         self.Z = 1.
         self.amino_acids = 'ACDEFGHIKLMNPQRSTVWY'
-        default_chain_types = { 'humanTRA': 'human_T_alpha', 'human_T_alpha': 'human_T_alpha',
-                                'humanTRB': 'human_T_beta', 'human_T_beta': 'human_T_beta',
-                                'humanIGH': 'human_B_heavy', 'human_B_heavy': 'human_B_heavy',
-                                'humanIGK': 'human_B_kappa', 'human_B_kappa': 'human_B_kappa',
-                                'humanIGL': 'human_B_lambda', 'human_B_lambda': 'human_B_lambda',
-                                'mouseTRB': 'mouse_T_beta', 'mouse_T_beta': 'mouse_T_beta',
-                                'mouseTRA': 'mouse_T_alpha','mouse_T_alpha':'mouse_T_alpha'}
-        if chain_type not in default_chain_types.keys():
+        if chain_type not in DEFAULT_CHAIN_TYPES.keys():
+            options = f'{list(DEFAULT_CHAIN_TYPES.keys())[::2]}'[1:-1]
             raise ValueError('Unrecognized chain_type (not a default OLGA model). '
-                             'Please specify one of the following options: '
-                             'humanTRA, humanTRB, humanIGH, humanIGK, humanIGL, '
-                             'mouseTRB or mouseTRA.')
+                             f'Please specify one of the following options: {options}.')
 
-        self.chain_type = default_chain_types[chain_type]
+        self.chain_type = DEFAULT_CHAIN_TYPES[chain_type]
         self.vj = vj
         if self.chain_type in ['human_T_alpha', 'human_B_kappa', 'human_B_lambda', 'mouse_T_alpha']:
             self.vj = True
@@ -181,7 +170,7 @@ class Sonia(object):
             self.update_model(add_data_seqs=data_seqs, add_gen_seqs=gen_seqs)
             self.add_features()
         else:
-            self.load_model(load_dir=load_dir)
+            self.load_model(load_dir=load_dir, load_seqs=load_seqs)
             if len(self.data_seqs) != 0: self.update_model(add_data_seqs=data_seqs)
             if len(self.gen_seqs) != 0: self.update_model(add_data_seqs=gen_seqs)
 
@@ -216,23 +205,23 @@ class Sonia(object):
                 features += [['a' + aa + str(L)] for L in range(self.max_depth)]
                 features += [['a' + aa + str(L)] for L in range(-self.max_depth, 0)]
 
-        if self.include_indep_genes:
-            features += [[v] for v in set([gene_to_num_str(genV[0],'V')
-                                           for genV in self.genomic_data.genV])]
-            features += [[j] for j in set([gene_to_num_str(genJ[0],'J')
-                                           for genJ in self.genomic_data.genJ])]
         if self.include_joint_genes:
             features += [[v, j]
                          for v in set([gene_to_num_str(genV[0],'V')
                                        for genV in self.genomic_data.genV])
                          for j in set([gene_to_num_str(genJ[0],'J')
                                        for genJ in self.genomic_data.genJ])]
+        else:
+            features += [[v] for v in set([gene_to_num_str(genV[0],'V')
+                                           for genV in self.genomic_data.genV])]
+            features += [[j] for j in set([gene_to_num_str(genJ[0],'J')
+                                           for genJ in self.genomic_data.genJ])]
 
         self.update_model(add_features=features)
 
     def find_seq_features(self,
                           seq: Iterable[str],
-                          features: Iterable[Tuple[str]] = None
+                          features: Optional[Iterable[Tuple[str]]] = None
                          ) -> List[int]:
         """Finds which features match seq
 
@@ -763,15 +752,16 @@ class Sonia(object):
         #save pgen model too.
         self._save_pgen_model(save_dir)
 
-    def _save_pgen_model(self,save_dir):
+    def _save_pgen_model(self,
+                         save_dir: str
+                        ) -> None:
         import shutil
         try:
             if self.custom_pgen_model is None:
-                    main_folder = os.path.join(os.path.dirname(sonnia.__file__),
-                                               'default_models', self.chain_type)
+                    main_folder = os.path.join(FILEDIR, 'default_models', self.chain_type)
             else: main_folder = self.custom_pgen_model
         except:
-            main_folder = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', self.chain_type)
+            main_folder = os.path.join(FILEDIR, 'default_models', self.chain_type)
         shutil.copy2(os.path.join(main_folder, 'model_params.txt'), save_dir)
         shutil.copy2(os.path.join(main_folder, 'model_marginals.txt'), save_dir)
         shutil.copy2(os.path.join(main_folder, 'V_gene_CDR3_anchors.csv'), save_dir)
@@ -779,6 +769,7 @@ class Sonia(object):
 
     def load_model(self,
                    load_dir: Optional[str] = None,
+                   load_seqs: bool = True,
                    verbose: bool = True
                   ) -> None:
         """Loads model from directory.
@@ -806,60 +797,81 @@ class Sonia(object):
             self.L1_converge_history = []
         elif os.path.isfile(log_file):
             with open(log_file, 'r') as L1_file:
-                self.L1_converge_history=[]
-                for i,line in enumerate(L1_file):
-                    if i==0: self.Z=float(line.strip().split('=')[1])
-                    elif i==1: self.norm_productive=float(line.strip().split('=')[1])
-                    elif i==2:
-                        try:
-                            self.min_energy_clip=float(line.strip().split('=')[1])
-                        except:
-                            continue
-                    elif i==3:
-                        try:
-                            self.max_energy_clip=float(line.strip().split('=')[1])
-                        except:
-                            continue
-                    elif len(line.strip())>0 and i>4:
-                        try:
-                            self.likelihood_train.append(float(line.strip().split(',')[0]))
-                            self.likelihood_test.append(float(line.strip().split(',')[1]))
-                        except:
-                            continue
-                self.likelihood_train=np.array(self.likelihood_train)
-                self.likelihood_test=np.array(self.likelihood_test)
+                self.L1_converge_history = []
+
+                # Zeroth line is Z.
+                self.Z = float(next(L1_file).strip().partition('=')[-1])
+
+                # First line is productive norm.
+                self.norm_productive = float(next(L1_file).strip().partition('=')[-1])
+
+                # Second line is minimum energy clip.
+                try:
+                    self.min_energy_clip=float(next(L1_file).strip().partition('=')[-1])
+                except:
+                    pass
+
+                # Third line is maximum energy clip.
+                try:
+                    self.max_energy_clip=float(next(L1_file).strip().partition('=')[-1])
+                except:
+                    pass
+
+                for line in L1_file:
+                    line = line.strip()
+                    if len(line) == 0:
+                        continue
+                    try:
+                        train_val, _, test_val = line.partition(',')
+                        self.likelihood_train.append(float(train_val))
+                        self.likelihood_test.append(float(test_val))
+                    except:
+                        continue
+
         else:
             self.L1_converge_history = []
-            self.likelihood_train= []
-            self.likelihood_test= []
+            self.likelihood_train = []
+            self.likelihood_test = []
             if verbose: print('Cannot find log.txt  --  no norms and convergence loaded.')
 
         self._load_features_and_model(feature_file, model_file, verbose)
 
+        if not load_seqs:
+            return
+
+        def seq_loader(fin, seqs, seq_features):
+            with open(fin, 'r') as fin:
+                next(fin)
+
+                for line in fin:
+                    split_line = line.split('\t')
+                    seqs.append(split_line[0].split(';'))
+                    features = split_line[2].strip().split(';')
+                    to_append = []
+                    for feature in features:
+                        if ',' in feature:
+                            feature = tuple(feature.split(','))
+                        else:
+                            feature = (feature,)
+                        if feature in self.feature_dict:
+                            to_append.append(self.feature_dict[feature])
+                    seq_features.append(to_append)
+
         if data_seq_file is None:
             pass
         elif os.path.isfile(data_seq_file):
-            with open(data_seq_file, 'r') as data_seqs_file:
-                self.data_seqs = []
-                self.data_seq_features = []
-                for line in data_seqs_file.read().strip().split('\n')[1:]:
-                    split_line = line.split('\t')
-                    self.data_seqs.append(split_line[0].split(';'))
-                    self.data_seq_features.append([self.feature_dict[tuple(f.split(','))] for f in split_line[2].split(';') if tuple(f.split(',')) in self.feature_dict])
+            self.data_seqs = []
+            self.data_seq_features = []
+            seq_loader(data_seq_file, self.data_seqs, self.data_seq_features)
         elif verbose:
             print('Cannot find data_seqs.tsv  --  no data seqs loaded.')
-
 
         if gen_seq_file is None:
             pass
         elif os.path.isfile(gen_seq_file):
-            with open(gen_seq_file, 'r') as gen_seqs_file:
-                self.gen_seqs = []
-                self.gen_seq_features = []
-                for line in gen_seqs_file.read().strip().split('\n')[1:]:
-                    split_line = line.split('\t')
-                    self.gen_seqs.append(split_line[0].split(';'))
-                    self.gen_seq_features.append([self.feature_dict[tuple(f.split(','))] for f in split_line[2].split(';') if tuple(f.split(',')) in self.feature_dict])
+            self.gen_seqs = []
+            self.gen_seq_features = []
+            seq_loader(gen_seq_file, self.gen_seqs, self.gen_seq_features)
         elif verbose:
             print('Cannot find gen_seqs.tsv  --  no generated seqs loaded.')
 
@@ -930,38 +942,13 @@ class Sonia(object):
         load olga models.
         '''
         #Load generative model
-        if self.custom_pgen_model is not None:
-            main_folder = self.custom_pgen_model
-        else:
-            main_folder=os.path.join(os.path.dirname(sonnia.__file__),
-                                     'default_models',
-                                     self.chain_type)
+        (self.genomic_data, self.generative_model,
+         self.pgen_model, self.seqgen_model,
+         params_file_name, _, _, _) = define_pgen_model(self.custom_pgen_model,
+                                                        self.chain_type, self.vj,
+                                                        return_files=True)
 
-        self.params_file_name = os.path.join(main_folder, 'model_params.txt')
-        self.marginals_file_name = os.path.join(main_folder, 'model_marginals.txt')
-        self.V_anchor_pos_file = os.path.join(main_folder, 'V_gene_CDR3_anchors.csv')
-        self.J_anchor_pos_file = os.path.join(main_folder, 'J_gene_CDR3_anchors.csv')
-
-        if not self.vj:
-            self.genomic_data = olga_load_model.GenomicDataVDJ()
-            self.genomic_data.load_igor_genomic_data(self.params_file_name,
-                                                     self.V_anchor_pos_file,
-                                                     self.J_anchor_pos_file)
-            self.generative_model = olga_load_model.GenerativeModelVDJ()
-            self.generative_model.load_and_process_igor_model(self.marginals_file_name)
-            self.pgen_model = pgen.GenerationProbabilityVDJ(self.generative_model, self.genomic_data)
-            self.seqgen_model = seq_gen.SequenceGenerationVDJ(self.generative_model, self.genomic_data)
-        else:
-            self.genomic_data = olga_load_model.GenomicDataVJ()
-            self.genomic_data.load_igor_genomic_data(self.params_file_name,
-                                                     self.V_anchor_pos_file,
-                                                     self.J_anchor_pos_file)
-            self.generative_model = olga_load_model.GenerativeModelVJ()
-            self.generative_model.load_and_process_igor_model(self.marginals_file_name)
-            self.pgen_model = pgen.GenerationProbabilityVJ(self.generative_model, self.genomic_data)
-            self.seqgen_model = seq_gen.SequenceGenerationVJ(self.generative_model, self.genomic_data)
-
-        with open(self.params_file_name, 'r') as fin:
+        with open(params_file_name, 'r') as fin:
             sep = 0
             error_rate = ''
             lines = fin.read().splitlines()
@@ -973,14 +960,7 @@ class Sonia(object):
         if recompute_norm:
             self.norm_productive = self.pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
         else:
-            norms = {'human_T_beta': 0.2442847269027897,
-                     'human_T_alpha': 0.2847166577727317,
-                     'human_B_heavy': 0.1499265655936305,
-                     'human_B_lambda': 0.29489499727399304,
-                     'human_B_kappa': 0.29247125650320943,
-                     'mouse_T_beta': 0.2727148540013573,
-                     'mouse_T_alpha': 0.321870924914448}
-            self.norm_productive=norms[self.chain_type]
+            self.norm_productive = PRODUCTIVE_NORMS[self.chain_type]
 
     def generate_sequences_pre(self,
                                num_seqs: int = 1,
@@ -1253,7 +1233,7 @@ class Sonia(object):
         self.model_marginals_two_independent = self.joint_marginals_independent(self.model_marginals)
 
     def compute_all_pgens(self,
-                          seqs: List[Iterable[str]],
+                          seqs: Iterable[Iterable[str]],
                           include_genes: bool = True
                          ) -> np.ndarray:
         '''Compute Pgen of sequences using OLGA in parallel
@@ -1337,7 +1317,7 @@ class Sonia(object):
                           ) -> None:
         if chain_type is None:
             chain_type = self.chain_type
-        load_dir = os.path.join(os.path.dirname(sonnia.__file__), 'default_models', chain_type)
+        load_dir = os.path.join(FILEDIR, 'default_models', chain_type)
         if chain_type in ['human_T_alpha', 'human_B_kappa', 'human_B_lambda', 'mouse_T_alpha']:
             self.vj = True
         self.load_model(load_dir=load_dir)

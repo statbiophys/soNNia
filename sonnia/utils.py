@@ -1,16 +1,30 @@
 import itertools
 import os
 import subprocess
+from typing import Optional
 
 import numpy as np
 
 import olga.generation_probability as generation_probability
 import olga.sequence_generation as sequence_generation
-import olga.load_model as load_model
+import olga.load_model as olga_load_model
 import olga.generation_probability as pgen
 import olga.sequence_generation as seq_gen
 
-import sonia.sonia_leftpos_rightpos
+DEFAULT_CHAIN_TYPES = {'humanTRA': 'human_T_alpha', 'human_T_alpha': 'human_T_alpha',
+                       'humanTRB': 'human_T_beta', 'human_T_beta': 'human_T_beta',
+                       'humanIGH': 'human_B_heavy', 'human_B_heavy': 'human_B_heavy',
+                       'humanIGK': 'human_B_kappa', 'human_B_kappa': 'human_B_kappa',
+                       'humanIGL': 'human_B_lambda', 'human_B_lambda': 'human_B_lambda',
+                       'mouseTRB': 'mouse_T_beta', 'mouse_T_beta': 'mouse_T_beta',
+                       'mouseTRA': 'mouse_T_alpha','mouse_T_alpha':'mouse_T_alpha'}
+PRODUCTIVE_NORMS = {'human_T_beta': 0.2442847269027897,
+                    'human_T_alpha': 0.2847166577727317,
+                    'human_B_heavy': 0.1499265655936305,
+                    'human_B_lambda': 0.29489499727399304,
+                    'human_B_kappa': 0.29247125650320943,
+                    'mouse_T_beta': 0.2727148540013573,
+                    'mouse_T_alpha': 0.321870924914448}
 
 def run_terminal(string):
     return [i.decode("utf-8").split('\n')
@@ -18,42 +32,56 @@ def run_terminal(string):
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE).communicate()]
 
-def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):
-    #Load generative model
-    if custom_model_folder is None:
-        main_folder = os.path.join(os.path.dirname(sonia.sonia_leftpos_rightpos.__file__), 'default_models', chain_type)
+def define_pgen_model(custom_pgen_model: Optional[str] = None,
+                      chain_type: Optional[str] = None,
+                      vj: bool = False,
+                      return_files: bool = False
+                     ):
+    if custom_pgen_model is None and chain_type is None:
+        raise RuntimeError('Both custom_pgen_model and chain_type must not be None.')
+    elif custom_pgen_model is not None:
+        main_folder = custom_pgen_model
     else:
-        main_folder = custom_model_folder
+        filepath = os.path.dirname(os.path.abspath(__file__))
+        main_folder=os.path.join(filepath,
+                                 'default_models',
+                                 chain_type)
 
-    params_file_name = os.path.join(main_folder,'model_params.txt')
-    marginals_file_name = os.path.join(main_folder,'model_marginals.txt')
-    V_anchor_pos_file = os.path.join(main_folder,'V_gene_CDR3_anchors.csv')
-    J_anchor_pos_file = os.path.join(main_folder,'J_gene_CDR3_anchors.csv')
-
-    if not os.path.isfile(params_file_name) or not os.path.isfile(marginals_file_name):
-        print('Cannot find specified custom generative model files: ' + '\n' + params_file_name + '\n' + marginals_file_name)
-        print('Exiting sequence generation...')
-        return None
-    if not os.path.isfile(V_anchor_pos_file):
-        V_anchor_pos_file = os.path.join(os.path.dirname(olga_load_model.__file__), 'default_models', self.chain_type, 'V_gene_CDR3_anchors.csv')
-    if not os.path.isfile(J_anchor_pos_file):
-        J_anchor_pos_file = os.path.join(os.path.dirname(olga_load_model.__file__), 'default_models', self.chain_type, 'J_gene_CDR3_anchors.csv')
+    params_file_name = os.path.join(main_folder, 'model_params.txt')
+    marginals_file_name = os.path.join(main_folder, 'model_marginals.txt')
+    V_anchor_pos_file = os.path.join(main_folder, 'V_gene_CDR3_anchors.csv')
+    J_anchor_pos_file = os.path.join(main_folder, 'J_gene_CDR3_anchors.csv')
 
     if vj:
-        genomic_data = load_model.GenomicDataVJ()
-        genomic_data.load_igor_genomic_data(params_file_name, V_anchor_pos_file, J_anchor_pos_file)
-        generative_model = load_model.GenerativeModelVJ()
-        generative_model.load_and_process_igor_model(marginals_file_name)
-        sg_model = seq_gen.SequenceGenerationVJ(generative_model, genomic_data)
+        model_str = 'VJ'
     else:
-        genomic_data = load_model.GenomicDataVDJ()
-        genomic_data.load_igor_genomic_data(params_file_name, V_anchor_pos_file, J_anchor_pos_file)
-        generative_model = load_model.GenerativeModelVDJ()
-        generative_model.load_and_process_igor_model(marginals_file_name)
-        sg_model = seq_gen.SequenceGenerationVDJ(generative_model, genomic_data)
+        model_str = 'VDJ'
+
+    genomic_data = getattr(olga_load_model, f'GenomicData{model_str}')()
+    genomic_data.load_igor_genomic_data(params_file_name,
+                                        V_anchor_pos_file,
+                                        J_anchor_pos_file)
+    generative_model = getattr(olga_load_model, f'GenerativeModel{model_str}')()
+    generative_model.load_and_process_igor_model(marginals_file_name)
+    pgen_model = getattr(pgen, f'GenerationProbability{model_str}')(generative_model, genomic_data)
+    seqgen_model = getattr(seq_gen, f'SequenceGeneration{model_str}')(generative_model, genomic_data)
+
+    to_return = (genomic_data, generative_model, pgen_model, seqgen_model)
+
+    if return_files:
+        return to_return + (params_file_name, marginals_file_name, V_anchor_pos_file, J_anchor_pos_file)
+    return to_return
+
+def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):
+    (genomic_data, generative_model,
+     _, seq_model) = define_pgen_model(custom_model_folder, chain_type, vj)
 
     #Generate sequences
-    return [[seq[1], genomic_data.genV[seq[2]][0].split('*')[0], genomic_data.genJ[seq[3]][0].split('*')[0]] for seq in [sg_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ') for _ in range(int(num_gen_seqs))]]
+    return [[seq[1],
+             genomic_data.genV[seq[2]][0].split('*')[0],
+             genomic_data.genJ[seq[3]][0].split('*')[0]]
+            for seq in [sg_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+                        for _ in range(int(num_gen_seqs))]]
 
 def correct_olga_heavy(qm):
     # this corrects only the V gene distribution.
