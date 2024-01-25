@@ -36,7 +36,10 @@ def run_terminal(string):
                                       stderr=subprocess.PIPE).communicate()]
 
 def define_pgen_model(pgen_model: Optional[str] = None,
-                      compute_norm: bool = True
+                      compute_norm: bool = True,
+                      return_pgen_dir: bool = False,
+                      return_chain: bool = False,
+                      return_recomb_type: bool = False
                      ):
     if pgen_model in DEFAULT_CHAIN_TYPES:
         filedir = os.path.dirname(os.path.abspath(__file__))
@@ -82,29 +85,38 @@ def define_pgen_model(pgen_model: Optional[str] = None,
                            'format (gene,anchor_index,function).')
 
     if chains[0] in HEAVY_CHAINS:
-        model_str = 'VDJ'
+        recomb_type = 'VDJ'
     elif chains[0] in LIGHT_CHAINS:
-        model_str = 'VJ'
+        recomb_type = 'VJ'
     else:
         heavy_chain_str = f'{HEAVY_CHAINS}'[1:-1]
         light_chain_str = f'{LIGHT_CHAINS}'[1:-1]
         raise RuntimeError(f'Unrecognized chain: {chains[0]}. Recognized heavy chains: '
                            f'{heavy_chain_str} Recognized light chains: {light_chain_str}.')
 
-    genomic_data = getattr(olga_load_model, f'GenomicData{model_str}')()
+    genomic_data = getattr(olga_load_model, f'GenomicData{recomb_type}')()
     genomic_data.load_igor_genomic_data(params_file_name,
                                         V_anchor_pos_file,
                                         J_anchor_pos_file)
-    generative_model = getattr(olga_load_model, f'GenerativeModel{model_str}')()
+    generative_model = getattr(olga_load_model, f'GenerativeModel{recomb_type}')()
     generative_model.load_and_process_igor_model(marginals_file_name)
-    pgen_model = getattr(pgen, f'GenerationProbability{model_str}')(generative_model, genomic_data)
-    seqgen_model = getattr(seq_gen, f'SequenceGeneration{model_str}')(generative_model, genomic_data)
+    pgen_model = getattr(pgen, f'GenerationProbability{recomb_type}')(generative_model, genomic_data)
+    seqgen_model = getattr(seq_gen, f'SequenceGeneration{recomb_type}')(generative_model, genomic_data)
+
 
     if compute_norm and norm_productive is None:
         norm_productive = pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
 
-    return (genomic_data, generative_model, pgen_model, seqgen_model,
-            norm_productive, pgen_dir, model_str, chains[0])
+    out_tup = (genomic_data, generative_model, pgen_model, seqgen_model, norm_productive)
+
+    if return_pgen_dir:
+        out_tup += (pgen_dir,)
+    if return_recomb_type:
+        out_tup += (recomb_type,)
+    if return_chain:
+        out_tup += (chains[0],)
+
+    return out_tup
 
 def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):
     (genomic_data, generative_model,

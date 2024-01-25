@@ -34,6 +34,14 @@ class SoNNia(Sonia):
                  deep: bool = True,
                  **kwargs: Dict[str, Any],
                 ) -> None:
+        invalid_gene_features = {'vjl', 'none'}
+        if gene_features in invalid_gene_features:
+            valid_gene_features = f'{GENE_FEATURE_OPTIONS - invalid_gene_features}'[1:-1]
+            invalid_gene_features = f'{invalid_gene_features}'[1:-1]
+            raise ValueError(f'gene_features = \'{gene_features}\' is an invalid option '
+                             'when using a deep SoNNia model. Use one of the following '
+                             f'instead: {valid_gene_features}.')
+
         self.deep = deep
         Sonia.__init__(self, *args, gene_features=gene_features, **kwargs)
 

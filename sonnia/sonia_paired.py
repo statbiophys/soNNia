@@ -23,6 +23,7 @@ class SoniaPaired(Sonia):
                  load_dir: Optional[str] = None,
                  pgen_model_light: Optional[str] = None,
                  pgen_model_heavy: Optional[str] = None,
+                 recompute_productive_norm: bool = False,
                  **kwargs: Dict[str, Any]
                 ) -> None:
         if load_dir is None and (pgen_model_light is None or pgen_model_heavy is None):
@@ -37,6 +38,10 @@ class SoniaPaired(Sonia):
         else:
             self.pgen_model_heavy = pgen_model_heavy
 
+        if load_dir is None:
+            self.recompute_productive_norm = True
+        else:
+            self.recompute_productive_norm = recompute_productive_norm
         self.load_pgen_models()
 
         Sonia.__init__(self, *args, load_dir=load_dir, **kwargs)
@@ -46,7 +51,9 @@ class SoniaPaired(Sonia):
         (self.genomic_data_light, self.generative_model_light,
          self.pgen_model_light, self.seqgen_model_light,
          self.norm_light, self.pgen_light_dir,
-         model_str, chain_light) = define_pgen_model(self.pgen_model_light)
+         model_str, chain_light) = define_pgen_model(self.pgen_model_light,
+                                                     self.recompute_productive_norm,
+                                                     True, True, True)
         if model_str != 'VJ':
             raise RuntimeError('A VDJ model was given to pgen_model_light. Please '
                                'rerun and point pgen_model_light to a VJ pgen model.')
@@ -54,13 +61,16 @@ class SoniaPaired(Sonia):
         (self.genomic_data_heavy, self.generative_model_heavy,
          self.pgen_model_heavy, self.seqgen_model_heavy,
          self.norm_heavy, self.pgen_heavy_dir,
-         model_str, chain_heavy) = define_pgen_model(self.pgen_model_heavy)
+         model_str, chain_heavy) = define_pgen_model(self.pgen_model_heavy,
+                                                     self.recompute_productive_norm,
+                                                     True, True, True)
         if model_str != 'VDJ':
             raise RuntimeError('A VJ model was given to pgen_model_heavy. Please '
                                'rerun and point pgen_model_heavy to a VDJ pgen model.')
 
         valid_chain_pairs = [('IGL', 'IGH'), ('IGK', 'IGH'),
                              ('TRA', 'TRB'), ('TRG', 'TRD')]
+
         if (chain_light, chain_heavy) not in valid_chain_pairs:
             valid_chain_pairs_str = f'{valid_chain_pairs}'[1:-1]
             raise RuntimeError(f'A light-heavy chain pair of {(chain_light, chain_heavy)} does '

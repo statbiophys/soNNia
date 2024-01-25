@@ -17,6 +17,7 @@ import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import load_model as lm
 
+from sonnia.sonia import GENE_FEATURE_OPTIONS
 from sonnia.sonia_paired import SoniaPaired
 
 #Set input = raw_input for python 2
@@ -37,6 +38,14 @@ class SoNNiaPaired(SoniaPaired):
                  l2_reg: float = 1e-3,
                  **kwargs: Dict[str, Any]
                 ) -> None:
+        invalid_gene_features = {'vjl', 'none'}
+        if gene_features in invalid_gene_features:
+            valid_gene_features = f'{GENE_FEATURE_OPTIONS - invalid_gene_features}'[1:-1]
+            invalid_gene_features = f'{invalid_gene_features}'[1:-1]
+            raise ValueError(f'gene_features = \'{gene_features}\' is an invalid option '
+                             'when using a deep SoNNiaPaired model. Use one of the '
+                             f'following instead: {valid_gene_features}.')
+
         self.deep = deep
         self.independent_chains = independent_chains
         SoniaPaired.__init__(self, *args, gene_features=gene_features,

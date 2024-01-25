@@ -113,6 +113,7 @@ class Sonia(object):
                  gene_features: str = 'joint_vj',
                  include_aminoacids: bool = True,
                  features: List[Iterable[str]] = [],
+                 recompute_productive_norm: bool = False,
                  max_depth: int = 25,
                  max_L: int = 30,
                  objective: str = 'BCE',
@@ -129,6 +130,11 @@ class Sonia(object):
             raise ValueError(f'{gene_features} is not a valid option for '
                              'gene_features. gene_features must be one of '
                              f'{gene_feature_options_str}.')
+
+        if load_dir is None:
+            self.recompute_productive_norm = True
+        else:
+            self.recompute_productive_norm = recompute_productive_norm
 
         if 'Paired' in type(self).__name__:
             pass
@@ -764,10 +770,11 @@ class Sonia(object):
                 # Zeroth line is Z.
                 self.Z = float(next(L1_file).strip().partition('=')[-1])
 
-                # First line is productive norm. But this is obtained in
-                # loading the pgen models.
-                next(L1_file)
-                # self.norm_productive = float(next(L1_file).strip().partition('=')[-1])
+                # First line is productive norm.
+                if self.recompute_norm_productive:
+                    next(L1_file)
+                else:
+                    self.norm_productive = float(next(L1_file).strip().partition('=')[-1])
 
                 # Second line is minimum energy clip.
                 try:
@@ -901,7 +908,9 @@ class Sonia(object):
         #Load generative model
         (self.genomic_data, self.generative_model,
          self.pgen_model, self.seqgen_model, self.norm_productive,
-         self.pgen_dir, _, _) = define_pgen_model(self.pgen_model)
+         self.pgen_dir) = define_pgen_model(self.pgen_model,
+                                            self.recompute_productive_norm,
+                                            return_pgen_dir=True)
 
         with open(os.path.join(self.pgen_dir, 'model_params.txt'), 'r') as fin:
             sep = 0
