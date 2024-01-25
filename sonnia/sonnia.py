@@ -17,7 +17,7 @@ import tensorflow.keras.backend as K
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.models import load_model as lm
 
-from sonnia.sonia import Sonia
+from sonnia.sonia import Sonia, GENE_FEATURE_OPTIONS
 from sonnia.utils import gene_to_num_str
 
 #Set input = raw_input for python 2
@@ -30,11 +30,12 @@ except (ImportError, AttributeError):
 class SoNNia(Sonia):
     def __init__(self,
                  *args: Tuple[Any],
+                 gene_features: str = 'indep_vj',
                  deep: bool = True,
                  **kwargs: Dict[str, Any],
                 ) -> None:
         self.deep = deep
-        Sonia.__init__(self, *args, **kwargs)
+        Sonia.__init__(self, *args, gene_features=gene_features, **kwargs)
 
     def update_model_structure(self,
                                output_layer: List = [],

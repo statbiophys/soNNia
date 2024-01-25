@@ -29,19 +29,20 @@ except (ImportError, AttributeError):
 class SoNNiaPaired(SoniaPaired):
     def __init__(self,
                  *args: Tuple[Any],
+                 gene_features: str = 'indep_vj',
+                 independent_chains: bool = False,
                  min_energy_clip: int = -10,
                  max_energy_clip: int = 10,
                  deep: bool = True,
                  l2_reg: float = 1e-3,
-                 independent_chains: bool = False,
-                 include_genes: bool = True,
                  **kwargs: Dict[str, Any]
                 ) -> None:
-        self.deep=deep
+        self.deep = deep
         self.independent_chains = independent_chains
-        self.include_genes = include_genes
-        SoniaPaired.__init__(self, *args, min_energy_clip=min_energy_clip,
-                             max_energy_clip=max_energy_clip, l2_reg=l2_reg)
+        SoniaPaired.__init__(self, *args, gene_features=gene_features,
+                             min_energy_clip=min_energy_clip,
+                             max_energy_clip=max_energy_clip,
+                             l2_reg=l2_reg, **kwargs)
 
     def update_model_structure(self,
                                output_layer: List = [],

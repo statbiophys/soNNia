@@ -1,32 +1,23 @@
+import os
 from typing import Optional, Set
 
 import numpy as np
 import pandas as pd
 
-from sonnia.utils import define_pgen_model, gene_to_num_str, DEFAULT_CHAIN_TYPES
+from sonnia.utils import define_pgen_model, gene_to_num_str
 
 class Processing(object):
     def __init__(self,
-                 read_thresh: Optional[int] = None,
-                 custom_model_folder: Optional[str] = None,
-                 chain_type: str = 'human_T_beta',
-                 drop_unproductive: bool = True,
+                 pgen_model: str,
                  max_length: int = 30,
-                 vj: bool = False,
+                 read_thresh: Optional[int] = None,
                  verbose: bool = True
                 ) -> None:
         self.read_thresh = read_thresh
-        self.custom_model_folder = custom_model_folder
+        self.pgen_model = pgen_model
         self.max_length = max_length
         self.verbose = verbose
-        if chain_type not in DEFAULT_CHAIN_TYPES.keys():
-            options = f'{list(DEFAULT_CHAIN_TYPES.keys())[::2]}'[1:-1]
-            raise ValueError('Unrecognized chain_type (not a default OLGA model). '
-                             f'Please specify one of the following options: {options}.')
-        self.chain_type = DEFAULT_CHAIN_TYPES[chain_type]
-        self.vj = vj
-        if self.chain_type in ['human_T_alpha','human_B_kappa','human_B_lambda']: self.vj = True
-        self.define_models()
+        self.load_pgen_model()
 
     def filter_dataframe(self,
                          dataframe: pd.DataFrame,
@@ -146,23 +137,22 @@ class Processing(object):
         self.df['selection'] = np.logical_and(self.df['selection'].values,
                                               self.df['selection_length'].values)
 
-    def define_models(self
-                     ) -> None:
+    def load_pgen_model(self
+                        ) -> None:
         '''
         load olga models.
         '''
-        (self.genomic_data, _, self.pgen_model, _, _, _,
-         V_anchor_pos_file, J_anchor_pos_file) = define_pgen_model(self.custom_model_folder,
-                                                                   self.chain_type, self.vj,
-                                                                   return_files=True)
+        (self.genomic_data, _, self.pgen_model, _,
+         _, pgen_dir, _, _) = define_pgen_model(self.pgen_model, compute_norm=False)
+
         def get_functional_genes(fin: str
                                 ) -> Set[str]:
             df = pd.read_csv(fin)
             df = df.loc[df['function'] == 'F']
             return df['gene'].str.partition('*')[0].unique()
 
-        self.good_vs = set(get_functional_genes(V_anchor_pos_file))
-        self.good_js = set(get_functional_genes(J_anchor_pos_file))
+        self.good_vs = set(get_functional_genes(os.path.join(pgen_dir, 'V_gene_CDR3_anchors.csv')))
+        self.good_js = set(get_functional_genes(os.path.join(pgen_dir, 'J_gene_CDR3_anchors.csv')))
 
     def recreate_full_sequence(self,
                                ntcdr3: str,

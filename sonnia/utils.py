@@ -1,4 +1,3 @@
-import itertools
 import os
 import subprocess
 from typing import Optional
@@ -18,7 +17,7 @@ DEFAULT_CHAIN_TYPES = {'humanTRA': 'human_T_alpha', 'human_T_alpha': 'human_T_al
                        'humanIGL': 'human_B_lambda', 'human_B_lambda': 'human_B_lambda',
                        'mouseTRB': 'mouse_T_beta', 'mouse_T_beta': 'mouse_T_beta',
                        'mouseTRA': 'mouse_T_alpha','mouse_T_alpha':'mouse_T_alpha'}
-PRODUCTIVE_NORMS = {'human_T_beta': 0.2442847269027897,
+NORM_PRODUCTIVES = {'human_T_beta': 0.2442847269027897,
                     'human_T_alpha': 0.2847166577727317,
                     'human_B_heavy': 0.1499265655936305,
                     'human_B_lambda': 0.29489499727399304,
@@ -26,36 +25,71 @@ PRODUCTIVE_NORMS = {'human_T_beta': 0.2442847269027897,
                     'mouse_T_beta': 0.2727148540013573,
                     'mouse_T_alpha': 0.321870924914448}
 
+HEAVY_CHAINS = {'TRB', 'TRD', 'IGH'}
+LIGHT_CHAINS = {'TRA', 'TRG', 'IGK', 'IGL', 'IGI'}
+
+
 def run_terminal(string):
     return [i.decode("utf-8").split('\n')
             for i in subprocess.Popen(string, shell=True,
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE).communicate()]
 
-def define_pgen_model(custom_pgen_model: Optional[str] = None,
-                      chain_type: Optional[str] = None,
-                      vj: bool = False,
-                      return_files: bool = False
+def define_pgen_model(pgen_model: Optional[str] = None,
+                      compute_norm: bool = True
                      ):
-    if custom_pgen_model is None and chain_type is None:
-        raise RuntimeError('Both custom_pgen_model and chain_type must not be None.')
-    elif custom_pgen_model is not None:
-        main_folder = custom_pgen_model
+    if pgen_model in DEFAULT_CHAIN_TYPES:
+        filedir = os.path.dirname(os.path.abspath(__file__))
+        pgen_model = DEFAULT_CHAIN_TYPES[pgen_model]
+        pgen_dir = os.path.join(filedir, 'default_models', pgen_model)
+        norm_productive = NORM_PRODUCTIVES[pgen_model]
+    elif os.path.isdir(pgen_model):
+        pgen_dir = pgen_model
+        norm_productive = None
     else:
-        filepath = os.path.dirname(os.path.abspath(__file__))
-        main_folder=os.path.join(filepath,
-                                 'default_models',
-                                 chain_type)
+        options = f'{list(DEFAULT_CHAIN_TYPES.keys())[::2]}'[1:-1]
+        raise ValueError('pgen_model is neither a directory that exists '
+                         f'nor one of the default options ({options}). '
+                         'Try using one of the default options or an existing '
+                         'directory containing the pgen model.')
 
-    params_file_name = os.path.join(main_folder, 'model_params.txt')
-    marginals_file_name = os.path.join(main_folder, 'model_marginals.txt')
-    V_anchor_pos_file = os.path.join(main_folder, 'V_gene_CDR3_anchors.csv')
-    J_anchor_pos_file = os.path.join(main_folder, 'J_gene_CDR3_anchors.csv')
+    pgen_files = ('model_params.txt', 'model_marginals.txt',
+                  'V_gene_CDR3_anchors.csv', 'J_gene_CDR3_anchors.csv')
+    files_in_dir = set(os.listdir(pgen_dir))
+    missing_files = set(pgen_files) - files_in_dir
 
-    if vj:
+    if len(missing_files) > 0:
+        missing_files = f'{missing_files}'[1:-1]
+        raise RuntimeError('The pgen model cannot be loaded. The following files '
+                           f'are missing: {missing_files}.')
+
+    params_file_name = os.path.join(pgen_dir, pgen_files[0])
+    marginals_file_name = os.path.join(pgen_dir, pgen_files[1])
+    V_anchor_pos_file = os.path.join(pgen_dir, pgen_files[2])
+    J_anchor_pos_file = os.path.join(pgen_dir, pgen_files[3])
+
+    chains = []
+    for fi, gene in zip((V_anchor_pos_file, J_anchor_pos_file), ('V', 'J')):
+        with open(fi, 'r') as fin:
+            # Skip headers.
+            next(fin)
+
+            chain = next(fin).partition(',')[0].partition(gene)[0]
+            chains.append(chain)
+    if chains[0] != chains[1]:
+        raise RuntimeError('Either the V and J anchor files do not correspond '
+                           'to the same chain or the files are not in the expected '
+                           'format (gene,anchor_index,function).')
+
+    if chains[0] in HEAVY_CHAINS:
+        model_str = 'VDJ'
+    elif chains[0] in LIGHT_CHAINS:
         model_str = 'VJ'
     else:
-        model_str = 'VDJ'
+        heavy_chain_str = f'{HEAVY_CHAINS}'[1:-1]
+        light_chain_str = f'{LIGHT_CHAINS}'[1:-1]
+        raise RuntimeError(f'Unrecognized chain: {chains[0]}. Recognized heavy chains: '
+                           f'{heavy_chain_str} Recognized light chains: {light_chain_str}.')
 
     genomic_data = getattr(olga_load_model, f'GenomicData{model_str}')()
     genomic_data.load_igor_genomic_data(params_file_name,
@@ -66,11 +100,11 @@ def define_pgen_model(custom_pgen_model: Optional[str] = None,
     pgen_model = getattr(pgen, f'GenerationProbability{model_str}')(generative_model, genomic_data)
     seqgen_model = getattr(seq_gen, f'SequenceGeneration{model_str}')(generative_model, genomic_data)
 
-    to_return = (genomic_data, generative_model, pgen_model, seqgen_model)
+    if compute_norm and norm_productive is None:
+        norm_productive = pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
 
-    if return_files:
-        return to_return + (params_file_name, marginals_file_name, V_anchor_pos_file, J_anchor_pos_file)
-    return to_return
+    return (genomic_data, generative_model, pgen_model, seqgen_model,
+            norm_productive, pgen_dir, model_str, chains[0])
 
 def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):
     (genomic_data, generative_model,

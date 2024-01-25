@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 
 # @author: Giulio Isacchini
+import logging
 import multiprocessing as mp
 import os
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+logging.getLogger('tensorflow').disabled = True
 
 import numpy as np
 from tensorflow import keras
@@ -12,53 +15,61 @@ import tensorflow.keras.backend as K
 from tqdm import tqdm
 
 from sonnia.sonia import Sonia
-from sonnia.utils import define_pgen_model, gene_to_num_str, PRODUCTIVE_NORMS
-
-FILEDIR = os.path.dirname(os.path.abspath(__file__))
+from sonnia.utils import define_pgen_model, gene_to_num_str
 
 class SoniaPaired(Sonia):
     def __init__(self,
                  *args: Tuple[Any],
-                 chain_type_heavy: str = 'human_T_beta',
-                 chain_type_light: str = 'human_T_alpha',
-                 custom_pgen_model_light: Optional[str] = None,
-                 custom_pgen_model_heavy: Optional[str] = None,
+                 load_dir: Optional[str] = None,
+                 pgen_model_light: Optional[str] = None,
+                 pgen_model_heavy: Optional[str] = None,
                  **kwargs: Dict[str, Any]
                 ) -> None:
-        self.chain_type_heavy = chain_type_heavy
-        self.chain_type_light = chain_type_light
-        self.custom_pgen_model_light = custom_pgen_model_light
-        self.custom_pgen_model_heavy = custom_pgen_model_heavy
-
-        Sonia.__init__(self, *args, **kwargs)
-        recompute_norm = not (custom_pgen_model_light is None and custom_pgen_model_heavy is None)
-        self.define_models(recompute_norm=recompute_norm)
-
-    def define_models(self,
-                      recompute_norm: bool = False
-                     ) -> None:
-        (self.genomic_data_light, self.generative_model_light,
-         self.pgen_model_light,
-         self.seqgen_model_light) = define_pgen_model(self.custom_pgen_model_light,
-                                                      self.chain_type_light,
-                                                      vj=True, return_files=False)
-        (self.genomic_data_heavy, self.generative_model_heavy,
-         self.pgen_model_heavy,
-         self.seqgen_model_heavy) = define_pgen_model(self.custom_pgen_model_heavy,
-                                                      self.chain_type_heavy,
-                                                      vj=False, return_files=False)
-
-        if recompute_norm:
-            self.norm_light = self.pgen_model_light.compute_regex_CDR3_template_pgen('CX{0,}')
-            self.norm_heavy = self.pgen_model_heavy.compute_regex_CDR3_template_pgen('CX{0,}')
+        if load_dir is None and (pgen_model_light is None or pgen_model_heavy is None):
+            raise RuntimeError('Either load_dir must not be None or both pgen_model_light '
+                               'and pgen_model_heavy must not be None.')
+        if pgen_model_light is None:
+            self.pgen_model_light = os.path.join(load_dir, 'light_chain')
         else:
-            self.norm_light= PRODUCTIVE_NORMS[self.chain_type_light]
-            self.norm_heavy=  PRODUCTIVE_NORMS[self.chain_type_heavy]
+            self.pgen_model_light = pgen_model_light
+        if pgen_model_heavy is None:
+            self.pgen_model_heavy = os.path.join(load_dir, 'heavy_chain')
+        else:
+            self.pgen_model_heavy = pgen_model_heavy
+
+        self.load_pgen_models()
+
+        Sonia.__init__(self, *args, load_dir=load_dir, **kwargs)
+
+    def load_pgen_models(self
+                        ) -> None:
+        (self.genomic_data_light, self.generative_model_light,
+         self.pgen_model_light, self.seqgen_model_light,
+         self.norm_light, self.pgen_light_dir,
+         model_str, chain_light) = define_pgen_model(self.pgen_model_light)
+        if model_str != 'VJ':
+            raise RuntimeError('A VDJ model was given to pgen_model_light. Please '
+                               'rerun and point pgen_model_light to a VJ pgen model.')
+
+        (self.genomic_data_heavy, self.generative_model_heavy,
+         self.pgen_model_heavy, self.seqgen_model_heavy,
+         self.norm_heavy, self.pgen_heavy_dir,
+         model_str, chain_heavy) = define_pgen_model(self.pgen_model_heavy)
+        if model_str != 'VDJ':
+            raise RuntimeError('A VJ model was given to pgen_model_heavy. Please '
+                               'rerun and point pgen_model_heavy to a VDJ pgen model.')
+
+        valid_chain_pairs = [('IGL', 'IGH'), ('IGK', 'IGH'),
+                             ('TRA', 'TRB'), ('TRG', 'TRD')]
+        if (chain_light, chain_heavy) not in valid_chain_pairs:
+            valid_chain_pairs_str = f'{valid_chain_pairs}'[1:-1]
+            raise RuntimeError(f'A light-heavy chain pair of {(chain_light, chain_heavy)} does '
+                               'constitute a valid receptor. Acceptable chain '
+                               f'pairs: {valid_chain_pairs_str}.')
 
         self.norm_productive = self.norm_heavy * self.norm_light
 
     def add_features(self,
-                     include_joint_genes: bool = True
                     ) -> None:
         """Generates a list of feature_lsts for L/R pos model.
 
@@ -72,18 +83,30 @@ class SoniaPaired(Sonia):
             If true, features for gene selection are also generated. Currently
             joint V/J pairs used.
         """
-        features=[]
-        features += [['l_l' + str(L)] for L in range(1, self.max_L + 1)]
-        features += [['l_h' + str(L)] for L in range(1, self.max_L + 1)]
+        features = []
 
-        for aa in self.amino_acids:
-            features += [['a_l' + aa + str(L)] for L in range(self.max_depth)]
-            features += [['a_l' + aa + str(L)] for L in range(-self.max_depth, 0)]
-        for aa in self.amino_acids:
-            features += [['a_h' + aa + str(L)] for L in range(self.max_depth)]
-            features += [['a_h' + aa + str(L)] for L in range(-self.max_depth, 0)]
+        if self.gene_features == 'vjl':
+            for l in range(1, self.max_L + 1):
+                features += [[v, j, f'l_l{l}']
+                             for v in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
+                                       for genV in self.genomic_data_light.genV])
+                             for j in set(['j_l' + gene_to_num_str(genJ[0],'J')[1:]
+                                       for genJ in self.genomic_data_light.genJ])]
+                features += [[v, j, f'l_h{l}']
+                             for v in set(['v_h' + gene_to_num_str(genV[0],'V')[1:]
+                                       for genV in self.genomic_data_heavy.genV])
+                             for j in set(['j_h' + gene_to_num_str(genJ[0],'J')[1:]
+                                       for genJ in self.genomic_data_heavy.genJ])]
+        else:
+            for l in range(1, self.max_L + 1):
+                features += [[f'l_l{l}'], [f'l_h{l}']]
 
-        if self.include_joint_genes:
+        if self.include_aminoacids:
+            for aa in self.amino_acids:
+                for l in range(-self.max_depth, self.max_depth):
+                    features += [[f'a_l{aa}{l}'], [f'a_h{aa}{l}']]
+
+        if self.gene_features == 'joint_vj':
             features += [[v, j]
                          for v in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
                                        for genV in self.genomic_data_light.genV])
@@ -94,16 +117,17 @@ class SoniaPaired(Sonia):
                                        for genV in self.genomic_data_heavy.genV])
                          for j in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
                                        for genJ in self.genomic_data_heavy.genJ])]
-        else:
+        if self.gene_features in {'indep_vj', 'v'}:
             features += [[v]
                          for v in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
                                        for genV in self.genomic_data_light.genV])]
-            features += [[j]
-                         for j in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
-                                       for genJ in self.genomic_data_light.genJ])]
             features += [[v]
                          for v in set(['v_h' + gene_to_num_str(genV[0],'V')[1:]
                                        for genV in self.genomic_data_heavy.genV])]
+        if self.gene_features in {'indep_vj', 'j'}:
+            features += [[j]
+                         for j in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
+                                       for genJ in self.genomic_data_light.genJ])]
             features += [[j]
                          for j in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
                                        for genJ in self.genomic_data_heavy.genJ])]
@@ -142,6 +166,9 @@ class SoniaPaired(Sonia):
 
         seq_features = set()
 
+        # NOTE It's quicker to have the code written explicitly than perform
+        # a for loop.
+
         # Heavy chain.
         cdr3_len = len(seq[0])
         cdr3_len_key = (f'l_h{cdr3_len}',)
@@ -156,15 +183,18 @@ class SoniaPaired(Sonia):
             if bkd_key in feature_dict:
                 seq_features.add(feature_dict[bkd_key])
 
-        vh_key = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
-        jh_key = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
-        vhjh_key = vh_key + jh_key
-        if vh_key in feature_dict:
-            seq_features.add(feature_dict[vh_key])
-        if jh_key in feature_dict:
-            seq_features.add(feature_dict[jh_key])
-        if vhjh_key in feature_dict:
-            seq_features.add(feature_dict[vhjh_key])
+        v_key = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
+        j_key = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
+        vj_key = v_key + j_key
+        vjl_key = vj_key + cdr3_len_key
+        if v_key in feature_dict:
+            seq_features.add(feature_dict[v_key])
+        if j_key in feature_dict:
+            seq_features.add(feature_dict[j_key])
+        if vj_key in feature_dict:
+            seq_features.add(feature_dict[vj_key])
+        if vjl_key in feature_dict:
+            seq_features.add(feature_dict[vjl_key])
 
         # Light chain.
         cdr3_len = len(seq[3])
@@ -180,16 +210,18 @@ class SoniaPaired(Sonia):
             if bkd_key in feature_dict:
                 seq_features.add(feature_dict[bkd_key])
 
-        vl_key = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
-        jl_key = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
-        vljl_key = vl_key + jl_key
-
-        if vl_key in feature_dict:
-            seq_features.add(feature_dict[vl_key])
-        if jl_key in feature_dict:
-            seq_features.add(feature_dict[jl_key])
-        if vljl_key in feature_dict:
-            seq_features.add(feature_dict[vljl_key])
+        v_key = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
+        j_key = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
+        vj_key = v_key + j_key
+        vjl_key = vj_key + cdr3_len_key
+        if v_key in feature_dict:
+            seq_features.add(feature_dict[v_key])
+        if j_key in feature_dict:
+            seq_features.add(feature_dict[j_key])
+        if vj_key in feature_dict:
+            seq_features.add(feature_dict[vj_key])
+        if vjl_key in feature_dict:
+            seq_features.add(feature_dict[vjl_key])
 
         return list(seq_features)
 
@@ -274,29 +306,15 @@ class SoniaPaired(Sonia):
                          save_dir: str
                         ) -> None:
         import shutil
-        zipped = zip([self.custom_pgen_model_light, self.custom_pgen_model_heavy],
-                     [self.chain_type_light, self.chain_type_heavy],
+        zipped = zip([self.pgen_light_dir, self.pgen_heavy_dir],
                      ['light_chain', 'heavy_chain'])
-        for custom_pgen_model, chain_type, folder_name in zipped:
-            try:
-                if self.custom_pgen_model is None: main_folder = os.path.join(FILEDIR, 'default_models', chain_type)
-                else: main_folder = custom_pgen_model
-            except:
-                main_folder = os.path.join(FILEDIR, 'default_models', chain_type)
-
+        for pgen_dir, folder_name in zipped:
             chain_dir = os.path.join(save_dir, folder_name)
             if not os.path.isdir(chain_dir): os.mkdir(chain_dir)
-            shutil.copy2(os.path.join(main_folder, 'model_params.txt'), chain_dir)
-            shutil.copy2(os.path.join(main_folder, 'model_marginals.txt'), chain_dir)
-            shutil.copy2(os.path.join(main_folder, 'V_gene_CDR3_anchors.csv'), chain_dir)
-            shutil.copy2(os.path.join(main_folder, 'J_gene_CDR3_anchors.csv'), chain_dir)
-
-    def _load_pgen_model(self,
-                         load_dir: str
-                        ) -> None:
-        self.custom_pgen_model_light = os.path.join(load_dir, 'light_chain')
-        self.custom_pgen_model_heavy = os.path.join(load_dir, 'heavy_chain')
-        self.define_models(recompute_norm=False)
+            shutil.copy2(os.path.join(pgen_dir, 'model_params.txt'), chain_dir)
+            shutil.copy2(os.path.join(pgen_dir, 'model_marginals.txt'), chain_dir)
+            shutil.copy2(os.path.join(pgen_dir, 'V_gene_CDR3_anchors.csv'), chain_dir)
+            shutil.copy2(os.path.join(pgen_dir, 'J_gene_CDR3_anchors.csv'), chain_dir)
 
 def compute_pgen_expand_light(x
                              ) -> float:
