@@ -188,9 +188,7 @@ class Sonia(object):
             
     def load_default_model(self,chain_type=None):
         load_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', chain_type)
-        self.recompute_norm_productive=False
         self.load_model(load_dir = load_dir)
-
 
     def add_features(self
                     ) -> None:

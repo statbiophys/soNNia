@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from sonnia.sonnia import SoNNia
 from sonnia.sonia import Sonia
+from sonnia.sonia_paired import SoniaPaired
 import os
 import unittest
 import shutil
@@ -30,6 +31,9 @@ class Test(unittest.TestCase):
         chains = [ 'human_T_alpha', 'human_T_beta', 'human_B_heavy','human_B_kappa','human_B_lambda','mouse_T_beta','mouse_T_alpha']
         for chain in chains:
             qm=Sonia()
+            qm.load_default_model(chain_type=chain)
+        for chain in ['human_B_heavy_kappa','human_B_heavy_lambda','human_T_beta_alpha']:
+            qm=SoniaPaired()
             qm.load_default_model(chain_type=chain)
             
     def test_infer(self):

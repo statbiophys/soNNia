@@ -21,8 +21,8 @@ class SoniaPaired(Sonia):
     def __init__(self,
                  *args: Tuple[Any],
                  load_dir: Optional[str] = None,
-                 pgen_model_light: Optional[str] = None,
-                 pgen_model_heavy: Optional[str] = None,
+                 pgen_model_light: Optional[str] = 'human_T_alpha',
+                 pgen_model_heavy: Optional[str] = 'human_T_beta',
                  recompute_productive_norm: bool = False,
                  **kwargs: Dict[str, Any]
                 ) -> None:
@@ -45,6 +45,14 @@ class SoniaPaired(Sonia):
         self.load_pgen_models()
 
         Sonia.__init__(self, *args, load_dir=load_dir, **kwargs)
+        
+    def load_default_model(self,chain_type=None):
+        load_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', chain_type)
+        self.pgen_model_light = os.path.join(load_dir, 'light_chain')
+        self.pgen_model_heavy = os.path.join(load_dir, 'heavy_chain')
+        self.recompute_productive_norm = True
+        self.load_pgen_models()
+        self.load_model(load_dir = load_dir)
 
     def load_pgen_models(self
                         ) -> None:
