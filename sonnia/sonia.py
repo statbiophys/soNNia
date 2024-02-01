@@ -108,7 +108,7 @@ class Sonia(object):
                  load_dir: Optional[str] = None,
                  data_seqs: List[Iterable[str]] = [],
                  gen_seqs: List[Iterable[str]] = [],
-                 pgen_model: Optional[str] = None,
+                 pgen_model: Optional[str] = "humanTRB",
                  load_seqs: bool = True,
                  gene_features: str = 'joint_vj',
                  include_aminoacids: bool = True,
@@ -185,6 +185,12 @@ class Sonia(object):
             self.rng = np.random.default_rng(seed)
         else:
             self.rng = np.random.default_rng()
+            
+    def load_default_model(self,chain_type=None):
+        load_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', chain_type)
+        self.recompute_norm_productive=False
+        self.load_model(load_dir = load_dir)
+
 
     def add_features(self
                     ) -> None:
