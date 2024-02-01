@@ -43,7 +43,7 @@ class Test(unittest.TestCase):
         
     def test_evaluate(self):
         qm=Sonia()
-        qm.load_default_model()
+        qm.load_default_model(chain_type='human_T_beta')
         pre_seqs=qm.generate_sequences_pre(int(1e3))
         q,pgen,ppost=qm.evaluate_seqs(pre_seqs)
         self.assertTrue(np.sum(q)>0)

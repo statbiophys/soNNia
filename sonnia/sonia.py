@@ -130,7 +130,7 @@ class Sonia(object):
             raise ValueError(f'{gene_features} is not a valid option for '
                              'gene_features. gene_features must be one of '
                              f'{gene_feature_options_str}.')
-
+            
         if load_dir is None:
             self.recompute_productive_norm = True
         else:
@@ -777,7 +777,7 @@ class Sonia(object):
                 self.Z = float(next(L1_file).strip().partition('=')[-1])
 
                 # First line is productive norm.
-                if self.recompute_norm_productive:
+                if self.recompute_productive_norm:
                     next(L1_file)
                 else:
                     self.norm_productive = float(next(L1_file).strip().partition('=')[-1])

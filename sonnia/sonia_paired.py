@@ -77,7 +77,8 @@ class SoniaPaired(Sonia):
                                'constitute a valid receptor. Acceptable chain '
                                f'pairs: {valid_chain_pairs_str}.')
 
-        self.norm_productive = self.norm_heavy * self.norm_light
+        if self.recompute_productive_norm:
+            self.norm_productive = self.norm_heavy * self.norm_light
 
     def add_features(self,
                     ) -> None:

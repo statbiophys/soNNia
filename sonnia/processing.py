@@ -143,7 +143,7 @@ class Processing(object):
         load olga models.
         '''
         (self.genomic_data, _, self.pgen_model, _,
-         _, pgen_dir, _, _) = define_pgen_model(self.pgen_model, compute_norm=False)
+         _, pgen_dir) = define_pgen_model(self.pgen_model, compute_norm=False,return_pgen_dir=True)
 
         def get_functional_genes(fin: str
                                 ) -> Set[str]:
