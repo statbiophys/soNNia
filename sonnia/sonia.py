@@ -108,7 +108,7 @@ class Sonia(object):
                  load_dir: Optional[str] = None,
                  data_seqs: List[Iterable[str]] = [],
                  gen_seqs: List[Iterable[str]] = [],
-                 pgen_model: Optional[str] = "humanTRB",
+                 pgen_model: Optional[str] = None,
                  load_seqs: bool = True,
                  gene_features: str = 'joint_vj',
                  include_aminoacids: bool = True,

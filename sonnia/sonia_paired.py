@@ -21,8 +21,8 @@ class SoniaPaired(Sonia):
     def __init__(self,
                  *args: Tuple[Any],
                  load_dir: Optional[str] = None,
-                 pgen_model_light: Optional[str] = 'human_T_alpha',
-                 pgen_model_heavy: Optional[str] = 'human_T_beta',
+                 pgen_model_light: Optional[str] = None,
+                 pgen_model_heavy: Optional[str] = None,
                  recompute_productive_norm: bool = False,
                  **kwargs: Dict[str, Any]
                 ) -> None:
