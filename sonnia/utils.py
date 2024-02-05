@@ -17,9 +17,11 @@ DEFAULT_CHAIN_TYPES = {'humanTRA': 'human_T_alpha', 'human_T_alpha': 'human_T_al
                        'humanIGL': 'human_B_lambda', 'human_B_lambda': 'human_B_lambda',
                        'mouseTRB': 'mouse_T_beta', 'mouse_T_beta': 'mouse_T_beta',
                        'mouseTRA': 'mouse_T_alpha','mouse_T_alpha':'mouse_T_alpha'}
-DEFAULT_CHAIN_TYPES_PAIRED = {'humanTCR': 'human_T_beta_alpha', 'humanTRAB': 'human_T_beta_alpha','humanTRBA': 'human_T_beta_alpha',
-                              'humanIGHK': 'human_B_heavy_kappa','human_B_heavy_kappa':'human_B_heavy_kappa','human_B_kappa_heavy':'human_B_heavy_kappa',
-                              'humanIGHL': 'human_B_heavy_lambda','human_B_heavy_lambda':'human_B_heavy_lambda','human_B_lambda_heavy':'human_B_heavy_lambda'}
+DEFAULT_CHAIN_TYPES_PAIRED = {'humanTCR': 'human_T_beta_alpha', 'humanTRAB': 'human_T_beta_alpha',
+                              'humanTRBA': 'human_T_beta_alpha','human_T_beta_alpha':'human_T_beta_alpha',
+                              'humanIGHK': 'human_B_heavy_kappa','human_B_heavy_kappa':'human_B_heavy_kappa',
+                              'human_B_kappa_heavy':'human_B_heavy_kappa','humanIGHL': 'human_B_heavy_lambda',
+                              'human_B_heavy_lambda':'human_B_heavy_lambda','human_B_lambda_heavy':'human_B_heavy_lambda'}
 
 NORM_PRODUCTIVES = {'human_T_beta': 0.2442847269027897,
                     'human_T_alpha': 0.2847166577727317,
