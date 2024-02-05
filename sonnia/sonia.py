@@ -27,7 +27,7 @@ from tensorflow.keras.regularizers import l1_l2, l2
 from tqdm import tqdm
 
 from sonnia.utils import (compute_pgen_expand, compute_pgen_expand_novj,
-                          define_pgen_model, gene_to_num_str, partial_joint_marginals)
+                          define_pgen_model, gene_to_num_str, partial_joint_marginals,DEFAULT_CHAIN_TYPES,DEFAULT_CHAIN_TYPES_PAIRED)
 
 GENE_FEATURE_OPTIONS = {'vjl', 'joint_vj', 'indep_vj', 'v', 'j', 'none'}
 
@@ -105,7 +105,7 @@ class Sonia(object):
         Loads a model.
     """
     def __init__(self,
-                 load_dir: Optional[str] = None,
+                 ppost_model: Optional[str] = None,
                  data_seqs: List[Iterable[str]] = [],
                  gen_seqs: List[Iterable[str]] = [],
                  pgen_model: Optional[str] = None,
@@ -131,7 +131,7 @@ class Sonia(object):
                              'gene_features. gene_features must be one of '
                              f'{gene_feature_options_str}.')
             
-        if load_dir is None:
+        if ppost_model is None:
             self.recompute_productive_norm = True
         else:
             self.recompute_productive_norm = recompute_productive_norm
@@ -139,12 +139,14 @@ class Sonia(object):
         if 'Paired' in type(self).__name__:
             pass
         else:
-            if load_dir is None and pgen_model is None:
-                        raise ValueError('Both load_dir and pgen_model cannot be None.')
-            if pgen_model is None:
-                self.pgen_model = load_dir
-            else:
+            if ppost_model is None and pgen_model is None:
+                raise ValueError('Both ppost_model and pgen_model cannot be None.')
+            elif not ppost_model is None and pgen_model is None:
+                self.pgen_model = ppost_model
+            elif ppost_model is None and not pgen_model is None:
                 self.pgen_model = pgen_model
+            else:
+                raise ValueError('One between ppost_model and pgen_model must be None.')
             self.load_pgen_model()
 
         self.features = np.array(features, dtype=object)
@@ -173,11 +175,15 @@ class Sonia(object):
         self.Z = 1.
         self.amino_acids = 'ACDEFGHIKLMNPQRSTVWY'
 
-        if load_dir is None:
+        if ppost_model is None:
             self.update_model(add_data_seqs=data_seqs, add_gen_seqs=gen_seqs)
             self.add_features()
         else:
-            self.load_model(load_dir=load_dir, load_seqs=load_seqs)
+            if ppost_model in DEFAULT_CHAIN_TYPES:
+                ppost_model=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', DEFAULT_CHAIN_TYPES[ppost_model])
+            elif ppost_model in DEFAULT_CHAIN_TYPES_PAIRED:
+                ppost_model=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', DEFAULT_CHAIN_TYPES_PAIRED[ppost_model])
+            self.load_model(load_dir=ppost_model, load_seqs=load_seqs)
             if len(self.data_seqs) != 0: self.update_model(add_data_seqs=data_seqs)
             if len(self.gen_seqs) != 0: self.update_model(add_data_seqs=gen_seqs)
 
@@ -1002,8 +1008,8 @@ class Sonia(object):
             #do rejection
             rejection_selection = self.rejection_sampling(upper_bound=upper_bound, energies=energies)
             seqs_post = np.array(seqs[rejection_selection])
-            if len(seqs_out) == 0: seqs_out = seqs_post
-            else: np.concatenate(seqs_out, seqs_post)
+            if len(seqs_out) == 0 and len(seqs_post)>0: seqs_out = seqs_post
+            elif len(seqs_post)>0: seqs_out=np.concatenate((seqs_out, seqs_post),axis=0)
         return seqs_out[:num_seqs]
 
     def rejection_sampling(self,

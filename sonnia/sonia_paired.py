@@ -15,36 +15,42 @@ import tensorflow.keras.backend as K
 from tqdm import tqdm
 
 from sonnia.sonia import Sonia
-from sonnia.utils import define_pgen_model, gene_to_num_str
+from sonnia.utils import define_pgen_model, gene_to_num_str,DEFAULT_CHAIN_TYPES_PAIRED
 
 class SoniaPaired(Sonia):
     def __init__(self,
                  *args: Tuple[Any],
-                 load_dir: Optional[str] = None,
+                 ppost_model: Optional[str] = None,
                  pgen_model_light: Optional[str] = None,
                  pgen_model_heavy: Optional[str] = None,
                  recompute_productive_norm: bool = False,
                  **kwargs: Dict[str, Any]
                 ) -> None:
-        if load_dir is None and (pgen_model_light is None or pgen_model_heavy is None):
-            raise RuntimeError('Either load_dir must not be None or both pgen_model_light '
+        if ppost_model is None and (pgen_model_light is None or pgen_model_heavy is None):
+            raise RuntimeError('Either ppost_model must not be None or both pgen_model_light '
                                'and pgen_model_heavy must not be None.')
         if pgen_model_light is None:
-            self.pgen_model_light = os.path.join(load_dir, 'light_chain')
+            if ppost_model in DEFAULT_CHAIN_TYPES_PAIRED:
+                dir_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', DEFAULT_CHAIN_TYPES_PAIRED[ppost_model])
+            else: dir_path=ppost_model
+            self.pgen_model_light = os.path.join(dir_path, 'light_chain')
         else:
             self.pgen_model_light = pgen_model_light
         if pgen_model_heavy is None:
-            self.pgen_model_heavy = os.path.join(load_dir, 'heavy_chain')
+            if ppost_model in DEFAULT_CHAIN_TYPES_PAIRED:
+                dir_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', DEFAULT_CHAIN_TYPES_PAIRED[ppost_model])
+            else: dir_path=ppost_model
+            self.pgen_model_heavy = os.path.join(dir_path, 'heavy_chain')
         else:
             self.pgen_model_heavy = pgen_model_heavy
 
-        if load_dir is None:
+        if ppost_model is None:
             self.recompute_productive_norm = True
         else:
             self.recompute_productive_norm = recompute_productive_norm
         self.load_pgen_models()
 
-        Sonia.__init__(self, *args, load_dir=load_dir, **kwargs)
+        Sonia.__init__(self, *args, ppost_model=ppost_model, **kwargs)
         
     def load_default_model(self,chain_type=None):
         load_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', chain_type)
