@@ -1,8 +1,10 @@
+import logging
 import os
 import subprocess
-from typing import Optional
+from typing import Any, Dict, Iterable, Optional, Set, Tuple, Union
 
 import numpy as np
+import pandas as pd
 
 import olga.generation_probability as generation_probability
 import olga.sequence_generation as sequence_generation
@@ -10,18 +12,24 @@ import olga.load_model as olga_load_model
 import olga.generation_probability as pgen
 import olga.sequence_generation as seq_gen
 
-DEFAULT_CHAIN_TYPES = {'humanTRA': 'human_T_alpha', 'human_T_alpha': 'human_T_alpha',
-                       'humanTRB': 'human_T_beta', 'human_T_beta': 'human_T_beta',
-                       'humanIGH': 'human_B_heavy', 'human_B_heavy': 'human_B_heavy',
-                       'humanIGK': 'human_B_kappa', 'human_B_kappa': 'human_B_kappa',
-                       'humanIGL': 'human_B_lambda', 'human_B_lambda': 'human_B_lambda',
-                       'mouseTRB': 'mouse_T_beta', 'mouse_T_beta': 'mouse_T_beta',
-                       'mouseTRA': 'mouse_T_alpha','mouse_T_alpha':'mouse_T_alpha'}
-DEFAULT_CHAIN_TYPES_PAIRED = {'humanTCR': 'human_T_beta_alpha', 'humanTRAB': 'human_T_beta_alpha',
-                              'humanTRBA': 'human_T_beta_alpha','human_T_beta_alpha':'human_T_beta_alpha',
-                              'humanIGHK': 'human_B_heavy_kappa','human_B_heavy_kappa':'human_B_heavy_kappa',
-                              'human_B_kappa_heavy':'human_B_heavy_kappa','humanIGHL': 'human_B_heavy_lambda',
-                              'human_B_heavy_lambda':'human_B_heavy_lambda','human_B_lambda_heavy':'human_B_heavy_lambda'}
+logging.getLogger().setLevel(logging.INFO)
+
+DEFAULT_CHAIN_TYPES = {
+    'humanTRA': 'human_T_alpha', 'human_T_alpha': 'human_T_alpha',
+    'humanTRB': 'human_T_beta', 'human_T_beta': 'human_T_beta',
+    'humanIGH': 'human_B_heavy', 'human_B_heavy': 'human_B_heavy',
+    'humanIGK': 'human_B_kappa', 'human_B_kappa': 'human_B_kappa',
+    'humanIGL': 'human_B_lambda', 'human_B_lambda': 'human_B_lambda',
+    'mouseTRB': 'mouse_T_beta', 'mouse_T_beta': 'mouse_T_beta',
+    'mouseTRA': 'mouse_T_alpha', 'mouse_T_alpha': 'mouse_T_alpha'
+}
+DEFAULT_CHAIN_TYPES_PAIRED = {
+    'humanTCR': 'human_T_beta_alpha', 'humanTRAB': 'human_T_beta_alpha',
+    'humanTRBA': 'human_T_beta_alpha', 'human_T_beta_alpha': 'human_T_beta_alpha',
+    'humanIGHK': 'human_B_heavy_kappa', 'human_B_heavy_kappa': 'human_B_heavy_kappa',
+    'human_B_kappa_heavy': 'human_B_heavy_kappa', 'humanIGHL': 'human_B_heavy_lambda',
+    'human_B_heavy_lambda': 'human_B_heavy_lambda', 'human_B_lambda_heavy': 'human_B_heavy_lambda'
+}
 
 NORM_PRODUCTIVES = {'human_T_beta': 0.2442847269027897,
                     'human_T_alpha': 0.2847166577727317,
@@ -34,12 +42,50 @@ NORM_PRODUCTIVES = {'human_T_beta': 0.2442847269027897,
 HEAVY_CHAINS = {'TRB', 'TRD', 'IGH'}
 LIGHT_CHAINS = {'TRA', 'TRG', 'IGK', 'IGL', 'IGI'}
 
-
 def run_terminal(string):
     return [i.decode("utf-8").split('\n')
             for i in subprocess.Popen(string, shell=True,
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE).communicate()]
+
+def get_model_dir(model_dir: str,
+                  paired: bool = False
+                 ) -> str:
+    """
+    Obtain a model directory if it's a default option otherwise check the
+    directory exists.
+
+    Parameters
+    ----------
+    model_dir : str
+        The path to the model directory.
+    paired : bool, default False
+        Bool specifying whether the desired default model is a paired model.
+
+    Returns
+    -------
+    model_dir : str
+        The path to the model directory.
+    """
+    if paired:
+        default_chain_types = DEFAULT_CHAIN_TYPES_PAIRED
+    else:
+        default_chain_types = DEFAULT_CHAIN_TYPES
+
+    if model_dir in default_chain_types:
+        filedir = os.path.dirname(os.path.abspath(__file__))
+        model_dir = default_chain_types[model_dir]
+        model_dir = os.path.join(filedir, 'default_models', model_dir)
+    elif os.path.isdir(model_dir):
+        pass
+    else:
+        options = f'{list(default_chain_types.keys())}'[1:-1]
+        paired_str = 'paired ' if paired else ''
+        raise ValueError('The model is neither a directory that exists '
+                         f'nor one of the default {paired_str}options ({options}). '
+                         f'Try using one of the default options for a {paired_str}model '
+                         f'or an existing directory containing a {paired_str}model.')
+    return model_dir
 
 def define_pgen_model(pgen_model: Optional[str] = None,
                       compute_norm: bool = True,
@@ -47,20 +93,12 @@ def define_pgen_model(pgen_model: Optional[str] = None,
                       return_chain: bool = False,
                       return_recomb_type: bool = False
                      ):
+    pgen_dir = get_model_dir(pgen_model)
+
     if pgen_model in DEFAULT_CHAIN_TYPES:
-        filedir = os.path.dirname(os.path.abspath(__file__))
-        pgen_model = DEFAULT_CHAIN_TYPES[pgen_model]
-        pgen_dir = os.path.join(filedir, 'default_models', pgen_model)
-        norm_productive = NORM_PRODUCTIVES[pgen_model]
-    elif os.path.isdir(pgen_model):
-        pgen_dir = pgen_model
-        norm_productive = None
+        norm_productive = NORM_PRODUCTIVES[DEFAULT_CHAIN_TYPES[pgen_model]]
     else:
-        options = f'{list(DEFAULT_CHAIN_TYPES.keys())[::2]}'[1:-1]
-        raise ValueError('pgen_model is neither a directory that exists '
-                         f'nor one of the default options ({options}). '
-                         'Try using one of the default options or an existing '
-                         'directory containing the pgen model.')
+        norm_productive = None
 
     pgen_files = ('model_params.txt', 'model_marginals.txt',
                   'V_gene_CDR3_anchors.csv', 'J_gene_CDR3_anchors.csv')
@@ -79,12 +117,19 @@ def define_pgen_model(pgen_model: Optional[str] = None,
 
     chains = []
     for fi, gene in zip((V_anchor_pos_file, J_anchor_pos_file), ('V', 'J')):
+        chain_tmp = set()
         with open(fi, 'r') as fin:
             # Skip headers.
             next(fin)
 
             chain = next(fin).partition(',')[0].partition(gene)[0]
-            chains.append(chain)
+            chain_tmp.add(chain)
+        if len(chain_tmp) > 1:
+            raise RuntimeError(f'{fi} contains anchors for more than one chain: '
+                               f'{chain_tmp}. It should contain only {gene} anchors '
+                               'for one chain.')
+        chains += list(chain_tmp)
+
     if chains[0] != chains[1]:
         raise RuntimeError('Either the V and J anchor files do not correspond '
                            'to the same chain or the files are not in the expected '
@@ -109,8 +154,8 @@ def define_pgen_model(pgen_model: Optional[str] = None,
     pgen_model = getattr(pgen, f'GenerationProbability{recomb_type}')(generative_model, genomic_data)
     seqgen_model = getattr(seq_gen, f'SequenceGeneration{recomb_type}')(generative_model, genomic_data)
 
-
     if compute_norm and norm_productive is None:
+        logging.info('Recomputing productive norm.')
         norm_productive = pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
 
     out_tup = (genomic_data, generative_model, pgen_model, seqgen_model, norm_productive)
@@ -123,6 +168,119 @@ def define_pgen_model(pgen_model: Optional[str] = None,
         out_tup += (chains[0],)
 
     return out_tup
+
+def filter_seqs(seqs: Union[Iterable[Iterable[str]], str],
+                model_dir: str,
+                seq_col: str = 'amino_acid',
+                v_col: str = 'v_gene',
+                j_col: str = 'j_gene',
+                nt_seq_col: Optional[Union[int, str]] = None,
+                abundance_col: Optional[Union[int, str]] = None,
+                bounds_check: bool = True,
+                cdr3_length_check: bool = True,
+                conserved_j_residues: str = 'ABCEDFGHIJKLMNOPQRSTUVWXYZ',
+                abundance_threshold: int = 0,
+                max_cdr3_length: int = 30,
+                deduplicate_nt_recombinations: bool = True,
+                **kwargs: Dict[str, Any]
+               ) -> np.ndarray:
+    """
+    Filter the DataFrame for sequences which are productive and compatible with Sonia.
+
+    Parameters
+    ----------
+    seqs : iterable of iterable of str or str
+        If str, this should point to a csv file. Otherwise, seqs must be
+        an iterable of iterable of str.:
+    seq_col : str, default 'amino_acid'
+        The label of the column pointing to the CDR3 nucleotide sequences.
+    v_col : str, default 'v_gene'
+        The label of the column pointing to the V genes.
+    j_col : str, default 'j_gene'
+        The label of the column pointing to the J genes.
+    nt_seq_col : str or int, optional
+        The label of the column or index of the column which points to the
+        CDR3 nucleotide sequences.
+    abundance_col : str or int, optional
+        The label of the column or index of the column which points to the
+        abundance (amount of reads) for each sequence.
+    bounds_check : bool, default True
+        Check that the sequence begins with a C and ends with one of the given
+        conserved J residues.
+    cdr3_length_check : bool, default True
+        Check that the sequences are smaller than the max_cdr3_length.
+    conserved_j_residues : str, default 'ABCEDFGHIJKLMNOPQRSTUVWXYZ'
+        The possible residues that a sequence could end with.
+    abundance_threshold : int, default 0
+        Clones with abundance at or below this threshold are removed.
+    max_cdr3_length : int, default 30
+        Sequences with CDR3 length longer than this value are removed.
+    deduplicate_nt_recombinations : bool, default True
+        Deduplicate sequences by nucleotide recombinations to remove PCR amplification
+        bias and clonal expansion effects.
+    **kwargs : dict of {str : any}
+        Keyword arguments to pandas.read_csv.
+
+    Returns
+    -------
+    seqs : np.ndarray
+       The filtered sequences.
+    """
+    def get_functional_genes(fin: str
+                            ) -> Set[str]:
+        functional_genes = set()
+        with open(fin, 'r') as fin:
+            for line in fin:
+                gene, _, func = line.strip().split(',')
+                if func == 'F':
+                    functional_genes.add(gene.partition('*')[0])
+        return functional_genes
+
+    v_genes = get_functional_genes(os.path.join(model_dir, 'V_gene_CDR3_anchors.csv'))
+    j_genes = get_functional_genes(os.path.join(model_dir, 'J_gene_CDR3_anchors.csv'))
+
+    if isinstance(seqs, str):
+        df = pd.read_csv(seqs, **kwargs)
+    else:
+        df = pd.DataFrame(seqs)
+        seq_col = 0 if not isinstance(seq_col, int) else seq_col
+        v_col = 1 if not isinstance(v_col, int) else v_col
+        j_col = 2 if not isinstance(j_col, int) else j_col
+
+    logging.info(f'{len(df)} sequences before filtering. Using {model_dir} '
+                 'for filtering.')
+
+    if nt_seq_col is not None:
+        df = df[df[nt_seq_col].str.len() % 3 == 0]
+        if deduplicate_nt_recombinations:
+            df = df.drop_duplicates([nt_seq_col, v_col, j_col])
+
+    df = df[
+        (df[v_col].isin(v_genes))
+         & (df[j_col].isin(j_genes))
+         & (~df[seq_col].str.contains('\*|_|~', na=True, regex=True))
+    ]
+
+    if bounds_check:
+        bound_string = '^C.*' + '$|^C.*'.join(list(conserved_j_residues)) + '$'
+        df = df[
+            df[seq_col].str.contains(bound_string, na=False)
+        ]
+
+    if cdr3_length_check:
+        df = df[
+            df[seq_col].str.len() <= max_cdr3_length
+        ]
+
+    if abundance_col is not None:
+        df = df[
+            df[abundance_col] > abundance_threshold
+        ]
+
+    logging.info(f'{len(df)} sequences remaining after filtering.')
+
+    return df[[seq_col, v_col, j_col]].values.astype(str)
+
 
 def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):
     (genomic_data, generative_model,

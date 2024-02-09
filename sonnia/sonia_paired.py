@@ -15,7 +15,9 @@ import tensorflow.keras.backend as K
 from tqdm import tqdm
 
 from sonnia.sonia import Sonia
-from sonnia.utils import define_pgen_model, gene_to_num_str,DEFAULT_CHAIN_TYPES_PAIRED
+from sonnia.utils import define_pgen_model, gene_to_num_str, get_model_dir
+
+ACROSS_CHAIN_FEATURES_OPTIONS = {'jj', 'jl', 'jv', 'lj', 'll', 'lv', 'vj', 'vl', 'vv'}
 
 class SoniaPaired(Sonia):
     def __init__(self,
@@ -24,41 +26,56 @@ class SoniaPaired(Sonia):
                  pgen_model_light: Optional[str] = None,
                  pgen_model_heavy: Optional[str] = None,
                  recompute_productive_norm: bool = False,
+                 across_chain_features: Optional[Iterable[str]] = None,
                  **kwargs: Dict[str, Any]
                 ) -> None:
+        if across_chain_features is None:
+            self.across_chain_features = None
+        else:
+            if isinstance(across_chain_features, str):
+                raise TypeError('across_chain_features must be an iterable of strings.')
+            else:
+                try:
+                    iter(across_chain_features)
+                except Exception:
+                    raise TypeError('across_chain_features must be an iterable of strings.')
+                else:
+                    self.across_chain_features = set(across_chain_features)
+
+            if not self.across_chain_features.issubset(ACROSS_CHAIN_FEATURES_OPTIONS):
+                options = f'{ACROSS_CHAIN_FEATURES_OPTIONS}'[1:-1]
+                raise RuntimeError(f'across_chain_features ({across_chain_features}) '
+                                   'contains unacceptable options. across_chain_features '
+                                   'must be None or be an iterable containing only '
+                                   f'the following strings: {options}.')
+
         if ppost_model is None and (pgen_model_light is None or pgen_model_heavy is None):
             raise RuntimeError('Either ppost_model must not be None or both pgen_model_light '
                                'and pgen_model_heavy must not be None.')
-        if pgen_model_light is None:
-            if ppost_model in DEFAULT_CHAIN_TYPES_PAIRED:
-                dir_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', DEFAULT_CHAIN_TYPES_PAIRED[ppost_model])
-            else: dir_path=ppost_model
-            self.pgen_model_light = os.path.join(dir_path, 'light_chain')
+        elif ppost_model is not None and pgen_model_light is not None and pgen_model_heavy is not None:
+            raise RuntimeError('ppost_model, pgen_model_light, and pgen_model_heavy '
+                               'all cannot be given. Either give ppost_model, or '
+                               'give pgen_model_light and pgen_model_heavy.')
+        elif ppost_model is not None:
+            if pgen_model_light is not None:
+                raise RuntimeError('pgen_model_light must not be None if ppost_model is given.')
+            if pgen_model_heavy is not None:
+                raise RuntimeError('pgen_model_heavy must not be None if ppost_model is given.')
+            model_dir = get_model_dir(ppost_model, True)
+            self.pgen_model_light = os.path.join(model_dir, 'light_chain')
+            self.pgen_model_heavy = os.path.join(model_dir, 'heavy_chain')
         else:
             self.pgen_model_light = pgen_model_light
-        if pgen_model_heavy is None:
-            if ppost_model in DEFAULT_CHAIN_TYPES_PAIRED:
-                dir_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', DEFAULT_CHAIN_TYPES_PAIRED[ppost_model])
-            else: dir_path=ppost_model
-            self.pgen_model_heavy = os.path.join(dir_path, 'heavy_chain')
-        else:
             self.pgen_model_heavy = pgen_model_heavy
 
         if ppost_model is None:
             self.recompute_productive_norm = True
         else:
             self.recompute_productive_norm = recompute_productive_norm
+
         self.load_pgen_models()
 
         Sonia.__init__(self, *args, ppost_model=ppost_model, **kwargs)
-        
-    def load_default_model(self,chain_type=None):
-        load_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', chain_type)
-        self.pgen_model_light = os.path.join(load_dir, 'light_chain')
-        self.pgen_model_heavy = os.path.join(load_dir, 'heavy_chain')
-        self.recompute_productive_norm = True
-        self.load_pgen_models()
-        self.load_model(load_dir = load_dir)
 
     def load_pgen_models(self
                         ) -> None:
@@ -157,6 +174,55 @@ class SoniaPaired(Sonia):
                          for j in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
                                        for genJ in self.genomic_data_heavy.genJ])]
 
+        if self.across_chain_features is not None:
+            if 'vv' in self.across_chain_features:
+                features += [[vh, vl]
+                             for vh in set(['v_h'  + gene_to_num_str(genV[0],'V')[1:]
+                                            for genV in self.genomic_data_heavy.genV])
+                             for vl in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
+                                            for genV in self.genomic_data_light.genV])]
+            if 'jj' in self.across_chain_features:
+                features += [[jh, jl]
+                             for jh in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
+                                            for genJ in self.genomic_data_heavy.genJ])
+                             for jl in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
+                                            for genJ in self.genomic_data_light.genJ])]
+            if 'll' in self.across_chain_features:
+                features += [[lh, ll]
+                             for lh in range(1, self.max_L + 1)
+                             for ll in range(1, self.max_L + 1)]
+            if 'vj' in self.across_chain_features:
+                features += [[vh, jl]
+                             for vh in set(['v_h'  + gene_to_num_str(genV[0],'V')[1:]
+                                            for genV in self.genomic_data_heavy.genV])
+                             for jl in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
+                                            for genJ in self.genomic_data_light.genJ])]
+            if 'vl' in self.across_chain_features:
+                features += [[vh, ll]
+                             for vh in set(['v_h'  + gene_to_num_str(genV[0],'V')[1:]
+                                            for genV in self.genomic_data_heavy.genV])
+                             for ll in range(1, self.max_L + 1)]
+            if 'jv' in self.across_chain_features:
+                features += [[jh, vl]
+                             for jh in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
+                                            for genJ in self.genomic_data_heavy.genJ])
+                             for vl in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
+                                            for genV in self.genomic_data_light.genV])]
+            if 'jl' in self.across_chain_features:
+                features += [[jh, vl]
+                             for jh in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
+                                            for genJ in self.genomic_data_heavy.genJ])
+                             for ll in range(1, self.max_L + 1)]
+            if 'lv' in self.across_chain_features:
+                features += [[lh, ll]
+                             for lh in range(1, self.max_L + 1)
+                             for vl in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
+                                            for genV in self.genomic_data_light.genV])]
+            if 'lj' in self.across_chain_features:
+                features += [[lh, ll]
+                             for lh in range(1, self.max_L + 1)
+                             for jl in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
+                                            for genJ in self.genomic_data_light.genJ])]
         self.update_model(add_features=features)
 
     def find_seq_features(self,

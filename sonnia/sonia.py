@@ -27,7 +27,8 @@ from tensorflow.keras.regularizers import l1_l2, l2
 from tqdm import tqdm
 
 from sonnia.utils import (compute_pgen_expand, compute_pgen_expand_novj,
-                          define_pgen_model, gene_to_num_str, partial_joint_marginals,DEFAULT_CHAIN_TYPES,DEFAULT_CHAIN_TYPES_PAIRED)
+                          define_pgen_model, gene_to_num_str, get_model_dir,
+                          partial_joint_marginals)
 
 GENE_FEATURE_OPTIONS = {'vjl', 'joint_vj', 'indep_vj', 'v', 'j', 'none'}
 
@@ -130,7 +131,7 @@ class Sonia(object):
             raise ValueError(f'{gene_features} is not a valid option for '
                              'gene_features. gene_features must be one of '
                              f'{gene_feature_options_str}.')
-            
+
         if ppost_model is None:
             self.recompute_productive_norm = True
         else:
@@ -141,12 +142,13 @@ class Sonia(object):
         else:
             if ppost_model is None and pgen_model is None:
                 raise ValueError('Both ppost_model and pgen_model cannot be None.')
-            elif not ppost_model is None and pgen_model is None:
+            elif ppost_model is not None and pgen_model is None:
                 self.pgen_model = ppost_model
-            elif ppost_model is None and not pgen_model is None:
+            elif ppost_model is None and pgen_model is not None:
                 self.pgen_model = pgen_model
             else:
-                raise ValueError('One between ppost_model and pgen_model must be None.')
+                raise ValueError('Both ppost_model and pgen_model cannot be given. '
+                                 'One of them must be None.')
             self.load_pgen_model()
 
         self.features = np.array(features, dtype=object)
@@ -179,11 +181,7 @@ class Sonia(object):
             self.update_model(add_data_seqs=data_seqs, add_gen_seqs=gen_seqs)
             self.add_features()
         else:
-            if ppost_model in DEFAULT_CHAIN_TYPES:
-                ppost_model=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', DEFAULT_CHAIN_TYPES[ppost_model])
-            elif ppost_model in DEFAULT_CHAIN_TYPES_PAIRED:
-                ppost_model=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', DEFAULT_CHAIN_TYPES_PAIRED[ppost_model])
-            self.load_model(load_dir=ppost_model, load_seqs=load_seqs)
+            self.load_model(ppost_model=ppost_model, load_seqs=load_seqs)
             if len(self.data_seqs) != 0: self.update_model(add_data_seqs=data_seqs)
             if len(self.gen_seqs) != 0: self.update_model(add_data_seqs=gen_seqs)
 
@@ -191,10 +189,6 @@ class Sonia(object):
             self.rng = np.random.default_rng(seed)
         else:
             self.rng = np.random.default_rng()
-            
-    def load_default_model(self,chain_type=None):
-        load_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_models', chain_type)
-        self.load_model(load_dir = load_dir)
 
     def add_features(self
                     ) -> None:
@@ -264,38 +258,76 @@ class Sonia(object):
 
         """
         if features is None:
-            feature_dict = self.feature_dict
+            seq_features = set()
+
+            cdr3_len = len(seq[0])
+            cdr3_len_key = (f'l{cdr3_len}',)
+            if cdr3_len_key in self.feature_dict:
+                seq_features.add(self.feature_dict[cdr3_len_key])
+
+            if self.include_aminoacids:
+                for fwd_idx, amino_acid in enumerate(list(seq[0])):
+                    bkd_idx = fwd_idx - cdr3_len
+                    if fwd_idx < self.max_depth:
+                        fwd_key = (f'a{amino_acid}{fwd_idx}',)
+                        seq_features.add(self.feature_dict[fwd_key])
+                    if bkd_idx >= -self.max_depth:
+                        bkd_key = (f'a{amino_acid}{bkd_idx}',)
+                        seq_features.add(self.feature_dict[bkd_key])
+
+            if self.gene_features == 'none':
+                pass
+            elif self.gene_features == 'indep_vj':
+                v_key = (gene_to_num_str(seq[1], 'V'),)
+                seq_features.add(self.feature_dict[v_key])
+                j_key = (gene_to_num_str(seq[2], 'J'),)
+                seq_features.add(self.feature_dict[j_key])
+            elif self.gene_features == 'v':
+                v_key = (gene_to_num_str(seq[1], 'V'),)
+                seq_features.add(self.feature_dict[v_key])
+            elif self.gene_features == 'j':
+                j_key = (gene_to_num_str(seq[2], 'J'),)
+                seq_features.add(self.feature_dict[j_key])
+            elif self.gene_features == 'joint_vj':
+                v_key = (gene_to_num_str(seq[1], 'V'),)
+                j_key = (gene_to_num_str(seq[2], 'J'),)
+                vj_key = v_key + j_key
+                seq_features.add(self.feature_dict[vj_key])
+            elif self.gene_features == 'vjl':
+                v_key = (gene_to_num_str(seq[1], 'V'),)
+                j_key = (gene_to_num_str(seq[2], 'J'),)
+                vjl_key = v_key + j_key + cdr3_len_key
+                seq_features.add(self.feature_dict[vjl_key])
         else:
             feature_dict = {tuple(feature): idx
                             for idx, feature in enumerate(features)}
+            seq_features = set()
 
-        seq_features = set()
+            cdr3_len = len(seq[0])
+            cdr3_len_key = (f'l{cdr3_len}',)
+            if cdr3_len_key in feature_dict:
+                seq_features.add(feature_dict[cdr3_len_key])
 
-        cdr3_len = len(seq[0])
-        cdr3_len_key = (f'l{cdr3_len}',)
-        if cdr3_len_key in feature_dict:
-            seq_features.add(feature_dict[cdr3_len_key])
+            for idx, amino_acid in enumerate(list(seq[0])):
+                fwd_key = (f'a{amino_acid}{idx}',)
+                bkd_key = (f'a{amino_acid}{idx - cdr3_len}',)
+                if fwd_key in feature_dict:
+                    seq_features.add(feature_dict[fwd_key])
+                if bkd_key in feature_dict:
+                    seq_features.add(feature_dict[bkd_key])
 
-        for idx, amino_acid in enumerate(list(seq[0])):
-            fwd_key = (f'a{amino_acid}{idx}',)
-            bkd_key = (f'a{amino_acid}{idx - cdr3_len}',)
-            if fwd_key in feature_dict:
-                seq_features.add(feature_dict[fwd_key])
-            if bkd_key in feature_dict:
-                seq_features.add(feature_dict[bkd_key])
-
-        v_key = (gene_to_num_str(seq[1], 'V'),)
-        j_key = (gene_to_num_str(seq[2], 'J'),)
-        vj_key = v_key + j_key
-        vjl_key = v_key + j_key + cdr3_len_key
-        if v_key in feature_dict:
-            seq_features.add(feature_dict[v_key])
-        if j_key in feature_dict:
-            seq_features.add(feature_dict[j_key])
-        if vj_key in feature_dict:
-            seq_features.add(feature_dict[vj_key])
-        if vjl_key in feature_dict:
-            seq_features.add(feature_dict[vjl_key])
+            v_key = (gene_to_num_str(seq[1], 'V'),)
+            j_key = (gene_to_num_str(seq[2], 'J'),)
+            vj_key = v_key + j_key
+            vjl_key = v_key + j_key + cdr3_len_key
+            if v_key in feature_dict:
+                seq_features.add(feature_dict[v_key])
+            if j_key in feature_dict:
+                seq_features.add(feature_dict[j_key])
+            if vj_key in feature_dict:
+                seq_features.add(feature_dict[vj_key])
+            if vjl_key in feature_dict:
+                seq_features.add(feature_dict[vjl_key])
 
         return list(seq_features)
 
@@ -712,13 +744,13 @@ class Sonia(object):
             with open(os.path.join(save_dir, 'data_seqs.tsv'), 'w') as data_seqs_file:
                 data_seq_energies = self.compute_energy(self.data_seq_features)
                 data_seqs_file.write('Sequence;Genes\tLog(Q)\tFeatures\n')
-                data_seqs_file.write('\n'.join([';'.join(seq) + '\t' + str(-data_seq_energies[i]/np.log(10)) + '\t' + ';'.join([','.join(self.features[f]) for f in self.data_seq_features[i]]) for i, seq in enumerate(self.data_seqs)]))
+                data_seqs_file.write('\n'.join([';'.join(seq) + '\t' + str(-data_seq_energies[i] - np.log(self.Z)) + '\t' + ';'.join([','.join(self.features[f]) for f in self.data_seq_features[i]]) for i, seq in enumerate(self.data_seqs)]))
 
         if 'gen_seqs' in attributes_to_save:
             with open(os.path.join(save_dir, 'gen_seqs.tsv'), 'w') as gen_seqs_file:
                 gen_seq_energies = self.compute_energy(self.gen_seq_features)
                 gen_seqs_file.write('Sequence;Genes\tLog(Q)\tFeatures\n')
-                gen_seqs_file.write('\n'.join([';'.join(seq) + '\t' +  str(-gen_seq_energies[i]/np.log(10)) + '\t' + ';'.join([','.join(self.features[f]) for f in self.gen_seq_features[i]]) for i, seq in enumerate(self.gen_seqs)]))
+                gen_seqs_file.write('\n'.join([';'.join(seq) + '\t' +  str(-gen_seq_energies[i] - np.log(self.Z)) + '\t' + ';'.join([','.join(self.features[f]) for f in self.gen_seq_features[i]]) for i, seq in enumerate(self.gen_seqs)]))
 
         if 'log' in attributes_to_save:
             with open(os.path.join(save_dir, 'log.txt'), 'w') as L1_file:
@@ -749,7 +781,7 @@ class Sonia(object):
         shutil.copy2(os.path.join(self.pgen_dir, 'J_gene_CDR3_anchors.csv'), save_dir)
 
     def load_model(self,
-                   load_dir: Optional[str] = None,
+                   ppost_model: str,
                    load_seqs: bool = True,
                    verbose: bool = True
                   ) -> None:
@@ -759,61 +791,62 @@ class Sonia(object):
         load_dir : str
             Directory name to load model attributes from.
         """
+        paired = 'Paired' in type(self).__name__
+        ppost_dir = get_model_dir(ppost_model, paired)
 
-        if load_dir is not None:
-            if not os.path.isdir(load_dir):
-                print(f'Directory for loading model does not exist ({load_dir})')
-                print('Exiting...')
-                return
-            feature_file = os.path.join(load_dir, 'features.tsv')
-            model_file = os.path.join(load_dir, 'model.h5')
-            data_seq_file = os.path.join(load_dir, 'data_seqs.tsv')
-            gen_seq_file = os.path.join(load_dir, 'gen_seqs.tsv')
-            log_file = os.path.join(load_dir, 'log.txt')
+        ppost_files = ('features.tsv', 'log.txt')
 
-        if log_file is None:
+        if 'NN' in type(self).__name__:
+            ppost_files += ('model.h5', )
+
+        files_in_dir = set(os.listdir(ppost_dir))
+        missing_files = set(ppost_files) - files_in_dir
+
+        if len(missing_files) > 0:
+            missing_files = f'{missing_files}'[1:-1]
+            raise RuntimeError('The model cannot be loaded. The following files '
+                               f'are missing: {missing_files}.')
+
+        feature_file = os.path.join(ppost_dir, 'features.tsv')
+        model_file = os.path.join(ppost_dir, 'model.h5')
+        data_seq_file = os.path.join(ppost_dir, 'data_seqs.tsv')
+        gen_seq_file = os.path.join(ppost_dir, 'gen_seqs.tsv')
+        log_file = os.path.join(ppost_dir, 'log.txt')
+
+        with open(log_file, 'r') as L1_file:
             self.L1_converge_history = []
-        elif os.path.isfile(log_file):
-            with open(log_file, 'r') as L1_file:
-                self.L1_converge_history = []
 
-                # Zeroth line is Z.
-                self.Z = float(next(L1_file).strip().partition('=')[-1])
+            # Zeroth line is Z.
+            self.Z = float(next(L1_file).strip().partition('=')[-1])
 
-                # First line is productive norm.
-                if self.recompute_productive_norm:
-                    next(L1_file)
-                else:
-                    self.norm_productive = float(next(L1_file).strip().partition('=')[-1])
+            # First line is productive norm.
+            if self.recompute_productive_norm:
+                next(L1_file)
+            else:
+                self.norm_productive = float(next(L1_file).strip().partition('=')[-1])
 
-                # Second line is minimum energy clip.
+            # Second line is minimum energy clip.
+            try:
+                self.min_energy_clip=float(next(L1_file).strip().partition('=')[-1])
+            except:
+                pass
+
+            # Third line is maximum energy clip.
+            try:
+                self.max_energy_clip=float(next(L1_file).strip().partition('=')[-1])
+            except:
+                pass
+
+            for line in L1_file:
+                line = line.strip()
+                if len(line) == 0:
+                    continue
                 try:
-                    self.min_energy_clip=float(next(L1_file).strip().partition('=')[-1])
+                    train_val, _, test_val = line.partition(',')
+                    self.likelihood_train.append(float(train_val))
+                    self.likelihood_test.append(float(test_val))
                 except:
-                    pass
-
-                # Third line is maximum energy clip.
-                try:
-                    self.max_energy_clip=float(next(L1_file).strip().partition('=')[-1])
-                except:
-                    pass
-
-                for line in L1_file:
-                    line = line.strip()
-                    if len(line) == 0:
-                        continue
-                    try:
-                        train_val, _, test_val = line.partition(',')
-                        self.likelihood_train.append(float(train_val))
-                        self.likelihood_test.append(float(test_val))
-                    except:
-                        continue
-
-        else:
-            self.L1_converge_history = []
-            self.likelihood_train = []
-            self.likelihood_test = []
-            if verbose: print('Cannot find log.txt  --  no norms and convergence loaded.')
+                    continue
 
         self._load_features_and_model(feature_file, model_file, verbose)
 
@@ -838,18 +871,14 @@ class Sonia(object):
                             to_append.append(self.feature_dict[feature])
                     seq_features.append(to_append)
 
-        if data_seq_file is None:
-            pass
-        elif os.path.isfile(data_seq_file):
+        if os.path.isfile(data_seq_file):
             self.data_seqs = []
             self.data_seq_features = []
             seq_loader(data_seq_file, self.data_seqs, self.data_seq_features)
         elif verbose:
             print('Cannot find data_seqs.tsv  --  no data seqs loaded.')
 
-        if gen_seq_file is None:
-            pass
-        elif os.path.isfile(gen_seq_file):
+        if os.path.isfile(gen_seq_file):
             self.gen_seqs = []
             self.gen_seq_features = []
             seq_loader(gen_seq_file, self.gen_seqs, self.gen_seq_features)
@@ -865,50 +894,47 @@ class Sonia(object):
         This is set as an internal function to allow daughter classes to load
         models from saved feature energies directly.
         """
-        if feature_file is None and verbose:
-            print('No feature file provided --  no features loaded.')
-        elif os.path.isfile(feature_file):
-            features = []
-            data_marginals = []
-            model_marginals = []
-            gen_marginals = []
-            energies = []
+        features = []
+        data_marginals = []
+        model_marginals = []
+        gen_marginals = []
+        energies = []
 
-            with open(feature_file, 'r') as features_file:
-                column_names = next(features_file)
-                sonia_or_sonnia = column_names.split(',')[1]
-                if sonia_or_sonnia == 'marginal_data': k = 0
-                else: k = 1
+        with open(feature_file, 'r') as features_file:
+            column_names = next(features_file)
+            sonia_or_sonnia = column_names.split(',')[1]
+            if sonia_or_sonnia == 'marginal_data': k = 0
+            else: k = 1
 
-                for line in features_file:
-                    splitted = line.strip().split(',')
-                    features.append(splitted[0].split(';'))
-                    data_marginals.append(float(splitted[1 + k]))
-                    model_marginals.append(float(splitted[2 + k]))
-                    gen_marginals.append(float(splitted[3 + k]))
+            for line in features_file:
+                splitted = line.strip().split(',')
+                features.append(splitted[0].split(';'))
+                data_marginals.append(float(splitted[1 + k]))
+                model_marginals.append(float(splitted[2 + k]))
+                gen_marginals.append(float(splitted[3 + k]))
 
-                    if k == 1:
-                        energies.append(float(splitted[1]))
+                if k == 1:
+                    energies.append(float(splitted[1]))
 
-            self.features = np.array(features, dtype=object)
-            self.data_marginals = np.array(data_marginals)
-            self.gen_marginals = np.array(gen_marginals)
-            self.model_marginals = np.array(model_marginals)
+        self.features = np.array(features, dtype=object)
+        self.data_marginals = np.array(data_marginals)
+        self.gen_marginals = np.array(gen_marginals)
+        self.model_marginals = np.array(model_marginals)
 
-            self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
+        self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
 
-            if k == 1:
-                feature_energies = np.array(energies).reshape(len(self.features), 1)
-                self.update_model_structure(initialize=True)
-                self.model.set_weights([feature_energies])
-            else:
-                self.model = keras.models.load_model(model_file,
-                                                     custom_objects={'loss': self._loss,
-                                                                     'likelihood': self._likelihood},
-                                                     compile=False)
-                self.optimizer = keras.optimizers.RMSprop()
-                self.model.compile(optimizer=self.optimizer,
-                                   loss=self._loss,metrics=[self._likelihood])
+        if k == 1:
+            feature_energies = np.array(energies).reshape(len(self.features), 1)
+            self.update_model_structure(initialize=True)
+            self.model.set_weights([feature_energies])
+        else:
+            self.model = keras.models.load_model(model_file,
+                                                 custom_objects={'loss': self._loss,
+                                                                 'likelihood': self._likelihood},
+                                                 compile=False)
+            self.optimizer = keras.optimizers.RMSprop()
+            self.model.compile(optimizer=self.optimizer,
+                               loss=self._loss,metrics=[self._likelihood])
 
     def load_pgen_model(self
                        ) -> None:
