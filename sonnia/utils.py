@@ -169,7 +169,7 @@ def define_pgen_model(pgen_model: Optional[str] = None,
 
     return out_tup
 
-def filter_seqs(seqs: Union[Iterable[Iterable[str]], str],
+def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
                 model_dir: str,
                 seq_col: str = 'amino_acid',
                 v_col: str = 'v_gene',
@@ -236,11 +236,15 @@ def filter_seqs(seqs: Union[Iterable[Iterable[str]], str],
                     functional_genes.add(gene.partition('*')[0])
         return functional_genes
 
+    model_dir = get_model_dir(model_dir)
+
     v_genes = get_functional_genes(os.path.join(model_dir, 'V_gene_CDR3_anchors.csv'))
     j_genes = get_functional_genes(os.path.join(model_dir, 'J_gene_CDR3_anchors.csv'))
 
     if isinstance(seqs, str):
         df = pd.read_csv(seqs, **kwargs)
+    elif isinstance(seqs, pd.DataFrame):
+        df = seqs
     else:
         df = pd.DataFrame(seqs)
         seq_col = 0 if not isinstance(seq_col, int) else seq_col
