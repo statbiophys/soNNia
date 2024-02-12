@@ -17,7 +17,7 @@ from tqdm import tqdm
 from sonnia.sonia import Sonia
 from sonnia.utils import define_pgen_model, gene_to_num_str, get_model_dir
 
-ACROSS_CHAIN_FEATURES_OPTIONS = {'jj', 'jl', 'jv', 'lj', 'll', 'lv', 'vj', 'vl', 'vv'}
+ACROSS_CHAIN_FEATURES_OPTIONS = {'jhjl', 'jhvl', 'vhjl', 'vhvl'}
 
 class SoniaPaired(Sonia):
     def __init__(self,
@@ -29,8 +29,8 @@ class SoniaPaired(Sonia):
                  across_chain_features: Optional[Iterable[str]] = None,
                  **kwargs: Dict[str, Any]
                 ) -> None:
-        if across_chain_features is None:
-            self.across_chain_features = None
+        if across_chain_features is None or not across_chain_features:
+            self.across_chain_features = {}
         else:
             if isinstance(across_chain_features, str):
                 raise TypeError('across_chain_features must be an iterable of strings.')
@@ -82,9 +82,9 @@ class SoniaPaired(Sonia):
         (self.genomic_data_light, self.generative_model_light,
          self.pgen_model_light, self.seqgen_model_light,
          self.norm_light, self.pgen_light_dir,
-         model_str, chain_light) = define_pgen_model(self.pgen_model_light,
-                                                     self.recompute_productive_norm,
-                                                     True, True, True)
+         model_str, self.chain_light) = define_pgen_model(self.pgen_model_light,
+                                                          self.recompute_productive_norm,
+                                                          True, True, True)
         if model_str != 'VJ':
             raise RuntimeError('A VDJ model was given to pgen_model_light. Please '
                                'rerun and point pgen_model_light to a VJ pgen model.')
@@ -92,9 +92,9 @@ class SoniaPaired(Sonia):
         (self.genomic_data_heavy, self.generative_model_heavy,
          self.pgen_model_heavy, self.seqgen_model_heavy,
          self.norm_heavy, self.pgen_heavy_dir,
-         model_str, chain_heavy) = define_pgen_model(self.pgen_model_heavy,
-                                                     self.recompute_productive_norm,
-                                                     True, True, True)
+         model_str, self.chain_heavy) = define_pgen_model(self.pgen_model_heavy,
+                                                          self.recompute_productive_norm,
+                                                          True, True, True)
         if model_str != 'VDJ':
             raise RuntimeError('A VJ model was given to pgen_model_heavy. Please '
                                'rerun and point pgen_model_heavy to a VDJ pgen model.')
@@ -102,10 +102,10 @@ class SoniaPaired(Sonia):
         valid_chain_pairs = [('IGL', 'IGH'), ('IGK', 'IGH'),
                              ('TRA', 'TRB'), ('TRG', 'TRD')]
 
-        if (chain_light, chain_heavy) not in valid_chain_pairs:
+        if (self.chain_light, self.chain_heavy) not in valid_chain_pairs:
             valid_chain_pairs_str = f'{valid_chain_pairs}'[1:-1]
-            raise RuntimeError(f'A light-heavy chain pair of {(chain_light, chain_heavy)} does '
-                               'constitute a valid receptor. Acceptable chain '
+            raise RuntimeError(f'A light-heavy chain pair of {(self.chain_light, self.chain_heavy)} '
+                               'does constitute a valid receptor. Acceptable chain '
                                f'pairs: {valid_chain_pairs_str}.')
 
         if self.recompute_productive_norm:
@@ -174,55 +174,31 @@ class SoniaPaired(Sonia):
                          for j in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
                                        for genJ in self.genomic_data_heavy.genJ])]
 
-        if self.across_chain_features is not None:
-            if 'vv' in self.across_chain_features:
-                features += [[vh, vl]
-                             for vh in set(['v_h'  + gene_to_num_str(genV[0],'V')[1:]
-                                            for genV in self.genomic_data_heavy.genV])
-                             for vl in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
-                                            for genV in self.genomic_data_light.genV])]
-            if 'jj' in self.across_chain_features:
-                features += [[jh, jl]
-                             for jh in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
-                                            for genJ in self.genomic_data_heavy.genJ])
-                             for jl in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
-                                            for genJ in self.genomic_data_light.genJ])]
-            if 'll' in self.across_chain_features:
-                features += [[lh, ll]
-                             for lh in range(1, self.max_L + 1)
-                             for ll in range(1, self.max_L + 1)]
-            if 'vj' in self.across_chain_features:
-                features += [[vh, jl]
-                             for vh in set(['v_h'  + gene_to_num_str(genV[0],'V')[1:]
-                                            for genV in self.genomic_data_heavy.genV])
-                             for jl in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
-                                            for genJ in self.genomic_data_light.genJ])]
-            if 'vl' in self.across_chain_features:
-                features += [[vh, ll]
-                             for vh in set(['v_h'  + gene_to_num_str(genV[0],'V')[1:]
-                                            for genV in self.genomic_data_heavy.genV])
-                             for ll in range(1, self.max_L + 1)]
-            if 'jv' in self.across_chain_features:
-                features += [[jh, vl]
-                             for jh in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
-                                            for genJ in self.genomic_data_heavy.genJ])
-                             for vl in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
-                                            for genV in self.genomic_data_light.genV])]
-            if 'jl' in self.across_chain_features:
-                features += [[jh, vl]
-                             for jh in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
-                                            for genJ in self.genomic_data_heavy.genJ])
-                             for ll in range(1, self.max_L + 1)]
-            if 'lv' in self.across_chain_features:
-                features += [[lh, ll]
-                             for lh in range(1, self.max_L + 1)
-                             for vl in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
-                                            for genV in self.genomic_data_light.genV])]
-            if 'lj' in self.across_chain_features:
-                features += [[lh, ll]
-                             for lh in range(1, self.max_L + 1)
-                             for jl in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
-                                            for genJ in self.genomic_data_light.genJ])]
+        if 'vhvl' in self.across_chain_features:
+            features += [[vh, vl]
+                         for vh in set(['v_h'  + gene_to_num_str(genV[0],'V')[1:]
+                                        for genV in self.genomic_data_heavy.genV])
+                         for vl in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
+                                        for genV in self.genomic_data_light.genV])]
+        if 'jhjl' in self.across_chain_features:
+            features += [[jh, jl]
+                         for jh in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
+                                        for genJ in self.genomic_data_heavy.genJ])
+                         for jl in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
+                                        for genJ in self.genomic_data_light.genJ])]
+        if 'vhjl' in self.across_chain_features:
+            features += [[vh, jl]
+                         for vh in set(['v_h'  + gene_to_num_str(genV[0],'V')[1:]
+                                        for genV in self.genomic_data_heavy.genV])
+                         for jl in set(['j_l'  + gene_to_num_str(genJ[0],'J')[1:]
+                                        for genJ in self.genomic_data_light.genJ])]
+        if 'jhvl' in self.across_chain_features:
+            features += [[jh, vl]
+                         for jh in set(['j_h'  + gene_to_num_str(genJ[0],'J')[1:]
+                                        for genJ in self.genomic_data_heavy.genJ])
+                         for vl in set(['v_l' + gene_to_num_str(genV[0],'V')[1:]
+                                        for genV in self.genomic_data_light.genV])]
+
         self.update_model(add_features=features)
 
     def find_seq_features(self,
@@ -249,70 +225,172 @@ class SoniaPaired(Sonia):
             Indices of features seq projects onto.
 
         """
-        if features is None:
-            feature_dict = self.feature_dict
-        else:
-            feature_dict = {tuple(feature): idx
-                            for idx, feature in enumerate(features)}
-
         seq_features = set()
 
         # NOTE It's quicker to have the code written explicitly than perform
         # a for loop.
+        if features is None:
+            cdr3_len_h = len(seq[0])
+            cdr3_len_key_h = (f'l_h{cdr3_len_h}',)
+            if cdr3_len_key_h in self.feature_dict:
+                seq_features.add(self.feature_dict[cdr3_len_key_h])
 
-        # Heavy chain.
-        cdr3_len = len(seq[0])
-        cdr3_len_key = (f'l_h{cdr3_len}',)
-        if cdr3_len_key in feature_dict:
-            seq_features.add(feature_dict[cdr3_len_key])
+            cdr3_len_l = len(seq[3])
+            cdr3_len_key_l = (f'l_l{cdr3_len_l}',)
+            if cdr3_len_key_l in self.feature_dict:
+                seq_features.add(self.feature_dict[cdr3_len_key_l])
 
-        for idx, amino_acid in enumerate(list(seq[0])):
-            fwd_key = (f'a_h{amino_acid}{idx}',)
-            bkd_key = (f'a_h{amino_acid}{idx - cdr3_len}',)
-            if fwd_key in feature_dict:
-                seq_features.add(feature_dict[fwd_key])
-            if bkd_key in feature_dict:
-                seq_features.add(feature_dict[bkd_key])
+            if self.include_aminoacids:
+                for fwd_idx, amino_acid in enumerate(list(seq[0])):
+                    bkd_idx = fwd_idx - cdr3_len_h
+                    if fwd_idx < self.max_depth:
+                        fwd_key = (f'a_h{amino_acid}{fwd_idx}',)
+                        seq_features.add(self.feature_dict[fwd_key])
+                    if bkd_idx >= -self.max_depth:
+                        bkd_key = (f'a_h{amino_acid}{bkd_idx}',)
+                        seq_features.add(self.feature_dict[bkd_key])
 
-        v_key = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
-        j_key = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
-        vj_key = v_key + j_key
-        vjl_key = vj_key + cdr3_len_key
-        if v_key in feature_dict:
-            seq_features.add(feature_dict[v_key])
-        if j_key in feature_dict:
-            seq_features.add(feature_dict[j_key])
-        if vj_key in feature_dict:
-            seq_features.add(feature_dict[vj_key])
-        if vjl_key in feature_dict:
-            seq_features.add(feature_dict[vjl_key])
+                for fwd_idx, amino_acid in enumerate(list(seq[3])):
+                    bkd_idx = fwd_idx - cdr3_len_l
+                    if fwd_idx < self.max_depth:
+                        fwd_key = (f'a_l{amino_acid}{fwd_idx}',)
+                        seq_features.add(self.feature_dict[fwd_key])
+                    if bkd_idx >= -self.max_depth:
+                        bkd_key = (f'a_l{amino_acid}{bkd_idx}',)
+                        seq_features.add(self.feature_dict[bkd_key])
 
-        # Light chain.
-        cdr3_len = len(seq[3])
-        cdr3_len_key = (f'l_l{cdr3_len}',)
-        if cdr3_len_key in feature_dict:
-            seq_features.add(feature_dict[cdr3_len_key])
+            v_obtained = True
+            j_obtained = True
+            if self.gene_features == 'none':
+                v_obtained = False
+                j_obtained = False
+            elif self.gene_features == 'v':
+                j_obtained = False
+                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
+                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
+                seq_features.add(self.feature_dict[v_key_h])
+                seq_features.add(self.feature_dict[v_key_l])
+            elif self.gene_features == 'j':
+                v_obtained = False
+                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
+                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
+                seq_features.add(self.feature_dict[j_key_l])
+                seq_features.add(self.feature_dict[j_key_l])
+            elif self.gene_features == 'indep_vj':
+                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
+                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
+                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
+                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
+                seq_features.add(self.feature_dict[v_key_h])
+                seq_features.add(self.feature_dict[j_key_h])
+                seq_features.add(self.feature_dict[v_key_l])
+                seq_features.add(self.feature_dict[j_key_l])
+            elif self.gene_features == 'joint_vj':
+                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
+                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
+                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
+                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
+                seq_features.add(self.feature_dict[v_key_h + j_key_h])
+                seq_features.add(self.feature_dict[v_key_l + j_key_l])
+            elif self.gene_features == 'vjl':
+                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
+                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
+                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
+                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
+                seq_features.add(self.feature_dict[v_key_h + j_key_h + cdr3_len_key_h])
+                seq_features.add(self.feature_dict[v_key_l + j_key_l + cdr3_len_key_l])
 
-        for idx, amino_acid in enumerate(list(seq[3])):
-            fwd_key = (f'a_l{amino_acid}{idx}',)
-            bkd_key = (f'a_l{amino_acid}{idx - cdr3_len}',)
-            if fwd_key in feature_dict:
-                seq_features.add(feature_dict[fwd_key])
-            if bkd_key in feature_dict:
-                seq_features.add(feature_dict[bkd_key])
+            if not self.across_chain_features:
+                return list(seq_features)
 
-        v_key = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
-        j_key = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
-        vj_key = v_key + j_key
-        vjl_key = vj_key + cdr3_len_key
-        if v_key in feature_dict:
-            seq_features.add(feature_dict[v_key])
-        if j_key in feature_dict:
-            seq_features.add(feature_dict[j_key])
-        if vj_key in feature_dict:
-            seq_features.add(feature_dict[vj_key])
-        if vjl_key in feature_dict:
-            seq_features.add(feature_dict[vjl_key])
+            # TODO Obtain features better depending on across_chain_features options?
+            if not v_obtained:
+                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
+                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
+            if not j_obtained:
+                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
+                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
+
+            if 'vhvl' in self.across_chain_features:
+                seq_features.add(self.feature_dict[v_key_h + v_key_l])
+            if 'jhjl' in self.across_chain_features:
+                seq_features.add(self.feature_dict[j_key_h + j_key_l])
+            if 'vhjl' in self.across_chain_features:
+                seq_features.add(self.feature_dict[v_key_h + j_key_l])
+            if 'jhvl' in self.across_chain_features:
+                seq_features.add(self.feature_dict[j_key_h + v_key_l])
+
+        else:
+            feature_dict = {tuple(feature): idx
+                            for idx, feature in enumerate(features)}
+
+            # Heavy chain.
+            cdr3_len_h = len(seq[0])
+            cdr3_len_key_h = (f'l_h{cdr3_len_h}',)
+            if cdr3_len_key_h in feature_dict:
+                seq_features.add(feature_dict[cdr3_len_key_h])
+
+            for idx, amino_acid in enumerate(list(seq[0])):
+                fwd_key = (f'a_h{amino_acid}{idx}',)
+                bkd_key = (f'a_h{amino_acid}{idx - cdr3_len_h}',)
+                if fwd_key in feature_dict:
+                    seq_features.add(feature_dict[fwd_key])
+                if bkd_key in feature_dict:
+                    seq_features.add(feature_dict[bkd_key])
+
+            v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
+            j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
+            vj_key = v_key_h + j_key_h
+            vjl_key = vj_key + cdr3_len_key_h
+            if v_key_h in feature_dict:
+                seq_features.add(feature_dict[v_key_h])
+            if j_key_h in feature_dict:
+                seq_features.add(feature_dict[j_key_h])
+            if vj_key in feature_dict:
+                seq_features.add(feature_dict[vj_key])
+            if vjl_key in feature_dict:
+                seq_features.add(feature_dict[vjl_key])
+
+            # Light chain.
+            cdr3_len_l = len(seq[3])
+            cdr3_len_key_l = (f'l_l{cdr3_len_l}',)
+            if cdr3_len_key_l in feature_dict:
+                seq_features.add(feature_dict[cdr3_len_key_l])
+
+            for idx, amino_acid in enumerate(list(seq[3])):
+                fwd_key = (f'a_l{amino_acid}{idx}',)
+                bkd_key = (f'a_l{amino_acid}{idx - cdr3_len_l}',)
+                if fwd_key in feature_dict:
+                    seq_features.add(feature_dict[fwd_key])
+                if bkd_key in feature_dict:
+                    seq_features.add(feature_dict[bkd_key])
+
+            v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
+            j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
+            vj_key = v_key_l + j_key_l
+            vjl_key = vj_key + cdr3_len_key_l
+            if v_key_l in feature_dict:
+                seq_features.add(feature_dict[v_key_l])
+            if j_key_l in feature_dict:
+                seq_features.add(feature_dict[j_key_l])
+            if vj_key in feature_dict:
+                seq_features.add(feature_dict[vj_key])
+            if vjl_key in feature_dict:
+                seq_features.add(feature_dict[vjl_key])
+
+            vhvl_key = v_key_h + v_key_l
+            vhjl_key = v_key_h + j_key_l
+            jhvl_key = j_key_h + v_key_l
+            jhjl_key = j_key_h + j_key_l
+
+            if vhvl_key in feature_dict:
+                seq_features.add(feature_dict[vhvl_key])
+            if vhjl_key in feature_dict:
+                seq_features.add(feature_dict[vhjl_key])
+            if jhvl_key in feature_dict:
+                seq_features.add(feature_dict[jhvl_key])
+            if jhjl_key in feature_dict:
+                seq_features.add(feature_dict[jhjl_key])
 
         return list(seq_features)
 

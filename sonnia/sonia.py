@@ -257,8 +257,9 @@ class Sonia(object):
             Indices of features seq projects onto.
 
         """
+        seq_features = set()
+
         if features is None:
-            seq_features = set()
 
             cdr3_len = len(seq[0])
             cdr3_len_key = (f'l{cdr3_len}',)
@@ -277,15 +278,15 @@ class Sonia(object):
 
             if self.gene_features == 'none':
                 pass
-            elif self.gene_features == 'indep_vj':
-                v_key = (gene_to_num_str(seq[1], 'V'),)
-                seq_features.add(self.feature_dict[v_key])
-                j_key = (gene_to_num_str(seq[2], 'J'),)
-                seq_features.add(self.feature_dict[j_key])
             elif self.gene_features == 'v':
                 v_key = (gene_to_num_str(seq[1], 'V'),)
                 seq_features.add(self.feature_dict[v_key])
             elif self.gene_features == 'j':
+                j_key = (gene_to_num_str(seq[2], 'J'),)
+                seq_features.add(self.feature_dict[j_key])
+            elif self.gene_features == 'indep_vj':
+                v_key = (gene_to_num_str(seq[1], 'V'),)
+                seq_features.add(self.feature_dict[v_key])
                 j_key = (gene_to_num_str(seq[2], 'J'),)
                 seq_features.add(self.feature_dict[j_key])
             elif self.gene_features == 'joint_vj':
@@ -301,7 +302,6 @@ class Sonia(object):
         else:
             feature_dict = {tuple(feature): idx
                             for idx, feature in enumerate(features)}
-            seq_features = set()
 
             cdr3_len = len(seq[0])
             cdr3_len_key = (f'l{cdr3_len}',)
