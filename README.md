@@ -67,14 +67,12 @@ translates into the deep paired (i.e. alpha-beta for TCRs) version as
 ```
 from sonnia.sonnia_paired import SoNNiaPaired
 qm=SoNNiaPaired()
-
 ```
 SoNNia keeps all the functionalities of SONIA. As an example you can infer a linear SONIA model with SoNNia using the following definition of the model:
 
 ```
 from sonnia.sonia import Sonia
 qm=Sonia()
-
 ```
 
 In the examples folder there is a python notebook  (or alternatively the example_pipeline script) which shows the main properties of the software. The fig2_paper folder contains all scripts and explanations needed to reproduce figure 2 of the soNNia paper.
