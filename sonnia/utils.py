@@ -11,6 +11,7 @@ import olga.sequence_generation as sequence_generation
 import olga.load_model as olga_load_model
 import olga.generation_probability as pgen
 import olga.sequence_generation as seq_gen
+from olga.utils import nt2aa
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -182,6 +183,7 @@ def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
                 abundance_threshold: int = 0,
                 max_cdr3_length: int = 30,
                 deduplicate_nt_recombinations: bool = True,
+                return_bools: bool = False,
                 **kwargs: Dict[str, Any]
                ) -> np.ndarray:
     """
@@ -218,6 +220,8 @@ def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
     deduplicate_nt_recombinations : bool, default True
         Deduplicate sequences by nucleotide recombinations to remove PCR amplification
         bias and clonal expansion effects.
+    return_bools : bool, default False
+        Return a boolean array of whether the sequences are valid.
     **kwargs : dict of {str : any}
         Keyword arguments to pandas.read_csv.
 
@@ -254,36 +258,33 @@ def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
     logging.info(f'{len(df)} sequences before filtering. Using {model_dir} '
                  'for filtering.')
 
+    df['valid'] = True
+
     if nt_seq_col is not None:
-        df = df[df[nt_seq_col].str.len() % 3 == 0]
+        df['valid'] *= df[nt_seq_col].str.len() % 3 == 0
         if deduplicate_nt_recombinations:
             df = df.drop_duplicates([nt_seq_col, v_col, j_col])
 
-    df = df[
-        (df[v_col].isin(v_genes))
-         & (df[j_col].isin(j_genes))
-         & (~df[seq_col].str.contains('\*|_|~', na=True, regex=True))
-    ]
+    df['valid'] *= ((df[v_col].isin(v_genes))
+                    & (df[j_col].isin(j_genes))
+                    & (~df[seq_col].str.contains('\*|_|~', na=True, regex=True)))
 
     if bounds_check:
         bound_string = '^C.*' + '$|^C.*'.join(list(conserved_j_residues)) + '$'
-        df = df[
-            df[seq_col].str.contains(bound_string, na=False)
-        ]
+        df['valid'] *= df[seq_col].str.contains(bound_string, na=False)
 
     if cdr3_length_check:
-        df = df[
-            df[seq_col].str.len() <= max_cdr3_length
-        ]
+        df['valid'] *= df[seq_col].str.len() <= max_cdr3_length
 
     if abundance_col is not None:
-        df = df[
-            df[abundance_col] > abundance_threshold
-        ]
+        df['valid'] *= df[abundance_col] > abundance_threshold, 'valid'
 
     logging.info(f'{len(df)} sequences remaining after filtering.')
 
-    return df[[seq_col, v_col, j_col]].values.astype(str)
+    if return_bools:
+        return df['valid'].values
+
+    return df.loc[df['valid'], [seq_col, v_col, j_col]].values.astype(str)
 
 
 def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):
@@ -501,12 +502,99 @@ def compute_pgen_expand_novj(x):
     # compute pgen unconditioned on gene usage
     return x[1].compute_aa_CDR3_pgen(x[0][0])
 
-def generate_sequence(x):
-    seq_gen_model=x[0]
-    genomic_data=x[1]
-    np.random.seed(x[2])
-    seq=seq_gen_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
-    return [seq[1], genomic_data.genV[seq[2]][0].split('*')[0], genomic_data.genJ[seq[3]][0].split('*')[0],seq[0]]
+def generate_sequence(seqgen_model: Union[sequence_generation.SequenceGenerationVJ,
+                                          sequence_generation.SequenceGenerationVDJ],
+                      genomic_data: Union[olga_load_model.GenomicDataVJ,
+                                          olga_load_model.GenomicDataVDJ],
+                      seed: Optional[np.uint64] = None,
+                      add_error: bool = False,
+                      error_rate: Optional[np.float64] = None
+                     ) -> Tuple[str]:
+    """
+    Generate a sequence using OLGA.
+
+    Parameters
+    ----------
+    seqgen_model : olga.sequence_generation.SequenceGenerationVJ or olga.sequence_generation.SequenceGenerationVDJ
+        The OLGA sequence generation class for generating sequences.
+    genomic_data : olga.load_model.GenomicDataVJ or olga.load_model.GenomicDataVDJ
+        The OLGA genomic data class used for parsing gene choices.
+    seed : np.uint64, optional
+        The seed used for random generation.
+    add_error : bool, default False
+        Whether error should be added to the CDR3 sequence.
+    error_rate : np.float64, optional
+        The error rate.
+
+    Returns
+    -------
+    tuple of str
+        The generated CDR3 amino acid sequence, V gene, J gene, and CDR3 nucleotide sequence.
+    """
+    np.random.seed(seed)
+    seq = seqgen_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+    if add_error:
+        err_seq = add_random_error(seq[0], error_rate)
+        seq = [err_seq, nt2aa(err_seq), seq[2], seq[3]]
+
+    return (seq[1], genomic_data.genV[seq[2]][0].partition('*')[0],
+            genomic_data.genJ[seq[3]][0].partition('*')[0],seq[0])
+
+def generate_paired_sequence(seqgen_model_light: sequence_generation.SequenceGenerationVJ,
+                             seqgen_model_heavy: sequence_generation.SequenceGenerationVDJ,
+                             genomic_data_light: olga_load_model.GenomicDataVJ,
+                             genomic_data_heavy: olga_load_model.GenomicDataVDJ,
+                             seed: Optional[np.uint64] = None,
+                             add_error: bool = False,
+                             error_rate_light: Optional[np.float64] = None,
+                             error_rate_heavy: Optional[np.float64] = None
+                            ) -> Tuple[str]:
+    """
+    Generate a paired sequence using OLGA.
+
+    Parameters
+    ----------
+    seqgen_model_light : olga.sequence_generation.SequenceGenerationVJ
+        The OLGA sequence generation class for generating light chain sequences.
+    seqgen_model_heavy : olga.sequence_generation.SequenceGenerationVDJ
+        The OLGA sequence generation class for generating heavy chain sequences.
+    genomic_data_light : olga.load_model.GenomicDataVJ
+        The OLGA genomic data class used for parsing light chain gene choices.
+    genomic_data_heavy : olga.load_model.GenomicDataVJ or olga.load_model.GenomicDataVDJ
+        The OLGA genomic data class used for parsing heavy chain gene choices.
+    seed : np.uint64, optional
+        The seed used for random generation.
+    add_error : bool, default False
+        Whether error should be added to the CDR3 sequence.
+    error_rate_light : np.float64, optional
+        The error rate for the light chain.
+    error_rate_heavy : np.float64, optional
+        The error rate for the heavy chain.
+
+    Returns
+    -------
+    tuple of str
+        The generated heavy CDR3 amino acid sequence, heavy V gene, heavy J gene,
+        light CDR3 amino acid sequence, light V gene, light J gene, heavy CDR3
+        nucleotide sequence, and light CDR3 nucleotide sequence.
+    """
+    np.random.seed(seed)
+    seq_light = seqgen_model_light.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+    seq_heavy = seqgen_model_heavy.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+
+    if add_error:
+        err_seq = add_random_error(seq_light[0], error_rate_light)
+        seq_light = [err_seq, nt2aa(err_seq), seq_light[2], seq_light[3]]
+        err_seq = add_random_error(seq_heavy[0], error_rate_heavy)
+        seq_heavy = [err_seq, nt2aa(err_seq), seq_heavy[2], seq_heavy[3]]
+
+    return (seq_heavy[1],
+            genomic_data_heavy.genV[seq_heavy[2]][0].split('*')[0],
+            genomic_data_heavy.genJ[seq_heavy[3]][0].split('*')[0],
+            seq_light[1],
+            genomic_data_light.genV[seq_light[2]][0].split('*')[0],
+            genomic_data_light.genJ[seq_light[3]][0].split('*')[0],
+            seq_heavy[0], seq_light[0])
 
 def partial_joint_marginals(args):
     # compute joint marginals on subset of seqs.
