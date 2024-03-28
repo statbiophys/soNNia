@@ -25,13 +25,9 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from optparse import OptionParser
-import olga.sequence_generation as sequence_generation
 from sonnia.sonnia import SoNNia
-from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
-from sonia.evaluate_model import EvaluateModel
-import sonia
-from sonia.sequence_generation import SequenceGeneration
-import olga.load_model as olga_load_model
+from sonnia.sonia import Sonia
+import sonnia.sonnia
 import numpy as np
 from tqdm import tqdm
 
@@ -61,7 +57,6 @@ def main():
     parser.add_option('--mouseTRA', '--mouse_T_alpha', action='store_true', dest='mouseTRA', default=False, help='use default mouse TRA model (T cell alpha chain)')
     parser.add_option('--set_custom_model_VDJ', dest='vdj_model_folder', metavar='PATH/TO/FOLDER/', help='specify PATH/TO/FOLDER/ for a custom VDJ generative model')
     parser.add_option('--set_custom_model_VJ', dest='vj_model_folder', metavar='PATH/TO/FOLDER/', help='specify PATH/TO/FOLDER/ for a custom VJ generative model')
-    parser.add_option('--sonia_model', type='string', default = 'leftright', dest='model_type' ,help=' specify model type: leftright or lengthpos, default is leftright')
     parser.add_option('--post', '--ppost', action='store_true', dest='ppost', default=False, help='sample from post selected repertoire')
     parser.add_option('--pre', '--pgen', action='store_true', dest='pgen', default=False, help='sample from pre selected repertoire ')
     parser.add_option('--delimiter_out','-d', type='choice', dest='delimiter_out',  choices=['tab', 'space', ',', ';', ':'], help="declare outfile delimiter. Default is tab for .tsv output files, comma for .csv files, and the infile delimiter for all others. Choices: 'tab', 'space', ',', ';', ':'")
@@ -75,7 +70,7 @@ def main():
     (options, args) = parser.parse_args()
 
     #Check that the model is specified properly
-    main_folder = os.path.dirname(sonia.evaluate_model.__file__)
+    main_folder = os.path.dirname(sonnia.__file__)
 
     default_models = {}
     default_models['humanTRA'] = [os.path.join(main_folder, 'default_models', 'human_T_alpha'),  'VJ']
@@ -138,36 +133,22 @@ def main():
                 print('Exiting...')
                 return -1
 
-    #Load up model based on recomb_type
-    #VDJ recomb case --- used for TCRB and IGH
-    if recomb_type == 'VDJ':
-        genomic_data = olga_load_model.GenomicDataVDJ()
-        genomic_data.load_igor_genomic_data(params_file_name, V_anchor_pos_file, J_anchor_pos_file)
-        generative_model = olga_load_model.GenerativeModelVDJ()
-        generative_model.load_and_process_igor_model(marginals_file_name)
-        seqgen_model = sequence_generation.SequenceGenerationVDJ(generative_model, genomic_data)
-    #VJ recomb case --- used for TCRA and light chain
-    elif recomb_type == 'VJ':
-        genomic_data = olga_load_model.GenomicDataVJ()
-        genomic_data.load_igor_genomic_data(params_file_name, V_anchor_pos_file, J_anchor_pos_file)
-        generative_model = olga_load_model.GenerativeModelVJ()
-        generative_model.load_and_process_igor_model(marginals_file_name)
-        seqgen_model = sequence_generation.SequenceGenerationVJ(generative_model, genomic_data)
-
-    if options.pgen:sonia_model=SoniaLeftposRightpos()
-    else:sonia_model=SoNNia(load_dir=model_folder,vj=recomb_type == 'VJ', custom_pgen_model=model_folder)
+    if options.pgen:sonia_model=Sonia(pgen_model=model_folder)
+    else:
+        try:
+            sonia_model=SoNNia(ppost_model=model_folder)
+        except:
+            sonia_model=Sonia(ppost_model=model_folder)
+            
     
-    # load Evaluate model class
-    seq_gen=SequenceGeneration(sonia_model,custom_olga_model=seqgen_model,custom_genomic_data=genomic_data)
-
     if options.outfile_name is not None: #OUTFILE SPECIFIED
         with open(options.outfile_name,'w') as file:
             to_generate=chuncks(options.num_seqs_to_generate,options.chunck_size)
             for t in tqdm(to_generate):
                 if options.pgen:
-                    seqs=seq_gen.generate_sequences_pre(num_seqs=t,nucleotide=True)
+                    seqs=sonia_model.generate_sequences_pre(num_seqs=t,nucleotide=True)
                 elif options.ppost:
-                    seqs=seq_gen.generate_sequences_post(num_seqs=t,nucleotide=True,upper_bound=options.rejection_bound)
+                    seqs=sonia_model.generate_sequences_post(num_seqs=t,nucleotide=True,upper_bound=options.rejection_bound)
                 else: 
                     print ('ERROR: give option between --pre or --post')
                     return -1
@@ -178,9 +159,9 @@ def main():
         to_generate=chuncks(options.num_seqs_to_generate,options.chunck_size)
         for t in to_generate:
             if options.pgen:
-                seqs=seq_gen.generate_sequences_pre(num_seqs=t,nucleotide=True)
+                seqs=sonia_model.generate_sequences_pre(num_seqs=t,nucleotide=True)
             elif options.ppost:
-                seqs=seq_gen.generate_sequences_post(num_seqs=t,nucleotide=True,upper_bound=options.rejection_bound)
+                seqs=sonia_model.generate_sequences_post(num_seqs=t,nucleotide=True,upper_bound=options.rejection_bound)
             else:
                 print ('ERROR: give option between --pre or --post')
                 return -1

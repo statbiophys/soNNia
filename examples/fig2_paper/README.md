@@ -4,7 +4,7 @@ Step 0: Download emerson files from https://clients.adaptivebiotech.com/pub/emer
 
 Step1: put all emerson files in the emerson-nat directory
 
-Step2: pip install sonnia (and possibly other dependencies that are missing)
+Step2: pip install sonnia (a version before 0.1.3)
 
 Step3: python fig2_process_data.py
 

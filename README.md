@@ -22,8 +22,8 @@ Sometimes pip fails to install the dependencies correctly. Thus, if you get any 
 pip install tensorflow
 pip install matplotlib
 pip install olga
-pip install sonia 
  ```
+For mac user on new metal devices, make sure to install additional dependencies. Currently, the configuration tensorflow-macos==2.9 and tensorflow-metal==0.5.0 should work.
 
 ## References
 Isacchini G, Walczak AM, Mora T, Nourmohammad A, Deep generative selection models of T and B cell receptor repertoires with soNNia, (2021) PNAS, https://www.pnas.org/content/118/14/e2023141118.short
@@ -35,17 +35,15 @@ The modules are:
 
 | Module name                                    | Classes                                          |    
 |------------------------------------------------|--------------------------------------------------|
-| evaluate_model_paired.py                       | EvaluateModel                                    |
-| sequence_generation_paired.py                  | SequenceGeneration                               |
 | sonia_paired.py                                | SoniaPaired                                      |
 | sonnia_paired.py                               | SoNNiaPaired                                     |
-| sonnia_transfer.py                             | SoNNiaTransfer                                   |
 | sonnia.py                                      | SoNNia                                           |
+| sonia.py                                       | Sonia                                            |
 | utils.py                                       | N/A (contains util functions)                    |
 | processing.py                                  | Processing                                       |
 | classifiers.py                                 | Linear, SoniaRatio                               |
 
-The classes EvaluateModel, SequenceGeneration, SoniaPaired, SoNNiaPaired, SoNNiaTransfer and SoNNia have similar behaviour to the ones defined in the [SONIA](https://github.com/statbiophys/SONIA) package and we refer to its documentation for the usage.
+The classes SoniaPaired, SoNNiaPaired, and SoNNia have similar behaviour to the ones defined in the [SONIA](https://github.com/statbiophys/SONIA) package.
 As an example, the basic import and initialization of the single-chain SoniaLeftposRightpos model
 ```
 from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
@@ -75,7 +73,7 @@ from sonnia.sonia import Sonia
 qm=Sonia()
 ```
 
-In the examples folder there is a python notebook  (or alternatively the example_pipeline script) which shows the main properties of the software. The fig2_paper folder contains all scripts and explanations needed to reproduce figure 2 of the soNNia paper.
+In the examples folder there is a python notebook  (or alternatively the example_pipeline script) which shows the main properties of the software. The fig2_paper folder contains all scripts and explanations needed to reproduce figure 2 of the soNNia paper (TODO: this needs to be updated to new model behaviour)
 
 ## Command line console scripts
 
