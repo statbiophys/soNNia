@@ -331,8 +331,7 @@ class Sonia(object):
             Energies of seqs according to the model.
         """
         seqs_features_enc = self._encode_data(seqs_features)
-        energies = np.dot(seqs_features_enc, self.model_params[0].ravel())
-        return np.clip(energies, self.min_energy_clip, self.max_energy_clip)
+        return self.model(seqs_features_enc)[:, 0].numpy()
 
     def _encode_data(self,
                      seq_features: Iterable[int]
