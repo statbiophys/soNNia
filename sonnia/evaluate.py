@@ -25,6 +25,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from optparse import OptionParser
 from sonnia.sonnia import SoNNia
+from sonnia.sonia import Sonia
 from sonnia.utils import gene_to_num_str
 import sonnia.sonnia
 
@@ -93,7 +94,7 @@ def main():
     (options, args) = parser.parse_args()
 
     #Check that the model is specified properly
-    main_folder = os.path.dirname(sonia.__file__)
+    main_folder = os.path.dirname(sonnia.sonnia.__file__)
 
     default_models = {}
     default_models['humanTRA'] = [os.path.join(main_folder, 'default_models', 'human_T_alpha'),  'VJ']
@@ -230,7 +231,8 @@ def main():
     skip_empty = options.skip_empty
     
     # choose sonia model type
-    sonia_model=SoNNia(load_dir=model_folder,vj=recomb_type == 'VJ')
+    try: sonia_model=SoNNia(ppost_model=model_folder)
+    except: sonia_model=Sonia(ppost_model=model_folder)
     if options.recompute_productive_norm: 
         print('Recompute productive normalization.')
         sonia_model.norm_productive=pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
@@ -407,21 +409,22 @@ def main():
                         for i in range(len(pgens)):file.write(str(pgens[i])+'\n')
 
         else: #print to stdout
+            if options.ppost: print ('Q, Pgen, Ppost')
+            elif options.Q: print ('Q')
+            elif options.pgen: print ('Pgen')
+            else:
+                print('Specify one option: --ppost, --pgen or --Q')
+                return -1            
+            
             for t in chunks(zipped,options.chunck_size):
                 if options.ppost:
                     Q,pgen,ppost=sonia_model.evaluate_seqs(t)
-                    print ('Q, Pgen, Ppost')
                     for i in range(len(Q)):print(Q[i],pgen[i],ppost[i])
                 elif options.Q:
                     Q=sonia_model.evaluate_selection_factors(t)
-                    print ('Q')
-                    print(Q)
+                    for i in range(len(Q)):print(Q[i])
                 elif options.pgen:
                     pgens=sonia_model.compute_all_pgens(t)
-                    print ('Pgen')
-                    print(pgens)
-                else:
-                    print('Specify one option: --ppost, --pgen or --Q')
-
+                    for i in range(len(pgens)):print(pgens[i])
 
 if __name__ == '__main__': main()

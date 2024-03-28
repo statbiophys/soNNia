@@ -25,10 +25,9 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from optparse import OptionParser
-import olga.sequence_generation as sequence_generation
 from sonnia.sonnia import SoNNia
+from sonnia.sonia import Sonia
 import sonnia.sonnia
-import olga.load_model as olga_load_model
 import numpy as np
 from tqdm import tqdm
 
@@ -58,7 +57,6 @@ def main():
     parser.add_option('--mouseTRA', '--mouse_T_alpha', action='store_true', dest='mouseTRA', default=False, help='use default mouse TRA model (T cell alpha chain)')
     parser.add_option('--set_custom_model_VDJ', dest='vdj_model_folder', metavar='PATH/TO/FOLDER/', help='specify PATH/TO/FOLDER/ for a custom VDJ generative model')
     parser.add_option('--set_custom_model_VJ', dest='vj_model_folder', metavar='PATH/TO/FOLDER/', help='specify PATH/TO/FOLDER/ for a custom VJ generative model')
-    parser.add_option('--sonia_model', type='string', default = 'leftright', dest='model_type' ,help=' specify model type: leftright or lengthpos, default is leftright')
     parser.add_option('--post', '--ppost', action='store_true', dest='ppost', default=False, help='sample from post selected repertoire')
     parser.add_option('--pre', '--pgen', action='store_true', dest='pgen', default=False, help='sample from pre selected repertoire ')
     parser.add_option('--delimiter_out','-d', type='choice', dest='delimiter_out',  choices=['tab', 'space', ',', ';', ':'], help="declare outfile delimiter. Default is tab for .tsv output files, comma for .csv files, and the infile delimiter for all others. Choices: 'tab', 'space', ',', ';', ':'")
@@ -135,24 +133,13 @@ def main():
                 print('Exiting...')
                 return -1
 
-    #Load up model based on recomb_type
-    #VDJ recomb case --- used for TCRB and IGH
-    if recomb_type == 'VDJ':
-        genomic_data = olga_load_model.GenomicDataVDJ()
-        genomic_data.load_igor_genomic_data(params_file_name, V_anchor_pos_file, J_anchor_pos_file)
-        generative_model = olga_load_model.GenerativeModelVDJ()
-        generative_model.load_and_process_igor_model(marginals_file_name)
-        seqgen_model = sequence_generation.SequenceGenerationVDJ(generative_model, genomic_data)
-    #VJ recomb case --- used for TCRA and light chain
-    elif recomb_type == 'VJ':
-        genomic_data = olga_load_model.GenomicDataVJ()
-        genomic_data.load_igor_genomic_data(params_file_name, V_anchor_pos_file, J_anchor_pos_file)
-        generative_model = olga_load_model.GenerativeModelVJ()
-        generative_model.load_and_process_igor_model(marginals_file_name)
-        seqgen_model = sequence_generation.SequenceGenerationVJ(generative_model, genomic_data)
-
-    if options.pgen:sonia_model=SoNNia(load_dir=model_folder,vj=recomb_type == 'VJ')
-    else:sonia_model=SoNNia(load_dir=model_folder,vj=recomb_type == 'VJ')
+    if options.pgen:sonia_model=Sonia(pgen_model=model_folder)
+    else:
+        try:
+            sonia_model=SoNNia(ppost_model=model_folder)
+        except:
+            sonia_model=Sonia(ppost_model=model_folder)
+            
     
     if options.outfile_name is not None: #OUTFILE SPECIFIED
         with open(options.outfile_name,'w') as file:
