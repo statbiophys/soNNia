@@ -23,6 +23,7 @@ pip install tensorflow
 pip install matplotlib
 pip install olga
  ```
+ 
 For mac user on new metal devices, make sure to install additional dependencies. Currently, the configuration tensorflow-macos==2.9 and tensorflow-metal==0.5.0 should work.
 
 ## References
