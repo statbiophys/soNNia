@@ -25,8 +25,8 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from optparse import OptionParser
-import olga.sequence_generation as sequence_generation
 from sonnia.sonnia import SoNNia
+from sonnia.sonia import Sonia
 import time
 from sonnia.utils import gene_to_num_str
 import olga.load_model as olga_load_model
@@ -50,18 +50,19 @@ def main():
     #specify model
     parser.add_option('--humanTRA', '--human_T_alpha', action='store_true', dest='humanTRA', default=False, help='use default human TRA model (T cell alpha chain)')
     parser.add_option('--humanTRB', '--human_T_beta', action='store_true', dest='humanTRB', default=False, help='use default human TRB model (T cell beta chain)')
-    parser.add_option('--mouseTRB', '--mouse_T_beta', action='store_true', dest='mouseTRB', default=False, help='use default mouse TRB model (T cell beta chain)')
     parser.add_option('--humanIGH', '--human_B_heavy', action='store_true', dest='humanIGH', default=False, help='use default human IGH model (B cell heavy chain)')
     parser.add_option('--humanIGK', '--human_B_kappa', action='store_true', dest='humanIGK', default=False, help='use default human IGK model (B cell light kappa chain)')
     parser.add_option('--humanIGL', '--human_B_lambda', action='store_true', dest='humanIGL', default=False, help='use default human IGL model (B cell light lambda chain)')
     parser.add_option('--mouseTRA', '--mouse_T_alpha', action='store_true', dest='mouseTRA', default=False, help='use default mouse TRA model (T cell alpha chain)')
+    parser.add_option('--mouseTRB', '--mouse_T_beta', action='store_true', dest='mouseTRB', default=False, help='use default mouse TRB model (T cell beta chain)')
 
     parser.add_option('--set_custom_model_VDJ', dest='vdj_model_folder', metavar='PATH/TO/FOLDER/', help='specify PATH/TO/FOLDER/ for a custom VDJ generative model')
     parser.add_option('--set_custom_model_VJ', dest='vj_model_folder', metavar='PATH/TO/FOLDER/', help='specify PATH/TO/FOLDER/ for a custom VJ generative model')
     parser.add_option('--epochs', type='int', default = 30, dest='epochs' ,help='number of epochs for inference, default is 30')
     parser.add_option('--batch_size', type='int', default = 5000, dest='batch_size' ,help='size of batch for the stochastic gradient descent')
     parser.add_option('--validation_split', type='float', default = 0.2, dest='validation_split' ,help='fraction of sequences used for validation.')
-    parser.add_option('--joint_genes', '--include_joint_genes', action='store_true', dest='joint_genes', default=False, help='Join gene features.')
+    parser.add_option('--gene_features', dest='gene_features', default=None, help="Define gene features. Default is 'joint_vj' for linear model and 'indep_vj' for deep model. Options: 'joint_vj', 'indep_vj', 'v', 'j', 'none', 'vjl'.")
+
     parser.add_option('--linear', action='store_true', dest='linear_model', default=False, help='Join gene features.')
 
     #location of seqs
@@ -108,12 +109,12 @@ def main():
     default_models['humanIGL'] = [os.path.join(main_folder, 'default_models', 'human_B_lambda'),  'VJ']
     default_models['mouseTRA'] = [os.path.join(main_folder, 'default_models', 'mouse_T_alpha'), 'VJ']
 
-    if options.joint_genes:
-        independent_genes=False
+    if options.gene_features is None:
+        if options.linear: gene_features='joint_vj'
+        else: gene_features='indep_vj'
         joint_genes=True
     else:
-        independent_genes=True
-        joint_genes=False
+        gene_features=options.gene_features
 
     num_models_specified = sum([1 for x in list(default_models.keys()) + ['vj_model_folder', 'vdj_model_folder'] if getattr(options, x)])
     recompute_productive_norm=False
@@ -426,39 +427,37 @@ def main():
         print('Initialise Model.')
 
         # choose sonia model type
+        if options.linear_model:
 
-        sonia_model = SoNNia(data_seqs=data_seqs,
+            sonia_model=Sonia(data_seqs=data_seqs,
                              gen_seqs=gen_seqs,
-                             custom_pgen_model=model_folder,
-                             vj=recomb_type == 'VJ',
-                             include_joint_genes=joint_genes,
-                             include_indep_genes=independent_genes,deep=not options.linear_model)
+                             pgen_model=model_folder,
+                             gene_features=gene_features)
+        else:
+            sonia_model = SoNNia(data_seqs=data_seqs,
+                             gen_seqs=gen_seqs,
+                             pgen_model=model_folder,
+                             gene_features=gene_features)
 
         if generate_sequences: sonia_model.add_generated_seqs(n_gen_seqs) 
 
-        if recompute_productive_norm: sonia_model.norm_productive=pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
+        if recompute_productive_norm: sonia_model.norm_productive=sonia_model.pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
         
         print('Model initialised. Start inference')
         sonia_model.infer_selection(epochs=options.epochs,verbose=1,batch_size=options.batch_size,validation_split=options.validation_split)
         print('Save Model')
         if options.outfile_name is not None: #OUTFILE SPECIFIED
-            sonia_model.save_model(options.outfile_name)
-            if options.plot_report:
-                from sonia.plotting import Plotter
-                pl=Plotter(sonia_model)
-                pl.plot_model_learning(os.path.join(options.outfile_name, 'model_learning.png'))
-                pl.plot_vjl(os.path.join(options.outfile_name, 'marginals.png'))
-                pl.plot_logQ(os.path.join(options.outfile_name, 'log_Q.png'))
-                pl.plot_ratioQ(os.path.join(options.outfile_name, 'Q_ratio.png'))
+            name_out=options.outfile_name
+        else:
+            name_out='sonnia_model'
+        sonia_model.save_model(name_out)
 
-        else: 
-            sonia_model.save_model('sonnia_model')
-            if options.plot_report:
-                from sonia.plotting import Plotter
-                pl=Plotter(sonia_model)
-                pl.plot_model_learning(os.path.join('sonnia_model', 'model_learning.png'))
-                pl.plot_vjl(os.path.join('sonnia_model', 'marginals.png'))
-                pl.plot_logQ(os.path.join('sonnia_model', 'log_Q.png'))
-                pl.plot_ratioQ(os.path.join('sonnia_model', 'Q_ratio.png'))
+        if options.plot_report:
+            from sonnia.plotting import Plotter
+            pl=Plotter(sonia_model)
+            pl.plot_model_learning(os.path.join(name_out, 'model_learning.png'))
+            pl.plot_vjl(os.path.join(name_out, 'marginals.png'))
+            pl.plot_logQ(os.path.join(name_out, 'log_Q.png'))
+            pl.plot_ratioQ(os.path.join(name_out, 'Q_ratio.png'))
 
 if __name__ == '__main__': main()
