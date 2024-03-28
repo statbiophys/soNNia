@@ -9,7 +9,7 @@ from copy import copy
 import itertools
 import multiprocessing as mp
 import os
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple, Union
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 import numpy as np
@@ -260,44 +260,30 @@ class Sonia(object):
         seq_features = set()
 
         if features is None:
-
             cdr3_len = len(seq[0])
             cdr3_len_key = (f'l{cdr3_len}',)
             if cdr3_len_key in self.feature_dict:
                 seq_features.add(self.feature_dict[cdr3_len_key])
 
-            if self.include_aminoacids:
-                for fwd_idx, amino_acid in enumerate(list(seq[0])):
-                    bkd_idx = fwd_idx - cdr3_len
-                    if fwd_idx < self.max_depth:
-                        fwd_key = (f'a{amino_acid}{fwd_idx}',)
-                        seq_features.add(self.feature_dict[fwd_key])
-                    if bkd_idx >= -self.max_depth:
-                        bkd_key = (f'a{amino_acid}{bkd_idx}',)
-                        seq_features.add(self.feature_dict[bkd_key])
+            for idx, amino_acid in enumerate(list(seq[0])):
+                fwd_key = (f'a{amino_acid}{idx}',)
+                bkd_key = (f'a{amino_acid}{idx - cdr3_len}',)
+                if fwd_key in self.feature_dict:
+                    seq_features.add(self.feature_dict[fwd_key])
+                if bkd_key in self.feature_dict:
+                    seq_features.add(self.feature_dict[bkd_key])
 
-            if self.gene_features == 'none':
-                pass
-            elif self.gene_features == 'v':
-                v_key = (gene_to_num_str(seq[1], 'V'),)
+            v_key = (gene_to_num_str(seq[1], 'V'),)
+            j_key = (gene_to_num_str(seq[2], 'J'),)
+            vj_key = v_key + j_key
+            vjl_key = v_key + j_key + cdr3_len_key
+            if v_key in self.feature_dict:
                 seq_features.add(self.feature_dict[v_key])
-            elif self.gene_features == 'j':
-                j_key = (gene_to_num_str(seq[2], 'J'),)
+            if j_key in self.feature_dict:
                 seq_features.add(self.feature_dict[j_key])
-            elif self.gene_features == 'indep_vj':
-                v_key = (gene_to_num_str(seq[1], 'V'),)
-                seq_features.add(self.feature_dict[v_key])
-                j_key = (gene_to_num_str(seq[2], 'J'),)
-                seq_features.add(self.feature_dict[j_key])
-            elif self.gene_features == 'joint_vj':
-                v_key = (gene_to_num_str(seq[1], 'V'),)
-                j_key = (gene_to_num_str(seq[2], 'J'),)
-                vj_key = v_key + j_key
+            if vj_key in self.feature_dict:
                 seq_features.add(self.feature_dict[vj_key])
-            elif self.gene_features == 'vjl':
-                v_key = (gene_to_num_str(seq[1], 'V'),)
-                j_key = (gene_to_num_str(seq[2], 'J'),)
-                vjl_key = v_key + j_key + cdr3_len_key
+            if vjl_key in self.feature_dict:
                 seq_features.add(self.feature_dict[vjl_key])
         else:
             feature_dict = {tuple(feature): idx
@@ -345,7 +331,8 @@ class Sonia(object):
             Energies of seqs according to the model.
         """
         seqs_features_enc = self._encode_data(seqs_features)
-        return self.model.predict(seqs_features_enc, verbose=0)[:, 0]
+        energies = np.dot(seqs_features_enc, self.model_params[0].ravel())
+        return np.clip(energies, self.min_energy_clip, self.max_energy_clip)
 
     def _encode_data(self,
                      seq_features: Iterable[int]
@@ -475,12 +462,14 @@ class Sonia(object):
                                                verbose=verbose, callbacks=callbacks)
         self.likelihood_train = -np.array(self.learning_history.history['_likelihood']) * 1.44
         self.likelihood_test = -np.array(self.learning_history.history['val__likelihood']) * 1.44
+        self.model_params = self.model.get_weights()
 
         # set Z    
         self.energies_gen = self.compute_energy(self.gen_seq_features)
         self.Z = np.mean(np.exp(-self.energies_gen))
         if set_gauge and self.gene_features != 'vjl': self.set_gauge()
         self.update_model(auto_update_marginals=True)
+        self.model_params = self.model.get_weights()
 
     def set_gauge(self
                  ) -> None:
@@ -537,11 +526,11 @@ class Sonia(object):
         initialize: bool
             if True, it initializes to linear model, otherwise it updates to new structure
         """
-        length_input=np.max([len(self.features), 1])
-        min_clip=copy(self.min_energy_clip)
-        max_clip=copy(self.max_energy_clip)
-        l2_reg=copy(self.l2_reg)
-        l1_reg=copy(self.l1_reg)
+        length_input = np.max([len(self.features), 1])
+        min_clip = copy(self.min_energy_clip)
+        max_clip = copy(self.max_energy_clip)
+        l2_reg = copy(self.l2_reg)
+        l1_reg = copy(self.l1_reg)
 
         if initialize:
             input_layer = Input(shape=(length_input,))
@@ -684,7 +673,7 @@ class Sonia(object):
                            num_gen_seqs: int = 0,
                            reset_gen_seqs: bool = True,
                            add_error: bool = False,
-                           custom_error: Optional[int] = None
+                           error_rate: Optional[int] = None
                           ) -> None:
         """Generates MonteCarlo sequences for gen_seqs using OLGA.
         Only generates seqs from a V(D)J model. Requires the OLGA package
@@ -700,7 +689,7 @@ class Sonia(object):
             and 'model_marginals.txt'
         add_error: bool
             simualate sequencing error: default is false
-        custom_error: int
+        error_rate: int
             set custom error rate for sequencing error.
             Default is the one inferred by igor.
         Attributes set
@@ -711,7 +700,7 @@ class Sonia(object):
             Features gen_seqs have been projected onto.
         """
         seqs = self.generate_sequences_pre(num_gen_seqs, nucleotide=False,
-                                           add_error=add_error, custom_error=custom_error)
+                                           add_error=add_error, error_rate=error_rate)
         if reset_gen_seqs: self.gen_seqs = []
         self.update_model(add_gen_seqs=seqs)
 
@@ -920,13 +909,14 @@ class Sonia(object):
         self.data_marginals = np.array(data_marginals)
         self.gen_marginals = np.array(gen_marginals)
         self.model_marginals = np.array(model_marginals)
-
         self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
 
         if k == 1:
             feature_energies = np.array(energies).reshape(len(self.features), 1)
             self.update_model_structure(initialize=True)
             self.model.set_weights([feature_energies])
+            self.model_params = self.model.get_weights()
+
         else:
             self.model = keras.models.load_model(model_file,
                                                  custom_objects={'loss': self._loss,
@@ -960,8 +950,9 @@ class Sonia(object):
     def generate_sequences_pre(self,
                                num_seqs: int = 1,
                                nucleotide: bool = False,
-                               custom_error: Optional[int] = None,
-                               add_error: bool = False
+                               error_rate: Optional[int] = None,
+                               add_error: bool = False,
+                               random_state: Optional[Union[int, np.random.Generator]] = None
                               ) -> np.ndarray:
         """Generates MonteCarlo sequences for gen_seqs using OLGA in parallel.
         Only generates seqs from a V(D)J model. Requires the OLGA package
@@ -977,24 +968,48 @@ class Sonia(object):
         seqs : list
             MonteCarlo sequences drawn from a VDJ recomb model
         """
-        from sonia.utils import add_random_error
+        from sonnia.utils import add_random_error, generate_sequence
         from olga.utils import nt2aa
 
-        if custom_error is None: error_rate=self.error_rate
-        else: error_rate=custom_error
+        if error_rate is None: error_rate = self.error_rate
+        else: error_rate = error_rate
 
-        seqs = []
-        for i in tqdm(range(int(num_seqs))):
-            gen_seq = self.seqgen_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
-            seq = [gen_seq[1],
-                   self.genomic_data.genV[gen_seq[2]][0].partition('*')[0],
-                   self.genomic_data.genJ[gen_seq[3]][0].partition('*')[0],
-                   gen_seq[0]]
-            if add_error:
-                err_seq = add_random_error(seq[0], self.error_rate)
-                seq = [nt2aa(err_seq), seq[1], seq[2], err_seqs]
+        if random_state is None:
+            rng = self.rng
+        elif isinstance(random_state, (int, np.integer)):
+            rng = np.random.default_rng(random_state)
+        elif isinstance(random_state, (np.random.RandomState, np.random.Generator)):
+            rng = random_state
+        else:
+            raise ValueError(f'random_state {random_state} cannot be used for '
+                             'setting a random number generator.')
 
-            seqs.append(seq)
+        if num_seqs > 20000:
+            seeds = rng.integers(low=0, high=2**32 - 1, size=num_seqs)
+            zipped = zip(itertools.repeat(self.seqgen_model, num_seqs),
+                         itertools.repeat(self.genomic_data, num_seqs),
+                         seeds,
+                         itertools.repeat(add_error, num_seqs),
+                         itertools.repeat(error_rate, num_seqs))
+
+            with mp.Pool(processes=self.processes) as pool:
+                seqs = pool.starmap(generate_sequence, zipped)
+        else:
+            seqs = []
+            for i in tqdm(range(int(num_seqs))):
+                np.random.seed(rng.integers(0, 2**32 - 1))
+                seq = self.seqgen_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+
+                if add_error:
+                    err_seq = add_random_error(seq[0], self.error_rate)
+                    seq = [err_seq, nt2aa(err_seq), seq[2], seq[3]]
+
+                seq = [seq[1],
+                       self.genomic_data.genV[seq[2]][0].partition('*')[0],
+                       self.genomic_data.genJ[seq[3]][0].partition('*')[0],
+                       seq[0]]
+
+                seqs.append(seq)
 
         seqs = np.array(seqs)
         if nucleotide:
@@ -1005,7 +1020,8 @@ class Sonia(object):
     def generate_sequences_post(self,
                                 num_seqs: int = 1,
                                 upper_bound: float = 10,
-                                nucleotide: bool = False
+                                nucleotide: bool = False,
+                                random_state: Optional[Union[int, np.random.Generator]] = None
                                ) -> np.ndarray:
         """Generates MonteCarlo sequences from Sonia through rejection sampling.
         Parameters
@@ -1021,18 +1037,30 @@ class Sonia(object):
         seqs : list
             MonteCarlo sequences drawn from a VDJ recomb model that pass selection.
         """
+        if random_state is None:
+            rng = self.rng
+        elif isinstance(random_state, (int, np.integer)):
+            rng = np.random.default_rng(random_state)
+        elif isinstance(random_state, (np.random.RandomState, np.random.Generator)):
+            rng = random_state
+        else:
+            raise ValueError(f'random_state {random_state} cannot be used for '
+                             'setting a random number generator.')
         seqs_out = []
+
         while len(seqs_out) < num_seqs + 1:
             # generate sequences from pre
             seqs = self.generate_sequences_pre(num_seqs=int(1.1 * upper_bound * num_seqs),
-                                               nucleotide=nucleotide)
+                                               nucleotide=nucleotide, random_state=rng)
 
             # compute features and energies 
             seq_features = [self.find_seq_features(seq) for seq in list(np.array(seqs))]
             energies = self.compute_energy(seq_features)
 
             #do rejection
-            rejection_selection = self.rejection_sampling(upper_bound=upper_bound, energies=energies)
+            rejection_selection = self.rejection_sampling(upper_bound=upper_bound,
+                                                          energies=energies,
+                                                          random_state=rng)
             seqs_post = np.array(seqs[rejection_selection])
             if len(seqs_out) == 0 and len(seqs_post)>0: seqs_out = seqs_post
             elif len(seqs_post)>0: seqs_out=np.concatenate((seqs_out, seqs_post),axis=0)
@@ -1040,7 +1068,8 @@ class Sonia(object):
 
     def rejection_sampling(self,
                            upper_bound: float = 10,
-                           energies: Optional[np.ndarray] = None
+                           energies: Optional[np.ndarray] = None,
+                           random_state: Union[int, np.random.Generator] = None
                           ) -> np.ndarray:
 
         ''' Returns acceptance from rejection sampling of a list of seqs.
@@ -1056,9 +1085,19 @@ class Sonia(object):
         rejection selection: array of bool
             acceptance of each sequence.
         '''
+        if random_state is None:
+            rng = self.rng
+        elif isinstance(random_state, (int, np.integer)):
+            rng = np.random.default_rng(random_state)
+        elif isinstance(random_state, (np.random.RandomState, np.random.Generator)):
+            rng = random_state
+        else:
+            raise ValueError(f'random_state {random_state} cannot be used for '
+                             'setting a random number generator.')
+
         if energies is None: energies = self.energies_gen
         Q = np.exp(-energies) / self.Z
-        random_samples = self.rng.uniform(size=len(energies)) # sample from uniform distribution
+        random_samples = rng.uniform(size=len(energies)) # sample from uniform distribution
 
         return random_samples < Q / float(upper_bound)
 
@@ -1219,9 +1258,9 @@ class Sonia(object):
         '''
 
         self.gen_marginals_two = self.joint_marginals(seq_model_features=self.gen_seq_features,
-                                                      use_flat_distribution = True)
+                                                      use_flat_distribution=True)
         self.data_marginals_two = self.joint_marginals(seq_model_features=self.data_seq_features,
-                                                       use_flat_distribution = True)
+                                                       use_flat_distribution=True)
         self.model_marginals_two = self.joint_marginals(seq_model_features=self.gen_seq_features)
         self.gen_marginals_two_independent = self.joint_marginals_independent(self.gen_marginals)
         self.data_marginals_two_independent = self.joint_marginals_independent(self.data_marginals)
@@ -1241,17 +1280,14 @@ class Sonia(object):
         pgens: array
             generation probabilities of the sequences.
         '''
-        final_models = [self.pgen_model for i in range(len(seqs))]    # every process needs to access this vector.
-        pool = mp.Pool(processes=self.processes)
-
         if include_genes:
-            f = pool.map(compute_pgen_expand, zip(seqs,final_models))
-            pool.close()
+            with mp.Pool(processes=self.processes) as pool:
+                f = pool.map(compute_pgen_expand, zip(seqs, itertools.repeat(self.pgen_model)))
             return np.array(f)
-        else:
-            f = pool.map(compute_pgen_expand_novj, zip(seqs,final_models))
-            pool.close()
-            return np.array(f)
+
+        with mp.Pool(processes=self.processes) as pool:
+            f = pool.map(compute_pgen_expand_novj, zip(seqs, itertools.repeat(self.pgen_model)))
+        return np.array(f)
 
     def entropy(self,
                 n: int = int(2e4),
