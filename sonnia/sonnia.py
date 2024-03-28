@@ -45,6 +45,22 @@ class SoNNia(Sonia):
         self.deep = deep
         Sonia.__init__(self, *args, gene_features=gene_features, **kwargs)
 
+    def compute_energy(self,
+                       seqs_features: Iterable[int]
+                      ) -> float:
+        """Computes the energy of a list of sequences according to the model.
+        Parameters
+        ----------
+        seqs_features : list
+            list of encoded sequences into sonnia features.
+        Returns
+        -------
+        E : float
+            Energies of seqs according to the model.
+        """
+        seqs_features_enc = self._encode_data(seqs_features)
+        return self.model.predict(seqs_features_enc, verbose=0)[:, 0]
+
     def update_model_structure(self,
                                output_layer: List = [],
                                input_layer: List = [],

@@ -260,44 +260,30 @@ class Sonia(object):
         seq_features = set()
 
         if features is None:
-
             cdr3_len = len(seq[0])
             cdr3_len_key = (f'l{cdr3_len}',)
             if cdr3_len_key in self.feature_dict:
                 seq_features.add(self.feature_dict[cdr3_len_key])
 
-            if self.include_aminoacids:
-                for fwd_idx, amino_acid in enumerate(list(seq[0])):
-                    bkd_idx = fwd_idx - cdr3_len
-                    if fwd_idx < self.max_depth:
-                        fwd_key = (f'a{amino_acid}{fwd_idx}',)
-                        seq_features.add(self.feature_dict[fwd_key])
-                    if bkd_idx >= -self.max_depth:
-                        bkd_key = (f'a{amino_acid}{bkd_idx}',)
-                        seq_features.add(self.feature_dict[bkd_key])
+            for idx, amino_acid in enumerate(list(seq[0])):
+                fwd_key = (f'a{amino_acid}{idx}',)
+                bkd_key = (f'a{amino_acid}{idx - cdr3_len}',)
+                if fwd_key in self.feature_dict:
+                    seq_features.add(self.feature_dict[fwd_key])
+                if bkd_key in self.feature_dict:
+                    seq_features.add(self.feature_dict[bkd_key])
 
-            if self.gene_features == 'none':
-                pass
-            elif self.gene_features == 'v':
-                v_key = (gene_to_num_str(seq[1], 'V'),)
+            v_key = (gene_to_num_str(seq[1], 'V'),)
+            j_key = (gene_to_num_str(seq[2], 'J'),)
+            vj_key = v_key + j_key
+            vjl_key = v_key + j_key + cdr3_len_key
+            if v_key in self.feature_dict:
                 seq_features.add(self.feature_dict[v_key])
-            elif self.gene_features == 'j':
-                j_key = (gene_to_num_str(seq[2], 'J'),)
+            if j_key in self.feature_dict:
                 seq_features.add(self.feature_dict[j_key])
-            elif self.gene_features == 'indep_vj':
-                v_key = (gene_to_num_str(seq[1], 'V'),)
-                seq_features.add(self.feature_dict[v_key])
-                j_key = (gene_to_num_str(seq[2], 'J'),)
-                seq_features.add(self.feature_dict[j_key])
-            elif self.gene_features == 'joint_vj':
-                v_key = (gene_to_num_str(seq[1], 'V'),)
-                j_key = (gene_to_num_str(seq[2], 'J'),)
-                vj_key = v_key + j_key
+            if vj_key in self.feature_dict:
                 seq_features.add(self.feature_dict[vj_key])
-            elif self.gene_features == 'vjl':
-                v_key = (gene_to_num_str(seq[1], 'V'),)
-                j_key = (gene_to_num_str(seq[2], 'J'),)
-                vjl_key = v_key + j_key + cdr3_len_key
+            if vjl_key in self.feature_dict:
                 seq_features.add(self.feature_dict[vjl_key])
         else:
             feature_dict = {tuple(feature): idx
@@ -345,7 +331,8 @@ class Sonia(object):
             Energies of seqs according to the model.
         """
         seqs_features_enc = self._encode_data(seqs_features)
-        return self.model.predict(seqs_features_enc, verbose=0)[:, 0]
+        energies = np.dot(seqs_features_enc, self.model_params[0].ravel())
+        return np.clip(energies, self.min_energy_clip, self.max_energy_clip)
 
     def _encode_data(self,
                      seq_features: Iterable[int]
@@ -475,12 +462,14 @@ class Sonia(object):
                                                verbose=verbose, callbacks=callbacks)
         self.likelihood_train = -np.array(self.learning_history.history['_likelihood']) * 1.44
         self.likelihood_test = -np.array(self.learning_history.history['val__likelihood']) * 1.44
+        self.model_params = self.model.get_weights()
 
         # set Z    
         self.energies_gen = self.compute_energy(self.gen_seq_features)
         self.Z = np.mean(np.exp(-self.energies_gen))
         if set_gauge and self.gene_features != 'vjl': self.set_gauge()
         self.update_model(auto_update_marginals=True)
+        self.model_params = self.model.get_weights()
 
     def set_gauge(self
                  ) -> None:
@@ -537,11 +526,11 @@ class Sonia(object):
         initialize: bool
             if True, it initializes to linear model, otherwise it updates to new structure
         """
-        length_input=np.max([len(self.features), 1])
-        min_clip=copy(self.min_energy_clip)
-        max_clip=copy(self.max_energy_clip)
-        l2_reg=copy(self.l2_reg)
-        l1_reg=copy(self.l1_reg)
+        length_input = np.max([len(self.features), 1])
+        min_clip = copy(self.min_energy_clip)
+        max_clip = copy(self.max_energy_clip)
+        l2_reg = copy(self.l2_reg)
+        l1_reg = copy(self.l1_reg)
 
         if initialize:
             input_layer = Input(shape=(length_input,))
@@ -920,13 +909,14 @@ class Sonia(object):
         self.data_marginals = np.array(data_marginals)
         self.gen_marginals = np.array(gen_marginals)
         self.model_marginals = np.array(model_marginals)
-
         self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
 
         if k == 1:
             feature_energies = np.array(energies).reshape(len(self.features), 1)
             self.update_model_structure(initialize=True)
             self.model.set_weights([feature_energies])
+            self.model_params = self.model.get_weights()
+
         else:
             self.model = keras.models.load_model(model_file,
                                                  custom_objects={'loss': self._loss,
@@ -1268,9 +1258,9 @@ class Sonia(object):
         '''
 
         self.gen_marginals_two = self.joint_marginals(seq_model_features=self.gen_seq_features,
-                                                      use_flat_distribution = True)
+                                                      use_flat_distribution=True)
         self.data_marginals_two = self.joint_marginals(seq_model_features=self.data_seq_features,
-                                                       use_flat_distribution = True)
+                                                       use_flat_distribution=True)
         self.model_marginals_two = self.joint_marginals(seq_model_features=self.gen_seq_features)
         self.gen_marginals_two_independent = self.joint_marginals_independent(self.gen_marginals)
         self.data_marginals_two_independent = self.joint_marginals_independent(self.data_marginals)

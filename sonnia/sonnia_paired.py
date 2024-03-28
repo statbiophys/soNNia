@@ -217,9 +217,9 @@ class SoNNiaPaired(SoniaPaired):
 
             self.features = np.array(features, dtype=object)
             self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
-            self.data_marginals = data_marginals
-            self.model_marginals = model_marginals
-            self.gen_marginals = gen_marginals
+            self.data_marginals = np.array(data_marginals)
+            self.model_marginals = np.array(model_marginals)
+            self.gen_marginals = np.array(gen_marginals)
 
             initial = np.array(initial)
 

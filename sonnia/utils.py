@@ -182,7 +182,7 @@ def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
                 conserved_j_residues: str = 'ABCEDFGHIJKLMNOPQRSTUVWXYZ',
                 abundance_threshold: int = 0,
                 max_cdr3_length: int = 30,
-                deduplicate_nt_recombinations: bool = True,
+                deduplicate_nt_recombinations: bool = False,
                 return_bools: bool = False,
                 **kwargs: Dict[str, Any]
                ) -> np.ndarray:
@@ -258,33 +258,33 @@ def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
     logging.info(f'{len(df)} sequences before filtering. Using {model_dir} '
                  'for filtering.')
 
-    df['valid'] = True
+    bool_arr = np.ones(len(df), dtype=bool)
 
     if nt_seq_col is not None:
-        df['valid'] *= df[nt_seq_col].str.len() % 3 == 0
+        bool_arr *= df[nt_seq_col].str.len() % 3 == 0
         if deduplicate_nt_recombinations:
             df = df.drop_duplicates([nt_seq_col, v_col, j_col])
 
-    df['valid'] *= ((df[v_col].isin(v_genes))
+    bool_arr *= ((df[v_col].isin(v_genes))
                     & (df[j_col].isin(j_genes))
                     & (~df[seq_col].str.contains('\*|_|~', na=True, regex=True)))
 
     if bounds_check:
         bound_string = '^C.*' + '$|^C.*'.join(list(conserved_j_residues)) + '$'
-        df['valid'] *= df[seq_col].str.contains(bound_string, na=False)
+        bool_arr *= df[seq_col].str.contains(bound_string, na=False)
 
     if cdr3_length_check:
-        df['valid'] *= df[seq_col].str.len() <= max_cdr3_length
+        bool_arr *= df[seq_col].str.len() <= max_cdr3_length
 
     if abundance_col is not None:
-        df['valid'] *= df[abundance_col] > abundance_threshold, 'valid'
+        bool_arr *= df[abundance_col] > abundance_threshold
 
     logging.info(f'{len(df)} sequences remaining after filtering.')
 
     if return_bools:
-        return df['valid'].values
+        return bool_arr
 
-    return df.loc[df['valid'], [seq_col, v_col, j_col]].values.astype(str)
+    return df.loc[bool_arr, [seq_col, v_col, j_col]].values.astype(str)
 
 
 def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):

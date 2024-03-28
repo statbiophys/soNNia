@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 # @author: Giulio Isacchini
+import itertools
 import logging
 import multiprocessing as mp
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 logging.getLogger('tensorflow').disabled = True
 
@@ -81,7 +82,7 @@ class SoniaPaired(Sonia):
                         ) -> None:
         (self.genomic_data_light, self.generative_model_light,
          self.pgen_model_light, self.seqgen_model_light,
-         self.norm_light, self.pgen_light_dir,
+         self.norm_light, self.pgen_dir_light,
          model_str, self.chain_light) = define_pgen_model(self.pgen_model_light,
                                                           self.recompute_productive_norm,
                                                           True, True, True)
@@ -91,7 +92,7 @@ class SoniaPaired(Sonia):
 
         (self.genomic_data_heavy, self.generative_model_heavy,
          self.pgen_model_heavy, self.seqgen_model_heavy,
-         self.norm_heavy, self.pgen_heavy_dir,
+         self.norm_heavy, self.pgen_dir_heavy,
          model_str, self.chain_heavy) = define_pgen_model(self.pgen_model_heavy,
                                                           self.recompute_productive_norm,
                                                           True, True, True)
@@ -107,6 +108,16 @@ class SoniaPaired(Sonia):
             raise RuntimeError(f'A light-heavy chain pair of {(self.chain_light, self.chain_heavy)} '
                                'does constitute a valid receptor. Acceptable chain '
                                f'pairs: {valid_chain_pairs_str}.')
+
+        for chain in ['light', 'heavy']:
+            with open(os.path.join(getattr(self, f'pgen_dir_{chain}'), 'model_params.txt'), 'r') as fin:
+                sep = 0
+                error_rate = ''
+                lines = fin.read().splitlines()
+                while len(error_rate) < 1:
+                    error_rate = lines[-1 + sep]
+                    sep -= 1
+                setattr(self, f'error_rate_{chain}', float(error_rate))
 
         if self.recompute_productive_norm:
             self.norm_productive = self.norm_heavy * self.norm_light
@@ -230,96 +241,73 @@ class SoniaPaired(Sonia):
         # NOTE It's quicker to have the code written explicitly than perform
         # a for loop.
         if features is None:
+            # Heavy chain.
             cdr3_len_h = len(seq[0])
             cdr3_len_key_h = (f'l_h{cdr3_len_h}',)
             if cdr3_len_key_h in self.feature_dict:
                 seq_features.add(self.feature_dict[cdr3_len_key_h])
 
+            for idx, amino_acid in enumerate(list(seq[0])):
+                fwd_key = (f'a_h{amino_acid}{idx}',)
+                bkd_key = (f'a_h{amino_acid}{idx - cdr3_len_h}',)
+                if fwd_key in self.feature_dict:
+                    seq_features.add(self.feature_dict[fwd_key])
+                if bkd_key in self.feature_dict:
+                    seq_features.add(self.feature_dict[bkd_key])
+
+            v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
+            j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
+            vj_key = v_key_h + j_key_h
+            vjl_key = vj_key + cdr3_len_key_h
+            if v_key_h in self.feature_dict:
+                seq_features.add(self.feature_dict[v_key_h])
+            if j_key_h in self.feature_dict:
+                seq_features.add(self.feature_dict[j_key_h])
+            if vj_key in self.feature_dict:
+                seq_features.add(self.feature_dict[vj_key])
+            if vjl_key in self.feature_dict:
+                seq_features.add(self.feature_dict[vjl_key])
+
+            # Light chain.
             cdr3_len_l = len(seq[3])
             cdr3_len_key_l = (f'l_l{cdr3_len_l}',)
             if cdr3_len_key_l in self.feature_dict:
                 seq_features.add(self.feature_dict[cdr3_len_key_l])
 
-            if self.include_aminoacids:
-                for fwd_idx, amino_acid in enumerate(list(seq[0])):
-                    bkd_idx = fwd_idx - cdr3_len_h
-                    if fwd_idx < self.max_depth:
-                        fwd_key = (f'a_h{amino_acid}{fwd_idx}',)
-                        seq_features.add(self.feature_dict[fwd_key])
-                    if bkd_idx >= -self.max_depth:
-                        bkd_key = (f'a_h{amino_acid}{bkd_idx}',)
-                        seq_features.add(self.feature_dict[bkd_key])
+            for idx, amino_acid in enumerate(list(seq[3])):
+                fwd_key = (f'a_l{amino_acid}{idx}',)
+                bkd_key = (f'a_l{amino_acid}{idx - cdr3_len_l}',)
+                if fwd_key in self.feature_dict:
+                    seq_features.add(self.feature_dict[fwd_key])
+                if bkd_key in self.feature_dict:
+                    seq_features.add(self.feature_dict[bkd_key])
 
-                for fwd_idx, amino_acid in enumerate(list(seq[3])):
-                    bkd_idx = fwd_idx - cdr3_len_l
-                    if fwd_idx < self.max_depth:
-                        fwd_key = (f'a_l{amino_acid}{fwd_idx}',)
-                        seq_features.add(self.feature_dict[fwd_key])
-                    if bkd_idx >= -self.max_depth:
-                        bkd_key = (f'a_l{amino_acid}{bkd_idx}',)
-                        seq_features.add(self.feature_dict[bkd_key])
-
-            v_obtained = True
-            j_obtained = True
-            if self.gene_features == 'none':
-                v_obtained = False
-                j_obtained = False
-            elif self.gene_features == 'v':
-                j_obtained = False
-                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
-                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
-                seq_features.add(self.feature_dict[v_key_h])
+            v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
+            j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
+            vj_key = v_key_l + j_key_l
+            vjl_key = vj_key + cdr3_len_key_l
+            if v_key_l in self.feature_dict:
                 seq_features.add(self.feature_dict[v_key_l])
-            elif self.gene_features == 'j':
-                v_obtained = False
-                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
-                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
+            if j_key_l in self.feature_dict:
                 seq_features.add(self.feature_dict[j_key_l])
-                seq_features.add(self.feature_dict[j_key_l])
-            elif self.gene_features == 'indep_vj':
-                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
-                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
-                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
-                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
-                seq_features.add(self.feature_dict[v_key_h])
-                seq_features.add(self.feature_dict[j_key_h])
-                seq_features.add(self.feature_dict[v_key_l])
-                seq_features.add(self.feature_dict[j_key_l])
-            elif self.gene_features == 'joint_vj':
-                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
-                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
-                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
-                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
-                seq_features.add(self.feature_dict[v_key_h + j_key_h])
-                seq_features.add(self.feature_dict[v_key_l + j_key_l])
-            elif self.gene_features == 'vjl':
-                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
-                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
-                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
-                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
-                seq_features.add(self.feature_dict[v_key_h + j_key_h + cdr3_len_key_h])
-                seq_features.add(self.feature_dict[v_key_l + j_key_l + cdr3_len_key_l])
+            if vj_key in self.feature_dict:
+                seq_features.add(self.feature_dict[vj_key])
+            if vjl_key in self.feature_dict:
+                seq_features.add(self.feature_dict[vjl_key])
 
-            if not self.across_chain_features:
-                return list(seq_features)
+            vhvl_key = v_key_h + v_key_l
+            vhjl_key = v_key_h + j_key_l
+            jhvl_key = j_key_h + v_key_l
+            jhjl_key = j_key_h + j_key_l
 
-            # TODO Obtain features better depending on across_chain_features options?
-            if not v_obtained:
-                v_key_h = ('v_h' + gene_to_num_str(seq[1], 'V')[1:],)
-                v_key_l = ('v_l' + gene_to_num_str(seq[4], 'V')[1:],)
-            if not j_obtained:
-                j_key_h = ('j_h' + gene_to_num_str(seq[2], 'J')[1:],)
-                j_key_l = ('j_l' + gene_to_num_str(seq[5], 'J')[1:],)
-
-            if 'vhvl' in self.across_chain_features:
-                seq_features.add(self.feature_dict[v_key_h + v_key_l])
-            if 'jhjl' in self.across_chain_features:
-                seq_features.add(self.feature_dict[j_key_h + j_key_l])
-            if 'vhjl' in self.across_chain_features:
-                seq_features.add(self.feature_dict[v_key_h + j_key_l])
-            if 'jhvl' in self.across_chain_features:
-                seq_features.add(self.feature_dict[j_key_h + v_key_l])
-
+            if vhvl_key in self.feature_dict:
+                seq_features.add(self.feature_dict[vhvl_key])
+            if vhjl_key in self.feature_dict:
+                seq_features.add(self.feature_dict[vhjl_key])
+            if jhvl_key in self.feature_dict:
+                seq_features.add(self.feature_dict[jhvl_key])
+            if jhjl_key in self.feature_dict:
+                seq_features.add(self.feature_dict[jhjl_key])
         else:
             feature_dict = {tuple(feature): idx
                             for idx, feature in enumerate(features)}
@@ -397,8 +385,10 @@ class SoniaPaired(Sonia):
     def generate_sequences_pre(self,
                                num_seqs: int = 1,
                                nucleotide: bool = False,
-                               custom_error: Optional[int] = None,
-                               add_error: bool = False
+                               error_rate_light: Optional[np.float64] = None,
+                               error_rate_heavy: Optional[np.float64] = None,
+                               add_error: bool = False,
+                               random_state: Optional[Union[int, np.random.Generator]] = None
                               ) -> np.ndarray:
         """Generates MonteCarlo sequences for gen_seqs using OLGA.
         Only generates seqs from a V(D)J model. Requires the OLGA package
@@ -417,20 +407,58 @@ class SoniaPaired(Sonia):
         seqs : list
             MonteCarlo sequences drawn from a VDJ recomb model
         """
-        #Generate sequences
-        seqs = []
-        for i in tqdm(range(int(num_seqs))):
-            seq_light = self.seqgen_model_light.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
-            seq_heavy = self.seqgen_model_heavy.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+        from sonnia.utils import add_random_error, generate_paired_sequence
+        from olga.utils import nt2aa
 
-            seq = [seq_heavy[1],
-                   self.genomic_data_heavy.genV[seq_heavy[2]][0].split('*')[0],
-                   self.genomic_data_heavy.genJ[seq_heavy[3]][0].split('*')[0],
-                   seq_light[1],
-                   self.genomic_data_light.genV[seq_light[2]][0].split('*')[0],
-                   self.genomic_data_light.genJ[seq_light[3]][0].split('*')[0],
-                   seq_heavy[0], seq_light[0]]
-            seqs.append(seq)
+        if error_rate_light is None:
+            error_rate_light = self.error_rate_light
+        if error_rate_heavy is None:
+            error_rate_heavy = self.error_rate_heavy
+
+        if random_state is None:
+            rng = self.rng
+        elif isinstance(random_state, (int, np.integer)):
+            rng = np.random.default_rng(random_state)
+        elif isinstance(random_state, (np.random.RandomState, np.random.Generator)):
+            rng = random_state
+        else:
+            raise ValueError(f'random_state {random_state} cannot be used for '
+                             'setting a random number generator.')
+
+        if num_seqs > 5000:
+            seeds = rng.integers(low=0, high=2**32 - 1, size=num_seqs)
+            zipped = zip(itertools.repeat(self.seqgen_model_light, num_seqs),
+                         itertools.repeat(self.seqgen_model_heavy, num_seqs),
+                         itertools.repeat(self.genomic_data_light, num_seqs),
+                         itertools.repeat(self.genomic_data_heavy, num_seqs),
+                         seeds,
+                         itertools.repeat(add_error, num_seqs),
+                         itertools.repeat(error_rate_light, num_seqs),
+                         itertools.repeat(error_rate_heavy, num_seqs))
+
+            with mp.Pool(processes=self.processes) as pool:
+                seqs = pool.starmap(generate_paired_sequence, zipped)
+        else:
+            seqs = []
+            np.random.seed(rng.integers(0, 2**32 - 1))
+            for i in tqdm(range(int(num_seqs))):
+                seq_light = self.seqgen_model_light.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+                seq_heavy = self.seqgen_model_heavy.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+
+                if add_error:
+                    err_seq = add_random_error(seq_light[0], error_rate_light)
+                    seq_light = [err_seq, nt2aa(err_seq), seq_light[2], seq_light[3]]
+                    err_seq = add_random_error(seq_heavy[0], error_rate_heavy)
+                    seq_heavy = [err_seq, nt2aa(err_seq), seq_heavy[2], seq_heavy[3]]
+
+                seq = [seq_heavy[1],
+                       self.genomic_data_heavy.genV[seq_heavy[2]][0].split('*')[0],
+                       self.genomic_data_heavy.genJ[seq_heavy[3]][0].split('*')[0],
+                       seq_light[1],
+                       self.genomic_data_light.genV[seq_light[2]][0].split('*')[0],
+                       self.genomic_data_light.genJ[seq_light[3]][0].split('*')[0],
+                       seq_heavy[0], seq_light[0]]
+                seqs.append(seq)
 
         if nucleotide: return np.array(seqs)
         else: return np.array(seqs)[:,:-2]
@@ -442,27 +470,16 @@ class SoniaPaired(Sonia):
         '''
         Compute Pgen of sequences using OLGA
         '''
-        #Load OLGA for seq pgen estimation
-
-        # every process needs to access this vector, for sure there is a smarter way to implement this.
-        final_models_heavy = [self.pgen_model_heavy for i in range(len(seqs))]
-        final_models_light = [self.pgen_model_light for i in range(len(seqs))]
         if include_genes:
-            pool = mp.Pool(processes=self.processes)
-            f1 = pool.map(compute_pgen_expand_heavy, zip(seqs,final_models_heavy))
-            pool.close()
-            pool = mp.Pool(processes=self.processes)
-            f2 = pool.map(compute_pgen_expand_light, zip(seqs,final_models_light))
-            pool.close()
+            with mp.Pool(processes=self.processes) as pool:
+                f1 = pool.map(compute_pgen_expand_heavy, zip(seqs, itertools.repeat(self.pgen_model_heavy)))
+                f2 = pool.map(compute_pgen_expand_light, zip(seqs, itertools.repeat(self.pgen_model_light)))
             return np.array(f1) * np.array(f2)
-        else:
-            pool = mp.Pool(processes=self.processes)
-            f1 = pool.map(compute_pgen_expand_novj_heavy, zip(seqs,final_models_light))
-            pool.close()
-            pool = mp.Pool(processes=self.processes)
-            f2 = pool.map(compute_pgen_expand_novj_heavy, zip(seqs,final_models_light))
-            pool.close()
-            return np.array(f1) * np.array(f2)
+
+        with mp.Pool(processes=self.processes) as pool:
+            f1 = pool.map(compute_pgen_expand_novj_heavy, zip(seqs, itertools.repeat(self.pgen_model_heavy)))
+            f2 = pool.map(compute_pgen_expand_novj_light, zip(seqs, itertools.repeat(self.pgen_model_light)))
+        return np.array(f1) * np.array(f2)
 
     def set_gauge(self
                  ) -> None:
@@ -475,7 +492,7 @@ class SoniaPaired(Sonia):
                          save_dir: str
                         ) -> None:
         import shutil
-        zipped = zip([self.pgen_light_dir, self.pgen_heavy_dir],
+        zipped = zip([self.pgen_dir_light, self.pgen_dir_heavy],
                      ['light_chain', 'heavy_chain'])
         for pgen_dir, folder_name in zipped:
             chain_dir = os.path.join(save_dir, folder_name)
