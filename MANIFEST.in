@@ -1,1 +1,1 @@
-recursive-include sonnia/default_models/*
+recursive-include ./sonnia/default_models *
