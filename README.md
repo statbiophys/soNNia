@@ -6,7 +6,7 @@ SoNNia is a python 3.6 software which extends the functionality of the [SONIA](h
 
 
 ## Version
-Latest released version: 0.1.2
+Latest released version: 0.2.3
 
 ## Installation
 SoNNia is a python /3.6 software. It is available on PyPI and can be downloaded and installed through pip:
@@ -23,6 +23,7 @@ pip install tensorflow
 pip install matplotlib
 pip install olga
  ```
+ 
 For mac user on new metal devices, make sure to install additional dependencies. Currently, the configuration tensorflow-macos==2.9 and tensorflow-metal==0.5.0 should work.
 
 ## References
