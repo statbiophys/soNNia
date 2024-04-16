@@ -4,7 +4,8 @@ import os
 from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
 from sonia.evaluate_model import EvaluateModel
 from sonia.sequence_generation import SequenceGeneration
-from sonia.plotting import Plotter
+from sonnia.plotting import Plotter
+from sonnia.sonia import Sonia
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,17 +18,16 @@ import scipy.spatial as sp, scipy.cluster.hierarchy as hc
 
 class Compare(object):
     
-    def __init__(self, data=[],chain_type='human_T_beta',custom_pgen_model=None,gen_seqs=None,vj=False):
+    def __init__(self, data=[],chain_type='human_T_beta',pgen_model=None,gen_seqs=None,vj=False):
         self.chain_type=chain_type
-        self.custom_pgen_model=custom_pgen_model
-        self.vj=vj
+        self.custom_pgen_model=pgen_model 
+        if pgen_model is None:self.pgen_model=chain_type
+        else: self.pgen_model=pgen_model
         if not gen_seqs is None: gen=gen_seqs
-        if self.custom_pgen_model is None:
-            if gen_seqs is None: gen=sample_olga(int(1e6),chain_type=self.chain_type)
-            self.processor=Processing(chain_type=self.chain_type)
         else:
-            if gen_seqs is None: gen=sample_olga(int(1e6),custom_model_folder=self.custom_pgen_model)
-            self.processor=Processing(custom_model_folder=self.custom_pgen_model)
+            qm=SoNNia(pgen_model=self.pgen_model)
+            gen_seqs=qm.generate_sequences_pre(int(1e6))
+        self.processor=Processing(pgen_model=self.pgen_model)
               
         self.data=data
         self.datasets=[]
@@ -41,25 +41,16 @@ class Compare(object):
 
 
     def infer_models(self):
-        if self.custom_pgen_model is None:
-            qm=SoniaLeftposRightpos(chain_type=self.chain_type)
-        else:
-            qm=SoniaLeftposRightpos(custom_pgen_model=self.custom_pgen_model)
-
+        qm=Sonia(pgen_model=self.pgen_model)
         len_feats=len(qm.features)
         qm.model.set_weights([np.zeros((len_feats,1))])
             
         self.selection_models=[qm]
-        self.evaluation_models=[EvaluateModel(qm)]
 
         for d in self.datasets[1:]:
-            if self.custom_pgen_model is None:
-                qm=SoniaLeftposRightpos(data_seqs=d,gen_seqs=self.datasets[0],chain_type=self.chain_type)
-            else:
-                qm=SoniaLeftposRightpos(data_seqs=d,gen_seqs=self.datasets[0],custom_pgen_model=self.custom_pgen_model)
+            qm=Sonia(data_seqs=d,gen_seqs=self.datasets[0],pgen_model=self.pgen_model)
             qm.infer_selection(epochs=50,batch_size=int(1e4))
             self.selection_models.append(qm)
-            self.evaluation_models.append(EvaluateModel(qm))
     
     def JSD(self,i,j):
         part1= np.mean(np.log2(self.qs_gen[i][self.selection[i]]/(self.qs_gen[i][self.selection[i]]+self.qs_gen[j][self.selection[i]])))/2
@@ -71,8 +62,8 @@ class Compare(object):
         self.qs_data=[]
         self.qs_gen=[]
         for i in range(len(self.selection_models)):
-            q_data=self.evaluation_models[i].evaluate_selection_factors(self.datasets[i][:max_n])
-            q_gen=self.evaluation_models[i].evaluate_selection_factors(self.datasets[0][:max_n*upper_limit])
+            q_data=self.selection_models[i].evaluate_selection_factors(self.datasets[i][:max_n])
+            q_gen=self.selection_models[i].evaluate_selection_factors(self.datasets[0][:max_n*upper_limit])
             self.selection.append(np.random.uniform(size=len(q_gen)) < q_gen/10.)
             self.qs_data.append(q_data)
             self.qs_gen.append(q_gen)
@@ -85,8 +76,8 @@ class Compare(object):
             JS=self.JSD(i,j)
             self.dist_matrix[i,j]=JS
             self.dist_matrix[j,i]=JS
-            q_ij=self.evaluation_models[i].evaluate_selection_factors(self.datasets[j][:max_n])
-            q_ji=self.evaluation_models[j].evaluate_selection_factors(self.datasets[i][:max_n])
+            q_ij=self.selection_models[i].evaluate_selection_factors(self.datasets[j][:max_n])
+            q_ji=self.selection_models[j].evaluate_selection_factors(self.datasets[i][:max_n])
             self.differential_qs.append([self.qs_data[i],q_ij,q_ji,self.qs_data[j]])
     def likelihood(self,p,Q4,Q8):
         return np.mean(np.log((p*Q4+(1.-p)*Q8)))
