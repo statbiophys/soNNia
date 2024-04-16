@@ -6,7 +6,7 @@ SoNNia is a python 3.6 software which extends the functionality of the [SONIA](h
 
 
 ## Version
-Latest released version: 0.1.2
+Latest released version: 0.2.3
 
 ## Installation
 SoNNia is a python /3.6 software. It is available on PyPI and can be downloaded and installed through pip:
