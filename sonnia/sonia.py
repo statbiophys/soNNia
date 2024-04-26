@@ -473,6 +473,12 @@ class Sonia(object):
             self.X = self.X[shuffle]
             self.Y = self.Y[shuffle]
 
+        num_data_seqs = np.count_nonzero(self.Y == 0)
+        if num_data_seqs == 0:
+            raise RuntimeError('No data seqs were given. Cannot train a Sonia/SoNNia model.')
+        if num_data_seqs == len(self.Y):
+            raise RuntimeError('No gen seqs were given. Cannot train a Sonia/SoNNia model.')
+
         callbacks=[]
         self.learning_history = self.model.fit(self._encode_data(self.X), self.Y,
                                                epochs=epochs, batch_size=batch_size,
@@ -481,6 +487,15 @@ class Sonia(object):
         self.likelihood_train = -np.array(self.learning_history.history['_likelihood']) * 1.44
         self.likelihood_test = -np.array(self.learning_history.history['val__likelihood']) * 1.44
         self.model_params = self.model.get_weights()
+
+        if np.isnan(self.likelihood_train).any() or np.isnan(self.likelihood_test).any():
+            raise RuntimeError('The training or validation likelihood history '
+                               'contains nans. This occurs if a batch contains '
+                               'data_seqs only or gen_seqs only. Consider '
+                               'increasing the batch_size so that it is certain '
+                               'that a batch includes both data_seqs and gen_seqs '
+                               'or consider changing how many generated sequences '
+                               'you are using.')
 
         # set Z    
         self.energies_gen = self.compute_energy(self.gen_seq_features)
@@ -685,14 +700,14 @@ class Sonia(object):
 
         if (len(add_data_seqs) + len(add_features) + len(remove_features) > 0 or auto_update_seq_features) and len(self.features)>0 and len(self.data_seqs)>0:
             logging.info('Encode data seqs.')
-            self.data_seq_features = [self.find_seq_features(seq) for seq in tqdm(self.data_seqs)]
+            self.data_seq_features = [self.find_seq_features(seq) for seq in tqdm(self.data_seqs, position=0)]
 
         if (len(add_data_seqs) + len(add_features) + len(remove_features) > 0 or auto_update_marginals > 0) and len(self.features)>0:
             self.data_marginals = self.compute_marginals(seq_model_features = self.data_seq_features, use_flat_distribution = True)
 
         if (len(add_gen_seqs) + len(add_features) + len(remove_features) > 0 or auto_update_seq_features) and len(self.features)>0 and len(self.gen_seqs)>0:
             logging.info('Encode gen seqs.')
-            self.gen_seq_features = [self.find_seq_features(seq) for seq in tqdm(self.gen_seqs)]
+            self.gen_seq_features = [self.find_seq_features(seq) for seq in tqdm(self.gen_seqs, position=0)]
 
 
         if (len(add_gen_seqs) + len(add_features) + len(remove_features) > 0 or auto_update_marginals) and len(self.features)>0:
@@ -1027,7 +1042,7 @@ class Sonia(object):
                 seqs = pool.starmap(generate_sequence, zipped)
         else:
             seqs = []
-            for i in tqdm(range(int(num_seqs))):
+            for i in tqdm(range(int(num_seqs)), position=0):
                 np.random.seed(rng.integers(0, 2**32 - 1))
                 seq = self.seqgen_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
 
