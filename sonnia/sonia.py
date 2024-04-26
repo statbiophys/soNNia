@@ -7,9 +7,10 @@ Created on Wed Jan 30 12:06:58 2019
 from __future__ import print_function, division, absolute_import
 from copy import copy
 import itertools
+import logging
 import multiprocessing as mp
 import os
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 import numpy as np
@@ -27,8 +28,11 @@ from tensorflow.keras.regularizers import l1_l2, l2
 from tqdm import tqdm
 
 from sonnia.utils import (compute_pgen_expand, compute_pgen_expand_novj,
-                          define_pgen_model, gene_to_num_str, get_model_dir,
-                          partial_joint_marginals)
+                          define_pgen_model, filter_seqs, gene_to_num_str,
+                          get_model_dir, partial_joint_marginals)
+
+logging.getLogger().setLevel(logging.INFO)
+logging.basicConfig(format='%(asctime)s: %(message)s')
 
 GENE_FEATURE_OPTIONS = {'vjl', 'joint_vj', 'indep_vj', 'v', 'j', 'none'}
 
@@ -125,7 +129,21 @@ class Sonia(object):
                  max_energy_clip: int = 10,
                  seed: Optional[int] = None,
                  processes: Optional[int] = None,
+                 preprocess_seqs: bool = True,
+                 **kwargs: Dict[str, Any]
                 ) -> None:
+        """
+        Init Sonia/SoNNia object.
+
+        Parameters
+        ----------
+        load_seqs : bool, default True
+            Load the data and generated sequences used for training the ppost model.
+        seed : int, optional
+            The seed used for the random number generator.
+        **kwargs : dict of {str : any}
+            Keyword arguments for sonnia.utils.filter_seqs for preprocessing.
+        """
         if gene_features not in GENE_FEATURE_OPTIONS:
             gene_feature_options_str = f'{GENE_FEATURE_OPTIONS}'[1:-1]
             raise ValueError(f'{gene_features} is not a valid option for '
@@ -176,13 +194,14 @@ class Sonia(object):
         self.gamma = gamma
         self.Z = 1.
         self.amino_acids = 'ACDEFGHIKLMNPQRSTVWY'
+        self.preprocess_seqs = preprocess_seqs
 
         if ppost_model is None:
-            self.update_model(add_data_seqs=data_seqs, add_gen_seqs=gen_seqs)
+            self.update_model(add_data_seqs=data_seqs, add_gen_seqs=gen_seqs, **kwargs)
             self.add_features()
         else:
             self.load_model(ppost_model=ppost_model, load_seqs=load_seqs)
-            if len(self.data_seqs) != 0: self.update_model(add_data_seqs=data_seqs)
+            if len(self.data_seqs) != 0: self.update_model(add_data_seqs=data_seqs, **kwargs)
             if len(self.gen_seqs) != 0: self.update_model(add_data_seqs=gen_seqs)
 
         if seed is not None:
@@ -587,7 +606,8 @@ class Sonia(object):
                      remove_features: List[Iterable[str]] = [],
                      add_constant_features: List[Iterable[str]] = [],
                      auto_update_marginals: bool = False,
-                     auto_update_seq_features: bool = False
+                     auto_update_seq_features: bool = False,
+                     **kwargs
                     ) -> None:
         """Updates the model attributes
         This method is used to add/remove model features or data/generated
@@ -612,6 +632,9 @@ class Sonia(object):
             Specifies to update marginals.
         auto_update_seq_features : bool
             Specifies to update seq features.
+        **kwargs : dict of {str : any}
+            Keyword arguments for sonnia.utils.filter_seqs for preprocessing.
+
         Attributes set
         --------------
         features : list
@@ -642,25 +665,33 @@ class Sonia(object):
             self.update_model_structure(initialize=True)
             self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
 
-        if len(add_data_seqs)>0:
+        if len(add_data_seqs) > 0:
+            logging.info('Adding data seqs.')
+            if self.preprocess_seqs:
+                try:
+                    add_data_seqs = filter_seqs(add_data_seqs, self.pgen_dir, **kwargs)
+                except Exception as e:
+                    raise Exception(e)
+
             add_data_seqs=np.array([[seq,'',''] if type(seq)==str else seq for seq in add_data_seqs])
             if self.data_seqs==[]: self.data_seqs = add_data_seqs
             else: self.data_seqs = np.concatenate([self.data_seqs,add_data_seqs])
 
         if len(add_gen_seqs)>0:
+            logging.info('Adding gen seqs.')
             add_gen_seqs=np.array([[seq,'',''] if type(seq)==str else seq for seq in add_gen_seqs])
             if self.gen_seqs==[]: self.gen_seqs = add_gen_seqs
             else: self.gen_seqs = np.concatenate([self.gen_seqs,add_gen_seqs])
 
         if (len(add_data_seqs) + len(add_features) + len(remove_features) > 0 or auto_update_seq_features) and len(self.features)>0 and len(self.data_seqs)>0:
-            print('Encode data.')
+            logging.info('Encode data seqs.')
             self.data_seq_features = [self.find_seq_features(seq) for seq in tqdm(self.data_seqs)]
 
         if (len(add_data_seqs) + len(add_features) + len(remove_features) > 0 or auto_update_marginals > 0) and len(self.features)>0:
             self.data_marginals = self.compute_marginals(seq_model_features = self.data_seq_features, use_flat_distribution = True)
 
         if (len(add_gen_seqs) + len(add_features) + len(remove_features) > 0 or auto_update_seq_features) and len(self.features)>0 and len(self.gen_seqs)>0:
-            print('Encode gen.')
+            logging.info('Encode gen seqs.')
             self.gen_seq_features = [self.find_seq_features(seq) for seq in tqdm(self.gen_seqs)]
 
 
@@ -698,6 +729,7 @@ class Sonia(object):
         gen_seq_features : list
             Features gen_seqs have been projected onto.
         """
+        logging.info(f'Generating {num_gen_seqs} using the pgen model in {self.pgen_dir}.')
         seqs = self.generate_sequences_pre(num_gen_seqs, nucleotide=False,
                                            add_error=add_error, error_rate=error_rate)
         if reset_gen_seqs: self.gen_seqs = []
