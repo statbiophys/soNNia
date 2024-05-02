@@ -1,3 +1,4 @@
+import inspect
 import logging
 import os
 import subprocess
@@ -14,6 +15,7 @@ import olga.sequence_generation as seq_gen
 from olga.utils import nt2aa
 
 logging.getLogger().setLevel(logging.INFO)
+logging.basicConfig(format='%(asctime)s: %(message)s')
 
 DEFAULT_CHAIN_TYPES = {
     'humanTRA': 'human_T_alpha', 'human_T_alpha': 'human_T_alpha',
@@ -42,6 +44,8 @@ NORM_PRODUCTIVES = {'human_T_beta': 0.2442847269027897,
 
 HEAVY_CHAINS = {'TRB', 'TRD', 'IGH'}
 LIGHT_CHAINS = {'TRA', 'TRG', 'IGK', 'IGL', 'IGI'}
+
+CSV_READER_PARAMS = inspect.signature(pd.read_csv).parameters.keys()
 
 def run_terminal(string):
     return [i.decode("utf-8").split('\n')
@@ -182,8 +186,9 @@ def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
                 conserved_j_residues: str = 'ABCEDFGHIJKLMNOPQRSTUVWXYZ',
                 abundance_threshold: int = 0,
                 max_cdr3_length: int = 30,
-                deduplicate_nt_recombinations: bool = False,
+                deduplicate_nt_recombinations: bool = True,
                 return_bools: bool = False,
+                verbose: bool = True,
                 **kwargs: Dict[str, Any]
                ) -> np.ndarray:
     """
@@ -222,14 +227,20 @@ def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
         bias and clonal expansion effects.
     return_bools : bool, default False
         Return a boolean array of whether the sequences are valid.
+    verbose: bool, default True
+        Print how many sequences remain after each filter.
     **kwargs : dict of {str : any}
         Keyword arguments to pandas.read_csv.
 
     Returns
     -------
-    seqs : np.ndarray
-       The filtered sequences.
+    np.ndarray
+       The filtered sequences or a boolean array of what sequences passed.
     """
+    for keyword in kwargs:
+        if keyword not in CSV_READER_PARAMS:
+            raise TypeError(f'{keyword} is an invalid keyword argument for filter_seqs().')
+
     def get_functional_genes(fin: str
                             ) -> Set[str]:
         functional_genes = set()
@@ -245,47 +256,175 @@ def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
     v_genes = get_functional_genes(os.path.join(model_dir, 'V_gene_CDR3_anchors.csv'))
     j_genes = get_functional_genes(os.path.join(model_dir, 'J_gene_CDR3_anchors.csv'))
 
+    max_v_length = max(len(gene) for gene in v_genes)
+    max_j_length = max(len(gene) for gene in j_genes)
+
     if isinstance(seqs, str):
         df = pd.read_csv(seqs, **kwargs)
     elif isinstance(seqs, pd.DataFrame):
         df = seqs
     else:
+        int_tuple = (int, np.integer)
         df = pd.DataFrame(seqs)
-        seq_col = 0 if not isinstance(seq_col, int) else seq_col
-        v_col = 1 if not isinstance(v_col, int) else v_col
-        j_col = 2 if not isinstance(j_col, int) else j_col
 
-    logging.info(f'{len(df)} sequences before filtering. Using {model_dir} '
-                 'for filtering.')
+        if seq_col is not None:
+            if seq_col == 'amino_acid':
+                seq_col = 0
+                if verbose:
+                    logging.info('Using default index (0) for amino acid CDR3 sequences.')
+            elif not isinstance(v_col, int_tuple):
+                raise TypeError('Because seqs is an iterable, seq_col must '
+                                'be an integer pointing to the column containing '
+                                'the amino acid CDR3 sequences.')
+            else:
+                seq_col = seq_col
+
+        if v_col is not None:
+            if v_col == 'v_gene':
+                v_col = 1
+                if verbose:
+                    logging.info('Using default index (1) for V genes.')
+
+            elif not isinstance(v_col, int_tuple):
+                raise TypeError('Because seqs is an iterable, v_col must '
+                                'be an integer pointing to the column containing '
+                                'the V genes.')
+            else:
+                v_col = v_col
+
+        if j_col is not None:
+            if j_col == 'j_gene':
+                j_col = 2
+                if verbose:
+                    logging.info('Using default index (2) for J genes.')
+            elif not isinstance(j_col, int_tuple):
+                raise TypeError('Because seqs is an iterable, j_col must '
+                                'be an integer pointing to the column containing '
+                                'the J genes.')
+            else:
+                j_col = j_col
+
+        if nt_seq_col is not None:
+            if not isinstance(nt_seq_col, int_tuple):
+                raise TypeError('Because seqs is an iterable, nt_seq_col must '
+                                'be an integer pointing to the column containing '
+                                'the nucleotide CDR3 sequences.')
+        if abundance_col is not None:
+            if not isinstance(abundance_col, int_tuple):
+                raise TypeError('Because seqs is an iterable, abundance_col must '
+                                'be an integer pointing to the column containing '
+                                'the abundances.')
+
+    if not df[seq_col].str.contains('^[ACDEFGHIKLMNPQRSTVWY~_\*]+$', regex=True, na=False).all():
+        raise RuntimeError(f'The seq_col pointed to by {seq_col} does '
+                           'not contain strings with only amino acids. '
+                           'Is this the correct column for amino acid CDR3 sequences?')
+
+    if verbose:
+        logging.info(f'{len(df)} sequences before filtering. Using {model_dir} '
+                     'for filtering.')
 
     bool_arr = np.ones(len(df), dtype=bool)
+    num_pass = len(df)
 
     if nt_seq_col is not None:
-        bool_arr *= df[nt_seq_col].str.len() % 3 == 0
+        if not df[nt_seq_col].str.contains('^[ACGTacgt]+$', regex=True, na=False).all():
+            raise RuntimeError(f'The nt_seq_col pointed to by {nt_seq_col} does '
+                               'not contain strings with only nucleotide characters. '
+                               'Is this the correct column for nucleotide CDR3 sequences?')
         if deduplicate_nt_recombinations:
-            df = df.drop_duplicates([nt_seq_col, v_col, j_col])
+            bool_arr *= ~df.duplicated([nt_seq_col, v_col, j_col]).values
+            if verbose:
+                num_pass = np.count_nonzero(bool_arr)
+                logging.info(f'{num_pass} sequences remain after deduplicating '
+                             'nucleotide recombinations.')
 
-    bool_arr *= ((df[v_col].isin(v_genes))
-                    & (df[j_col].isin(j_genes))
-                    & (~df[seq_col].str.contains('\*|_|~', na=True, regex=True)))
+        bool_arr[bool_arr] *= df.loc[bool_arr, nt_seq_col].str.len() % 3 == 0
+        if verbose:
+            num_pass = np.count_nonzero(bool_arr)
+            logging.info(f'{num_pass} sequences remain after removing out-of-frame '
+                         'nucleotide sequences.')
+
+    if v_col is not None:
+        bool_arr[bool_arr] *= df.loc[bool_arr, v_col].isin(v_genes)
+        num_pass = np.count_nonzero(bool_arr)
+        if num_pass == 0:
+            raise RuntimeError('No data are consistent with the V genes used '
+                               f'in the model. Does {v_col} point to the column '
+                               'containing V genes? Is the model choice correct '
+                               f'for the data? The model used: {model_dir}.')
+        if verbose:
+            logging.info(f'{num_pass} sequences remain after removing sequences '
+                         'with V genes inconsistent with the model.')
+
+    if j_col is not None:
+        bool_arr[bool_arr] *= df.loc[bool_arr, j_col].isin(j_genes)
+        num_pass = np.count_nonzero(bool_arr)
+        if num_pass == 0:
+            raise RuntimeError('No data are consistent with the J genes used '
+                               f'in the model. Does {j_col} point to the column '
+                               'containing J genes? Is the model choice correct '
+                               f'for the data? The model used: {model_dir}.')
+        if verbose:
+            logging.info(f'{num_pass} sequences remain after removing sequences '
+                         'with J genes inconsistent with the model.')
+
+    bool_arr[bool_arr] *= ~df.loc[bool_arr, seq_col].str.contains('\*|_|~', na=True, regex=True)
+    if verbose:
+        num_pass = np.count_nonzero(bool_arr)
+        logging.info(f'{num_pass} sequences remain after removing data which '
+                     'are unproductive amino acid sequences.')
 
     if bounds_check:
         bound_string = '^C.*' + '$|^C.*'.join(list(conserved_j_residues)) + '$'
-        bool_arr *= df[seq_col].str.contains(bound_string, na=False)
+        bool_arr[bool_arr] *= df.loc[bool_arr, seq_col].str.contains(bound_string, na=False)
+        if verbose:
+            num_pass = np.count_nonzero(bool_arr)
+            logging.info(f'{num_pass} sequences remain after removing sequences '
+                         f'that do not begin with a \'C\' or end in a {list(conserved_j_residues)}.')
 
     if cdr3_length_check:
-        bool_arr *= df[seq_col].str.len() <= max_cdr3_length
+        bool_arr[bool_arr] *= df.loc[bool_arr, seq_col].str.len() <= max_cdr3_length
+        if verbose:
+            num_pass = np.count_nonzero(bool_arr)
+            logging.info(f'{num_pass} sequences remain after removing sequences '
+                         f'with CDR3 length larger than {max_cdr3_length}.')
 
     if abundance_col is not None:
-        bool_arr *= df[abundance_col] > abundance_threshold
+        bool_arr[bool_arr] *= df.loc[bool_arr, abundance_col] > abundance_threshold
+        if verbose:
+            num_pass = np.count_nonzero(bool_arr)
+            logging.info(f'{num_pass} sequences remain after removing sequences '
+                         f'with abundance <= {abundance_threshold}.')
 
-    logging.info(f'{len(df)} sequences remaining after filtering.')
+    num_pass = np.count_nonzero(bool_arr)
+    if verbose:
+        logging.info(f'{num_pass} sequences remain. Filtering completed.')
+
+    if num_pass == 0:
+        verbose_str = ''
+        if not verbose:
+            verbose_str = ('Rerun with verbose = True for more details on how many '
+                           'sequences remained after passing through the filters.')
+        raise RuntimeError('No sequences passed all the filters. Is something wrong '
+                           'with the data? Are any columns given incorrectly? '
+                           f'seq_col: {seq_col}, v_col: {v_col}, j_col: {j_col}, '
+                           f'nt_seq_col: {nt_seq_col}, abundance_col: {abundance_col}. '
+                           +  verbose_str)
 
     if return_bools:
         return bool_arr
 
-    return df.loc[bool_arr, [seq_col, v_col, j_col]].values.astype(str)
+    str_size = max(max_v_length, max_j_length, max_cdr3_length)
+    res = np.zeros((num_pass, 3), dtype=f'<U{str_size}')
 
+    res[:, 0] = df.loc[bool_arr, seq_col]
+    if v_col is not None:
+        res[:, 1] = df.loc[bool_arr, v_col]
+    if j_col is not None:
+        res[:, 2] = df.loc[bool_arr, j_col]
+
+    return res
 
 def sample_olga(num_gen_seqs=1,custom_model_folder=None,vj=False,chain_type='human_T_beta'):
     (genomic_data, generative_model,
