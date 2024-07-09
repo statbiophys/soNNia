@@ -631,7 +631,7 @@ def gene_to_num_str(gene_name: str,
     gene_name = gene_name.partition('*')[0].lower()
     gene_type = gene_type.lower()
     pre_hyphen, hyphen, post_hyphen = gene_name.partition(gene_type)[-1].partition('-')
-    return gene_type + (pre_hyphen.lstrip('0') + hyphen + post_hyphen.lstrip('0')).replace('/', '')
+    return gene_type + (pre_hyphen.lstrip('0') + hyphen + post_hyphen.lstrip('0')).replace('/', '').replace('-1', '')
 
 def compute_pgen_expand(x):
     # compute pgen conditioned on gene usage
