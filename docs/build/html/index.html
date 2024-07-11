@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documentation for the SoNNia package &mdash; sonnia 0.2.24 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=dc91f075"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Command line console scripts" href="commands.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            sonnia
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">Command line console scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="python_usage.html">SoNNia modules in a Python script</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html">SoNNia Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="help.html">Need Help?</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">sonnia</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Documentation for the SoNNia package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="documentation-for-the-sonnia-package">
+<h1>Documentation for the SoNNia package<a class="headerlink" href="#documentation-for-the-sonnia-package" title="Link to this heading"></a></h1>
+<p>SoNNia is a python 3 software which extends the functionality of the [SONIA](<a class="reference external" href="https://github.com/statbiophys/SONIA">https://github.com/statbiophys/SONIA</a>) package and is used to infer selection pressures on features of amino acid CDR3 sequences.
+The inference is based on maximizing the likelihood of observing a selected data sample given a representative pre-selected sample.
+This method was first used in Elhanati et al (2014) to study thymic selection.
+Generally, the pre-selected sample can be generated internally using the OLGA software,
+but SONIA allows it also to be supplied externally, in the same way the data sample is provided.</p>
+<p>SoNNia  expands  the  choice  of selection  models that can be inferred with respect to SONIA.
+Non linear single-chain models and (non-)linear paired-chain models are included, as well as a class to compare datasets using the model and
+the pre-processing pipeline implemented in the corresponding paper.</p>
+<a class="reference internal image-reference" href="_images/summary_fig.png"><img alt="_images/summary_fig.png" class="align-center" src="_images/summary_fig.png" style="width: 650px;" /></a>
+<p>SoNNia takes as input CDR3 amino acid sequences, with (or without) V and J genes assignemnt.
+Its output is selection factors that can could be used to calculate the probability
+to observe any sequence after selection.</p>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>SoNNia is a python 3 software. It is available on PyPI and can be downloaded and installed through pip:</p>
+<blockquote>
+<div><p>pip install sonnia</p>
+</div></blockquote>
+<p>SoNNia is also available on [GitHub](<a class="reference external" href="https://github.com/statbiophys/sonnia">https://github.com/statbiophys/sonnia</a>). The command line entry points can be installed by using the setup.py script:</p>
+<blockquote>
+<div><p>pip install .</p>
+</div></blockquote>
+<p>Sometimes pip fails to install the dependencies correctly. Thus, if you get any error try first to install the dependencies separately:</p>
+<blockquote>
+<div><p>pip install tensorflow matplotlib olga</p>
+</div></blockquote>
+<p>For mac user on new metal devices, make sure to install additional dependencies. Currently, the configuration tensorflow-macos==2.9 and tensorflow-metal==0.5.0 should work.</p>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>Isacchini G, Walczak AM, Mora T, Nourmohammad A, Deep generative selection models of T and B cell receptor repertoires with soNNia, (2021) PNAS, <a class="reference external" href="https://www.pnas.org/content/118/14/e2023141118.short">https://www.pnas.org/content/118/14/e2023141118.short</a></p></li>
+</ol>
+</section>
+</section>
+<section id="structure">
+<h1>Structure<a class="headerlink" href="#structure" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">Command line console scripts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#specifying-a-default-v-d-j-model-or-a-custom-model-folder">Specifying a default V(D)J model (or a custom model folder)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#options-common-to-all-commands">Options common to all commands</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="python_usage.html">SoNNia modules in a Python script</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html">SoNNia Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sonnia_tutorial.html#Load-lists-of-sequences-with-gene-specification">Load lists of sequences with gene specification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sonnia_tutorial.html#Define-and-infer-model">Define and infer model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sonnia_tutorial.html#Do-some-plotting">Do some plotting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sonnia_tutorial.html#Generate-sequences">Generate sequences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sonnia_tutorial.html#Evaluate-sequences">Evaluate sequences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sonnia_tutorial.html#Import-some-utils-inherited-from-OLGA">Import some utils inherited from OLGA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sonnia_tutorial.html#Save-and-Load-Model">Save and Load Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sonnia_tutorial.html#Compute-Diversity-and-Distance-from-Reference-Distribution">Compute Diversity and Distance from Reference Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sonnia_tutorial.html#Load-Default-Sonia-Models">Load Default Sonia Models</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="help.html">Need Help?</a></li>
+</ul>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Note about training data preparation</strong></p>
+<p>SoNNia shines when trained on top of independent rearrangement events, thus
+you should throw away the read count information.
+If you have a sample from an individual, you should keep the unique
+nucleotide rearrangements. This means that in principle there could be few aminoacid
+CDR3,V,J combination that are not unique after the mapping from nucleotide to aminoacid, but that’s fine.
+Moreover if you pool data from multiple people you can still keep rearrangements that are found
+in multiple individuals because you are sure that they correspond to independent recombination events.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Note about CDR3 sequence definition</strong></p>
+<p>This code is quite flexible, however it does demand a very consistent definition of CDR3 sequences.</p>
+<p><strong>CHECK THE DEFINITION OF THE CDR3 REGION OF THE SEQUENCES YOU INPUT.</strong> This will likely be the most often problem that occurs.
+The default models/genomic data are set up to define the CDR3 region from
+the conserved cysteine C (INCLUSIVE) in the V region to the conserved F or W (INCLUSIVE)
+in the J. This corresponds to definition of a junction in AIRR-C format.</p>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="commands.html" class="btn btn-neutral float-right" title="Command line console scripts" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Giulio Isacchini.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
