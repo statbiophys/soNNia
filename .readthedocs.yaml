@@ -59,7 +59,7 @@ sphinx:
 
 # python:
 
-#   install:
+install:
 
-     - requirements: docs/requirements.txt
+  requirements: docs/requirements.txt
 
