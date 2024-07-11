@@ -5,6 +5,9 @@ SoNNia is a python 3.6 software which extends the functionality of the [SONIA](h
 ![image](docs/summary_fig.png)
 
 
+## Documentation
+Extensive documentation can be found [here](https://sonnia.readthedocs.io/en/latest/index.html).
+
 ## Version
 Latest released version: 0.2.3
 
