@@ -1,35 +1,28 @@
 ## Command line console scripts
 
-There are three command line console scripts (the scripts can still be called as executables if SONIA is not installed):
-1. ```sonia-evaluate```
+There are three command line console scripts (the scripts can still be called as executables if SoNNia is not installed):
+1. ```sonnia-evaluate```
   * evaluates Ppost, Pgen or selection factors of sequences according to a generative V(D)J model and selection model.
-2. ```sonia-generate```
+2. ```sonnia-generate```
   * generates CDR3 sequences, before (like olga) or after selection
-3. ```sonia-infer```
+3. ```sonnia-infer```
   * infers a selection model with respect to a generative V(D)J model
 
 For any of them you can execute with the -h or --help flags to get the options.
 
-### Quick Demo
-After installing SONIA, we offer a quick demonstration of the console scripts. This will demonstrate generating and evaluating sequences and infer a selection model from the default model for human TCR beta chains that ships with SONIA. 
+We offer a quick demonstration of the console scripts. This will show how to generate and evaluate sequences and infer a selection model using the default generation model for human TCR beta chains that ships with the SONIA software. In order to run the commands below you need to download the examples folder. 
 
-1. ```$ sonia-evaluate --humanTRB CASSTGNYGAFF --v_mask TRBV9 --j_mask TRBJ1-1 --ppost```
-  * This computes Ppost,Pgen and Q of the TCR CASSTGNYGAFF,TRBV9,TRBJ1-1 (you should get ~1.3e-11, ~9.2e-12 and ~1.4 respectively)
-
-2. ```$ sonia-generate --humanTRB -n 5 --pre```
-  * Generate 5 human TRB CDR3 sequences from the pre-selection repertoire and print to stdout along with the V and J genes used to generate them.
-
-3. ```$ sonia-generate --humanTRB -n 10000 --post -o example_seqs.txt```
-  * This generates a file example_seqs.tsv and writes 10000 generated human TRB CDR3 sequences from the post-selection repertoire.
-
-4. ```$ sonia-evaluate --humanTRB --ppost -i example_seqs.txt -m 5  -o example_evaluation.txt```
-  * This reads in the first 5 sequences from the file we just generated, example_seqs.tsv, evaluates them and writes the results them to the file example_pgens.tsv
-  
-5. ```$ sonia-infer --humanTRB -i example_seqs.txt -o sel_model```
+1. ```$ sonnia-infer --humanTRB -i examples/data_seqs.txt -d ';' -m 10000```
   * This reads in the full file example_seqs.txt, infers a selection model and saves to the folder sel_model
+
+
+2. ```$ sonnia-generate --set_custom_model_VDJ examples/sonnia_model --post -n 100```
+  * Generate 100 human TRB CDR3 sequences from the post-selection repertoire and print to stdout along with the V and J genes used to generate them.
+3. ```$ sonnia-evaluate --set_custom_model_VDJ examples/sonnia_model -i examples/data_seqs.txt --ppost -m 100 -d ';' ```
+  * This computes Ppost,Pgen and Q of the first 100 seqs in the data_seqs file.  
   
 ### Specifying a default V(D)J model (or a custom model folder)
-All of the console scripts require specifying a V(D)J model. SONIA ships with 6 default models that can be indicated by flags, or a custom model folder can be indicated.
+All of the console scripts require specifying a V(D)J model. SoNNia ships with 6 default models that can be indicated by flags, or a custom model folder can be indicated.
 
 | Options                                         | Description                                      |
 |-------------------------------------------------|--------------------------------------------------|
@@ -53,6 +46,7 @@ with the exact naming convention:
 * J_gene_CDR3_anchors.csv (J anchor residue position and functionality file)
 * features.tsv (if you want to load the selection model as well: not required for in the sonia-infer command)
 * log.txt (if you want to load the selection model as well: not required in the sonia-infer command) 
+* model.h5 (if you want to load a non linear selection model as well: not required in the sonia-infer command) 
 
 The console scripts can only read files of the assumed anchor.csv/[IGoR](https://github.com/qmarcou/IGoR) syntaxes. See the default models in the sonia directory for examples.
 
@@ -60,7 +54,7 @@ The console scripts can only read files of the assumed anchor.csv/[IGoR](https:/
 
 | Options                                         | Description                                      |
 |-------------------------------------------------|--------------------------------------------------|
-|  -h, --help                                     |     show command options                         |
+|  -h, --help                                     | show command options                             |
 |  --sonia_model=MODEL_TYPE                       | specify model type: leftright or lengthpos. Default is leftright |
 |  -i PATH/TO/FILE, --infile=PATH/TO/FILE         | read in CDR3 sequences (and optionally V/J masks) from PATH/TO/FILE|
 |  -o PATH/TO/FILE, --outfile=PATH/TO/FILE        | output to PATH/TO/FILE                           |

@@ -19,14 +19,14 @@ sys.path.insert(0, os.path.abspath('../../.'))
 
 # -- Project information -----------------------------------------------------
 
-project = u'sonia'
-copyright = u'2020, Zachary Sethna and Giulio Isacchini'
-author = u'Zachary Sethna and Giulio Isacchini'
+project = u'sonnia'
+copyright = u'2021, Giulio Isacchini'
+author = u'Giulio Isacchini'
 
 # The short X.Y version
 version = u''
 # The full version, including alpha/beta/rc tags
-release = u'0.0.26'
+release = u'0.2.24'
 
 
 # -- General configuration ---------------------------------------------------
@@ -130,7 +130,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'sonia.tex', u'sonia Documentation',
-     u'Zachary Sethna and Giulio Isacchini', 'manual'),
+     u'Giulio Isacchini', 'manual'),
 ]
 
 
@@ -139,7 +139,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'sonia', u'sonia Documentation',
+    (master_doc, 'sonia', u'sonnia Documentation',
      [author], 1)
 ]
 
@@ -150,7 +150,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'sonia', u'sonia Documentation',
+    (master_doc, 'sonnia', u'sonnia Documentation',
      author, 'sonia', 'One line description of project.',
      'Miscellaneous'),
 ]

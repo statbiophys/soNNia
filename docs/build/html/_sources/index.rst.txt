@@ -1,85 +1,59 @@
-Documentation for Sonia package
-=================================
+Documentation for the SoNNia package
+====================================
 
-SONIA is a python 3.6/2.7 software developed to infer selection
-pressures on features of amino acid CDR3 sequences. The inference
-is based on maximizing the likelihood of observing a selected data
-sample given a representative pre-selected sample. This method was
-first used in Elhanati et al (2014) to study thymic selection. For
-this purpose, the pre-selected sample can be generated internally
-using the OLGA software package, but SONIA allows it also to be
-supplied externally, in the same way the data sample is provided.
+SoNNia is a python 3 software which extends the functionality of the [SONIA](https://github.com/statbiophys/SONIA) package and is used to infer selection pressures on features of amino acid CDR3 sequences. 
+The inference is based on maximizing the likelihood of observing a selected data sample given a representative pre-selected sample. 
+This method was first used in Elhanati et al (2014) to study thymic selection. 
+Generally, the pre-selected sample can be generated internally using the OLGA software, 
+but SONIA allows it also to be supplied externally, in the same way the data sample is provided.
 
-.. image:: model.png
-   :width: 450
+SoNNia  expands  the  choice  of selection  models that can be inferred with respect to SONIA. 
+Non linear single-chain models and (non-)linear paired-chain models are included, as well as a class to compare datasets using the model and
+the pre-processing pipeline implemented in the corresponding paper.
+
+.. image:: summary_fig.png
+   :width: 650
    :align: center
 	   
-SONIA takes as input TCR CDR3 amino acid sequences, with or without
-per sequence lists of possible V and J genes suspected to be used in
-the recombination psrocess for this sequence. Its output is selection
-factors for each amino acid ,(relative) position , CDR3 length combinations,
-and also for each V and J gene choice. These selection factors can be used to
-calculate sequence level selection factors which indicate how more or less
-represented this sequence would be in the selected pool as compared to the
-the pre-selected pool. These in turn could be used to calculate the probability
-to observe any sequence after selection and sample from the selected repertoire.
-
-.. image:: workflow.png
-   :width: 600
-   :align: center
+SoNNia takes as input CDR3 amino acid sequences, with (or without) V and J genes assignemnt. 
+Its output is selection factors that can could be used to calculate the probability
+to observe any sequence after selection. 
 
 Installation
 ^^^^^^^^^^^^
-SONIA is a python 2.7/3.6 software. It is available on PyPI and can be downloaded and installed through pip:
+SoNNia is a python 3 software. It is available on PyPI and can be downloaded and installed through pip:
 
-    pip install sonia
+    pip install sonnia
 
-SONIA is also available at https://github.com/statbiophys/SONIA . The command line entry points can be installed by using the setup.py script:
+SoNNia is also available on [GitHub](https://github.com/statbiophys/sonnia). The command line entry points can be installed by using the setup.py script:
 
-    python setup.py install
-
+    pip install .
+ 
 Sometimes pip fails to install the dependencies correctly. Thus, if you get any error try first to install the dependencies separately:
 
-    pip install tensorflow
+    pip install tensorflow matplotlib olga
 
-    pip install matplotlib
-
-    pip install olga
-
-    pip install sonia
-
+For mac user on new metal devices, make sure to install additional dependencies. Currently, the configuration tensorflow-macos==2.9 and tensorflow-metal==0.5.0 should work.
 
 References
 ^^^^^^^^^^
 
-1. Sethna Z, Isacchini G, Dupic T, Mora T, Walczak AM, Elhanati Y,
-   Population variability in the generation and thymic selection of
-   T-cell repertoires, (2020) bioRxiv, https://doi.org/10.1101/2020.01.08.899682
-
-2. Isacchini G, Sethna Z, Elhanati Y ,Nourmohammad A, Mora T, Walczak AM, \
-   On generative models of T-cell receptor sequences,(2019)
-   bioRxiv, https://doi.org/10.1101/857722
-
-3. Elhanati Y, Murugan A , Callan CGJ ,  Mora T , Walczak AM,
-   Quantifying selection in immune receptor repertoires, PNAS July 8,
-   2014 111 (27) 9875-9880, https://doi.org/10.1073/pnas.1409572111
+1. Isacchini G, Walczak AM, Mora T, Nourmohammad A, Deep generative selection models of T and B cell receptor repertoires with soNNia, (2021) PNAS, https://www.pnas.org/content/118/14/e2023141118.short
 
 Structure
 =========
 .. toctree::
    :maxdepth: 2
 
-   directory
    commands
    python_usage
-   sonia_tutorial
-   documentation
+   sonnia_tutorial
    license
    help
-
+   
 .. note:: **Note about training data preparation**
 
-   Sonia shines when trained on top of independent rearrangement events, thus
+   SoNNia shines when trained on top of independent rearrangement events, thus
    you should throw away the read count information.
    If you have a sample from an individual, you should keep the unique
    nucleotide rearrangements. This means that in principle there could be few aminoacid
@@ -94,5 +68,4 @@ Structure
    **CHECK THE DEFINITION OF THE CDR3 REGION OF THE SEQUENCES YOU INPUT.** This will likely be the most often problem that occurs.
    The default models/genomic data are set up to define the CDR3 region from
    the conserved cysteine C (INCLUSIVE) in the V region to the conserved F or W (INCLUSIVE)
-   in the J. This corresponds to positions X and X according to IMGT. This can be changed
-   by altering the anchor position files, however the user is strongly recommended against this.
+   in the J. This corresponds to definition of a junction in AIRR-C format.

@@ -11,11 +11,11 @@ Latest released version: 0.2.3
 ## Installation
 SoNNia is a python /3.6 software. It is available on PyPI and can be downloaded and installed through pip:
 
- ```pip install sonnia```.
+ ```pip install sonnia```
 
 SoNNia is also available on [GitHub](https://github.com/statbiophys/sonnia). The command line entry points can be installed by using the setup.py script:
 
- ```python setup.py install```.
+ ```pip install .```
  
 Sometimes pip fails to install the dependencies correctly. Thus, if you get any error try first to install the dependencies separately:
  ```
