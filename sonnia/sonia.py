@@ -129,7 +129,7 @@ class Sonia(object):
                  max_energy_clip: int = 10,
                  seed: Optional[int] = None,
                  processes: Optional[int] = None,
-                 preprocess_seqs: bool = True,
+                 preprocess_seqs: bool = False,
                  **kwargs: Dict[str, Any]
                 ) -> None:
         """
