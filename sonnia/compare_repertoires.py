@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 import os
-from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
-from sonia.evaluate_model import EvaluateModel
-from sonia.sequence_generation import SequenceGeneration
 from sonnia.plotting import Plotter
 from sonnia.sonia import Sonia
 import numpy as np

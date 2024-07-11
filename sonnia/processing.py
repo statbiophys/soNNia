@@ -77,6 +77,12 @@ class Processing(object):
         '''
         Drops unrecongised genes and pseudogenes.
         '''
+        
+        v_sel=self.df[self.v_col].apply(lambda x: gene_to_num_str(x,'V') in self.good_vs)
+        j_sel=self.df[self.j_col].apply(lambda x: gene_to_num_str(x,'J') in self.good_js)
+        self.df['selection_genes']=np.logical_and(v_sel,j_sel)
+
+        '''
         v_genes = set(self.df[self.v_col])
         j_genes = set(self.df[self.j_col])
 
@@ -89,6 +95,7 @@ class Processing(object):
         self.df = self.df.reset_index().set_index(self.j_col)
         self.df.loc[bad_j, 'selection_genes'] = False
         self.df = self.df.reset_index()
+        '''
 
         if self.verbose:
             num_bad = np.count_nonzero(np.logical_not(self.df['selection_genes'].values[self.df['selection'].values]))
@@ -149,7 +156,7 @@ class Processing(object):
                                 ) -> Set[str]:
             df = pd.read_csv(fin)
             df = df.loc[df['function'] == 'F']
-            return df['gene'].str.partition('*')[0].unique()
+            return df['gene'].apply(lambda x: gene_to_num_str(x,fin.split('/')[-1][0]))
 
         self.good_vs = set(get_functional_genes(os.path.join(pgen_dir, 'V_gene_CDR3_anchors.csv')))
         self.good_js = set(get_functional_genes(os.path.join(pgen_dir, 'J_gene_CDR3_anchors.csv')))
