@@ -13,6 +13,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import numpy as np
 from tensorflow import keras
+import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.models import load_model as lm
@@ -78,9 +79,9 @@ class SoNNia(Sonia):
         vj_length = copy(self.vj_length)
 
         if initialize:
-            input_l = keras.layers.Input(shape=(l_length,))
-            input_cdr3 = keras.layers.Input(shape=(max_depth * 2, 20,))
-            input_vj = keras.layers.Input(shape=(vj_length,))
+            input_l = keras.layers.Input(shape=(l_length,), dtype=tf.float32)
+            input_cdr3 = keras.layers.Input(shape=(max_depth * 2, 20,), dtype=tf.float32)
+            input_vj = keras.layers.Input(shape=(vj_length,), dtype=tf.float32)
             input_layer = [input_l, input_cdr3, input_vj]
 
             if not self.deep:
@@ -123,7 +124,10 @@ class SoNNia(Sonia):
                                                   kernel_regularizer=keras.regularizers.l2(l2_reg))(h)
 
         # Define model
-        clipped_out = keras.layers.Lambda(lambda x: K.clip(x,min_clip,max_clip))(output_layer)
+        clipped_out = keras.layers.Lambda(
+            tf.clip_by_value, arguments={'clip_value_min': min_clip, 'clip_value_max': max_clip},
+        )(output_layer)
+
         self.model = keras.models.Model(inputs=input_layer, outputs=clipped_out)
         self.optimizer = keras.optimizers.RMSprop()
 
@@ -163,58 +167,51 @@ class SoNNia(Sonia):
         This is set as an internal function to allow daughter classes to load
         models from saved feature energies directly.
         """
-        if feature_file is None and verbose:
-            print('No feature file provided --  no features loaded.')
-        elif os.path.isfile(feature_file):
-            features = []
-            data_marginals = []
-            gen_marginals = []
-            model_marginals = []
-            initial = []
+        features = []
+        data_marginals = []
+        gen_marginals = []
+        model_marginals = []
+        initial = []
 
-            with open(feature_file, 'r') as features_file:
-                column_names = next(features_file)
-                sonia_or_sonnia = column_names.split(',')[1]
-                if sonia_or_sonnia == 'marginal_data':
-                    k = 0
-                else:
-                    k = 1
+        with open(feature_file, 'r') as features_file:
+            column_names = next(features_file)
+            sonia_or_sonnia = column_names.split(',')[1]
+            if sonia_or_sonnia == 'marginal_data':
+                k = 0
+            else:
+                k = 1
 
-                for line in features_file:
-                    line = line.strip()
-                    splitted = line.split(',')
-                    features.append(splitted[0].split(';'))
-                    initial.append(features[-1][0][0])
-                    data_marginals.append(float(splitted[1 + k]))
-                    model_marginals.append(float(splitted[2 + k]))
-                    gen_marginals.append(float(splitted[3 + k]))
+            for line in features_file:
+                line = line.strip()
+                splitted = line.split(',')
+                features.append(splitted[0].split(';'))
+                initial.append(features[-1][0][0])
+                data_marginals.append(float(splitted[1 + k]))
+                model_marginals.append(float(splitted[2 + k]))
+                gen_marginals.append(float(splitted[3 + k]))
 
-            self.features = np.array(features, dtype=object)
-            self.data_marginals = np.array(data_marginals)
-            self.model_marginals = np.array(model_marginals)
-            self.gen_marginals = np.array(gen_marginals)
+        self.features = np.array(features, dtype=object)
+        self.data_marginals = np.array(data_marginals)
+        self.model_marginals = np.array(model_marginals)
+        self.gen_marginals = np.array(gen_marginals)
 
-            self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
+        self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
 
-            initial = np.array(initial)
-            self.l_length = np.count_nonzero(initial == 'l')
-            self.a_length = np.count_nonzero(initial == 'a')
-            self.vj_length = np.count_nonzero((initial == 'v') | (initial == 'j'))
-        elif verbose:
-            print('Cannot find features file or model file --  no features loaded.')
+        initial = np.array(initial)
+        self.l_length = np.count_nonzero(initial == 'l')
+        self.a_length = np.count_nonzero(initial == 'a')
+        self.vj_length = np.count_nonzero((initial == 'v') | (initial == 'j'))
 
-        if model_file is None and verbose:
-            print('No model file provided -- no model parameters loaded.')
-        elif os.path.isfile(model_file):
-            self.model = keras.models.load_model(model_file,
-                                                 custom_objects={'loss': self._loss,
-                                                                 'likelihood': self._likelihood,
-                                                                 'EmbedViaMatrix':EmbedViaMatrix},
-                                                 compile=False)
-            self.optimizer = keras.optimizers.RMSprop()
-            self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
-        elif verbose:
-            print('Cannot find model file --  no model parameters loaded.')
+        self.model = keras.models.load_model(
+            model_file,
+            custom_objects={
+                'loss': self._loss, 'likelihood': self._likelihood,
+                'EmbedViaMatrix': EmbedViaMatrix, 'clip_by_value': tf.clip_by_value
+            },
+            compile=False
+        )
+        self.optimizer = keras.optimizers.RMSprop()
+        self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
 
     def set_gauge(self):
         '''
