@@ -13,6 +13,7 @@ logging.getLogger('tensorflow').disabled = True
 
 import numpy as np
 from tensorflow import keras
+import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import load_model as lm
@@ -145,7 +146,9 @@ class SoNNiaPaired(SoniaPaired):
                                                   kernel_initializer='lecun_normal')(final) #normal glm model
 
         # Define model
-        clipped_out = keras.layers.Lambda(lambda x: K.clip(x,min_clip,max_clip))(output_layer)
+        clipped_out = keras.layers.Lambda(
+            tf.clip_by_value, arguments={'clip_value_min': min_clip, 'clip_value_max': max_clip},
+        )(output_layer)
         self.model = keras.models.Model(inputs=input_layer, outputs=clipped_out)
         self.optimizer = keras.optimizers.RMSprop()
         self.model.compile(optimizer=self.optimizer, loss=self._loss, metrics=[self._likelihood])
@@ -195,57 +198,50 @@ class SoNNiaPaired(SoniaPaired):
                                 ) -> None:
         """Loads features and model.
         """
-        if feature_file is None and verbose:
-            print('No feature file provided --  no features loaded.')
-        elif os.path.isfile(feature_file):
-            features = []
-            data_marginals=[]
-            gen_marginals=[]
-            model_marginals=[]
-            initial = []
+        features = []
+        data_marginals=[]
+        gen_marginals=[]
+        model_marginals=[]
+        initial = []
 
-            with open(feature_file, 'r') as features_file:
-                next(features_file)
+        with open(feature_file, 'r') as features_file:
+            next(features_file)
 
-                for line in features_file:
-                    splitted = line.strip().split(',')
-                    features.append(splitted[0].split(';'))
-                    initial.append(features[-1][0][:3])
-                    data_marginals.append(float(splitted[1]))
-                    model_marginals.append(float(splitted[2]))
-                    gen_marginals.append(float(splitted[3]))
+            for line in features_file:
+                splitted = line.strip().split(',')
+                features.append(splitted[0].split(';'))
+                initial.append(features[-1][0][:3])
+                data_marginals.append(float(splitted[1]))
+                model_marginals.append(float(splitted[2]))
+                gen_marginals.append(float(splitted[3]))
 
-            self.features = np.array(features, dtype=object)
-            self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
-            self.data_marginals = np.array(data_marginals)
-            self.model_marginals = np.array(model_marginals)
-            self.gen_marginals = np.array(gen_marginals)
+        self.features = np.array(features, dtype=object)
+        self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
+        self.data_marginals = np.array(data_marginals)
+        self.model_marginals = np.array(model_marginals)
+        self.gen_marginals = np.array(gen_marginals)
 
-            initial = np.array(initial)
+        initial = np.array(initial)
 
-            self.l_length_light = np.count_nonzero(initial == 'l_l')
-            self.l_length_heavy = np.count_nonzero(initial == 'l_h')
+        self.l_length_light = np.count_nonzero(initial == 'l_l')
+        self.l_length_heavy = np.count_nonzero(initial == 'l_h')
 
-            self.a_length_light = np.count_nonzero(initial == 'a_l')
-            self.a_length_heavy = np.count_nonzero(initial == 'a_h')
+        self.a_length_light = np.count_nonzero(initial == 'a_l')
+        self.a_length_heavy = np.count_nonzero(initial == 'a_h')
 
-            self.vj_length_light = np.count_nonzero((initial == 'v_l') | (initial == 'j_l'))
-            self.vj_length_heavy = np.count_nonzero((initial == 'v_h') | (initial == 'j_h'))
-        elif verbose:
-            print('Cannot find features file or model file --  no features loaded.')
+        self.vj_length_light = np.count_nonzero((initial == 'v_l') | (initial == 'j_l'))
+        self.vj_length_heavy = np.count_nonzero((initial == 'v_h') | (initial == 'j_h'))
 
-        if model_file is None and verbose:
-            print('No model file provided -- no model parameters loaded.')
-        elif os.path.isfile(model_file):
-            self.model = keras.models.load_model(model_file,
-                                                 custom_objects={'loss': self._loss,
-                                                                 'likelihood': self._likelihood,
-                                                                 'EmbedViaMatrix': EmbedViaMatrix},
-                                                 compile=False)
-            self.optimizer = keras.optimizers.RMSprop()
-            self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
-        elif verbose:
-            print('Cannot find model file --  no model parameters loaded.')
+        self.model = keras.models.load_model(
+            model_file,
+            custom_objects={
+                'loss': self._loss, 'likelihood': self._likelihood,
+                'EmbedViaMatrix': EmbedViaMatrix, 'clip_by_value': tf.clip_by_value
+            },
+            compile=False
+        )
+        self.optimizer = keras.optimizers.RMSprop()
+        self.model.compile(optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood])
 
 class EmbedViaMatrix(keras.layers.Layer):
     """

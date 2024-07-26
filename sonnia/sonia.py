@@ -517,7 +517,7 @@ class Sonia(object):
             if norm_p==0:
                 G=1
             else:
-                G = sum([self.gen_marginals[self.feature_dict[( 'a' + aa + str(i),)]] /norm_p * 
+                G = sum([self.gen_marginals[self.feature_dict[( 'a' + aa + str(i),)]] /norm_p *
                           np.exp(-model_energy_parameters[self.feature_dict[( 'a' + aa + str(i),)]])
                           for aa in self.amino_acids])
             Gs_plus.append(G)
@@ -528,7 +528,7 @@ class Sonia(object):
             if norm_p==0:
                 G=1
             else:
-                G = sum([self.gen_marginals[self.feature_dict[( 'a' + aa + str(i),)]] /norm_p * 
+                G = sum([self.gen_marginals[self.feature_dict[( 'a' + aa + str(i),)]] /norm_p *
                           np.exp(-model_energy_parameters[self.feature_dict[( 'a' + aa + str(i),)]])
                           for aa in self.amino_acids])
             Gs_minus.append(G)
@@ -684,7 +684,12 @@ class Sonia(object):
             logging.info('Adding data seqs.')
             if self.preprocess_seqs:
                 try:
-                    add_data_seqs = filter_seqs(add_data_seqs, self.pgen_dir, **kwargs)
+                    if 'Paired' not in type(self).__name__:
+                        add_data_seqs = filter_seqs(add_data_seqs, self.pgen_dir, **kwargs)
+                    else:
+                        heavy_bools = filter_seqs(add_data_seqs[:, :3], self.pgen_dir_heavy, return_bools=True, **kwargs)
+                        light_bools = filter_seqs(add_data_seqs[:, 3:], self.pgen_dir_light, return_bools=True, **kwargs)
+                        add_data_seqs = add_data_seqs[heavy_bools & light_bools]
                 except Exception as e:
                     raise Exception(e)
 
@@ -779,13 +784,32 @@ class Sonia(object):
             with open(os.path.join(save_dir, 'data_seqs.tsv'), 'w') as data_seqs_file:
                 data_seq_energies = self.compute_energy(self.data_seq_features)
                 data_seqs_file.write('Sequence;Genes\tLog(Q)\tFeatures\n')
-                data_seqs_file.write('\n'.join([';'.join(seq) + '\t' + str(-data_seq_energies[i] - np.log(self.Z)) + '\t' + ';'.join([','.join(self.features[f]) for f in self.data_seq_features[i]]) for i, seq in enumerate(self.data_seqs)]))
+                data_seqs_file.write(
+                    '\n'.join(
+                        [';'.join(seq) + '\t'
+                         + str(-data_seq_energies[i] - np.log(self.Z)) + '\t'
+                         + ';'.join(
+                             [','.join(self.features[f]) for f in self.data_seq_features[i]]
+                         )
+                         for i, seq in enumerate(self.data_seqs)]
+                    )
+                )
 
         if 'gen_seqs' in attributes_to_save:
             with open(os.path.join(save_dir, 'gen_seqs.tsv'), 'w') as gen_seqs_file:
                 gen_seq_energies = self.compute_energy(self.gen_seq_features)
                 gen_seqs_file.write('Sequence;Genes\tLog(Q)\tFeatures\n')
-                gen_seqs_file.write('\n'.join([';'.join(seq) + '\t' +  str(-gen_seq_energies[i] - np.log(self.Z)) + '\t' + ';'.join([','.join(self.features[f]) for f in self.gen_seq_features[i]]) for i, seq in enumerate(self.gen_seqs)]))
+                gen_seqs_file.write(
+                    '\n'.join(
+                        [';'.join(seq) + '\t'
+                         +  str(-gen_seq_energies[i] - np.log(self.Z)) + '\t'
+                         + ';'.join(
+                             [','.join(self.features[f]) for f in self.gen_seq_features[i]]
+                         )
+                         for i, seq in enumerate(self.gen_seqs)
+                        ]
+                    )
+                )
 
         if 'log' in attributes_to_save:
             with open(os.path.join(save_dir, 'log.txt'), 'w') as L1_file:
@@ -794,13 +818,35 @@ class Sonia(object):
                 L1_file.write('min_energy_clip ='+str(self.min_energy_clip)+'\n')
                 L1_file.write('max_energy_clip ='+str(self.max_energy_clip)+'\n')
                 L1_file.write('likelihood_train,likelihood_test\n')
-                for i in range(len(self.likelihood_train)):
-                    L1_file.write(str(self.likelihood_train[i])+','+str(self.likelihood_test[i])+'\n')
+                for llh_train, llh_test in zip(self.likelihood_train, self.likelihood_test):
+                    L1_file.write(f'{llh_train},{llh_test}\n')
 
         if 'model' in attributes_to_save:
-            with open(os.path.join(save_dir, 'features.tsv'), 'w') as feature_file:
-                feature_file.write('Feature,marginal_data,marginal_model,marginal_gen\n')
-                for i in range(len(self.features)):feature_file.write(';'.join(self.features[i])+','+str(self.data_marginals[i])+','+str(self.model_marginals[i])+','+str(self.gen_marginals[i])+'\n')
+            if 'Sonia' in type(self).__name__:
+                energies = self.model.get_weights()[0].ravel()
+                with open(os.path.join(save_dir, 'features.tsv'), 'w') as feature_file:
+                    feature_file.write('Feature,energy,marginal_data,marginal_model,marginal_gen\n')
+                    for i, _ in enumerate(self.features):
+                        feature_file.write(
+                            ';'.join(self.features[i])
+                            + ',' + str(energies[i])
+                            + ',' + str(self.data_marginals[i])
+                            + ',' + str(self.model_marginals[i])
+                            + ',' + str(self.gen_marginals[i])
+                            + '\n'
+                        )
+            else:
+                with open(os.path.join(save_dir, 'features.tsv'), 'w') as feature_file:
+                    feature_file.write('Feature,marginal_data,marginal_model,marginal_gen\n')
+                    for i, _ in enumerate(self.features):
+                        feature_file.write(
+                            ';'.join(self.features[i])
+                            + ',' + str(self.data_marginals[i])
+                            + ',' + str(self.model_marginals[i])
+                            + ',' + str(self.gen_marginals[i])
+                            + '\n'
+                        )
+
             self.model.save(os.path.join(save_dir, 'model.h5'))
 
         #save pgen model too.
@@ -827,26 +873,35 @@ class Sonia(object):
             Directory name to load model attributes from.
         """
         paired = 'Paired' in type(self).__name__
-        ppost_dir = get_model_dir(ppost_model, paired)
+        self.ppost_dir = get_model_dir(ppost_model, paired)
 
         ppost_files = ('features.tsv', 'log.txt')
 
         if 'NN' in type(self).__name__:
             ppost_files += ('model.h5', )
 
-        files_in_dir = set(os.listdir(ppost_dir))
+        files_in_dir = set(os.listdir(self.ppost_dir))
         missing_files = set(ppost_files) - files_in_dir
 
         if len(missing_files) > 0:
             missing_files = f'{missing_files}'[1:-1]
-            raise RuntimeError('The model cannot be loaded. The following files '
-                               f'are missing: {missing_files}.')
+            if 'model.h5' in missing_files:
+                if 'Paired' in type(self).__name__:
+                    pair_msg = 'Paired'
+                else:
+                    pair_msg = ''
+                raise RuntimeError('The model cannot be loaded. The following files '
+                                   f'are missing: {missing_files}. Should a Sonia{pair_msg} '
+                                   'model be initialized instead?')
+            else:
+                raise RuntimeError('The model cannot be loaded. The following files '
+                                   f'are missing: {missing_files}.')
 
-        feature_file = os.path.join(ppost_dir, 'features.tsv')
-        model_file = os.path.join(ppost_dir, 'model.h5')
-        data_seq_file = os.path.join(ppost_dir, 'data_seqs.tsv')
-        gen_seq_file = os.path.join(ppost_dir, 'gen_seqs.tsv')
-        log_file = os.path.join(ppost_dir, 'log.txt')
+        feature_file = os.path.join(self.ppost_dir, 'features.tsv')
+        model_file = os.path.join(self.ppost_dir, 'model.h5')
+        data_seq_file = os.path.join(self.ppost_dir, 'data_seqs.tsv')
+        gen_seq_file = os.path.join(self.ppost_dir, 'gen_seqs.tsv')
+        log_file = os.path.join(self.ppost_dir, 'log.txt')
 
         with open(log_file, 'r') as L1_file:
             self.L1_converge_history = []
@@ -964,10 +1019,22 @@ class Sonia(object):
             self.model_params = self.model.get_weights()
 
         else:
-            self.model = keras.models.load_model(model_file,
-                                                 custom_objects={'loss': self._loss,
-                                                                 'likelihood': self._likelihood},
-                                                 compile=False)
+            try:
+                self.model = keras.models.load_model(
+                    model_file,
+                    custom_objects={'loss': self._loss, 'likelihood': self._likelihood},
+                    compile=False
+                )
+            except Exception as e:
+                if 'Unknown layer' in str(e):
+                    paired_str = 'Paired' if 'Paired' in type(self).__name__ else ''
+                    raise RuntimeError('The loaded model structure is supposed to be for '
+                                       f'a SoNNia{paired_str} model, but a Sonia{paired_str} '
+                                       'model is trying to be initialized. Try loading '
+                                       f'the model using the SoNNia{paired_str} class instead.')
+                else:
+                    raise e
+
             self.optimizer = keras.optimizers.RMSprop()
             self.model.compile(optimizer=self.optimizer,
                                loss=self._loss,metrics=[self._likelihood])
