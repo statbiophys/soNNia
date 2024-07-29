@@ -2,9 +2,10 @@ import inspect
 import logging
 import os
 import subprocess
-from typing import Any, Dict, Iterable, Optional, Set, Tuple, Union
+from typing import *
 
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 
 import olga.generation_probability as generation_probability
@@ -47,15 +48,18 @@ LIGHT_CHAINS = {'TRA', 'TRG', 'IGK', 'IGL', 'IGI'}
 
 CSV_READER_PARAMS = inspect.signature(pd.read_csv).parameters.keys()
 
-def run_terminal(string):
+def run_terminal(
+    string: str
+):
     return [i.decode("utf-8").split('\n')
             for i in subprocess.Popen(string, shell=True,
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE).communicate()]
 
-def get_model_dir(model_dir: str,
-                  paired: bool = False
-                 ) -> str:
+def get_model_dir(
+    model_dir: str,
+    paired: bool = False
+) -> str:
     """
     Obtain a model directory if it's a default option otherwise check the
     directory exists.
@@ -92,12 +96,13 @@ def get_model_dir(model_dir: str,
                          f'or an existing directory containing a {paired_str}model.')
     return model_dir
 
-def define_pgen_model(pgen_model: Optional[str] = None,
-                      compute_norm: bool = True,
-                      return_pgen_dir: bool = False,
-                      return_chain: bool = False,
-                      return_recomb_type: bool = False
-                     ):
+def define_pgen_model(
+    pgen_model: Optional[str] = None,
+    compute_norm: bool = True,
+    return_pgen_dir: bool = False,
+    return_chain: bool = False,
+    return_recomb_type: bool = False
+):
     pgen_dir = get_model_dir(pgen_model)
 
     if pgen_model in DEFAULT_CHAIN_TYPES:
@@ -174,23 +179,24 @@ def define_pgen_model(pgen_model: Optional[str] = None,
 
     return out_tup
 
-def filter_seqs(seqs: Union[Iterable[Iterable[str]], pd.DataFrame, str],
-                model_dir: str,
-                seq_col: str = 'amino_acid',
-                v_col: str = 'v_gene',
-                j_col: str = 'j_gene',
-                nt_seq_col: Optional[Union[int, str]] = None,
-                abundance_col: Optional[Union[int, str]] = None,
-                bounds_check: bool = True,
-                cdr3_length_check: bool = True,
-                conserved_j_residues: str = 'ABCEDFGHIJKLMNOPQRSTUVWXYZ',
-                abundance_threshold: int = 0,
-                max_cdr3_length: int = 30,
-                deduplicate_nt_recombinations: bool = True,
-                return_bools: bool = False,
-                verbose: bool = True,
-                **kwargs: Dict[str, Any]
-               ) -> np.ndarray:
+def filter_seqs(
+    seqs: Sequence[Sequence[str]] | pd.DataFrame | str,
+    model_dir: str,
+    seq_col: str = 'amino_acid',
+    v_col: str = 'v_gene',
+    j_col: str = 'j_gene',
+    nt_seq_col: Optional[Union[int, str]] = None,
+    abundance_col: Optional[Union[int, str]] = None,
+    bounds_check: bool = True,
+    cdr3_length_check: bool = True,
+    conserved_j_residues: str = 'ABCEDFGHIJKLMNOPQRSTUVWXYZ',
+    abundance_threshold: int = 0,
+    max_cdr3_length: int = 30,
+    deduplicate_nt_recombinations: bool = True,
+    return_bools: bool = False,
+    verbose: bool = True,
+    **kwargs: Dict[str, Any]
+) -> NDArray[str]:
     """
     Filter the DataFrame for sequences which are productive and compatible with Sonia.
 
@@ -609,9 +615,10 @@ def add_random_error(nt, p):
     rand = np.random.choice(["A", "T", "G", "C"], len(nt))
     return "".join([(a, r)[np.random.random() < p] for a, r in zip(nt, rand)])
 
-def gene_to_num_str(gene_name: str,
-                    gene_type: str
-                   ) -> str:
+def gene_to_num_str(
+    gene_name: str,
+    gene_type: str
+) -> str:
     """
     Strip excess gene name info to number string.
 
@@ -631,7 +638,10 @@ def gene_to_num_str(gene_name: str,
     gene_name = gene_name.partition('*')[0].lower()
     gene_type = gene_type.lower()
     pre_hyphen, hyphen, post_hyphen = gene_name.partition(gene_type)[-1].partition('-')
-    return gene_type + (pre_hyphen.lstrip('0') + hyphen + post_hyphen.lstrip('0')).replace('/', '').replace('-1', '')
+    suffix = (pre_hyphen.lstrip('0')
+              + hyphen + post_hyphen.lstrip('0')
+             ).replace('/', '').replace('-1', '')
+    return gene_type + suffix
 
 def compute_pgen_expand(x):
     # compute pgen conditioned on gene usage
