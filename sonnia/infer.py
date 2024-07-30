@@ -19,7 +19,6 @@
 
 This program will infer a seleciton model
 """
-
 from __future__ import print_function, division,absolute_import
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -35,18 +34,10 @@ import numpy as np
 from tqdm import tqdm
 import sonnia.sonnia
 
-
-#Set input = raw_input for python 2
-try:
-    import __builtin__
-    input = getattr(__builtin__, 'raw_input')
-except (ImportError, AttributeError):
-    pass
-
 def main():
     """ Evaluate sequences."""
     parser = OptionParser(conflict_handler="resolve")
-    
+
     #specify model
     parser.add_option('--humanTRA', '--human_T_alpha', action='store_true', dest='humanTRA', default=False, help='use default human TRA model (T cell alpha chain)')
     parser.add_option('--humanTRB', '--human_T_beta', action='store_true', dest='humanTRB', default=False, help='use default human TRB model (T cell beta chain)')

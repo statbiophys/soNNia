@@ -19,7 +19,6 @@
 
 This program generates sequences
 """
-
 from __future__ import print_function, division,absolute_import
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -30,13 +29,6 @@ from sonnia.sonia import Sonia
 import sonnia.sonnia
 import numpy as np
 from tqdm import tqdm
-
-#Set input = raw_input for python 2
-try:
-    import __builtin__
-    input = getattr(__builtin__, 'raw_input')
-except (ImportError, AttributeError):
-    pass
 
 def chuncks(n,size):
     if n%size: return int(n/size)*[size]+[n%size]

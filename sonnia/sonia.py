@@ -5,7 +5,6 @@ Created on Wed Jan 30 12:06:58 2019
 @author: Giulio Isacchini and Zachary Sethna
 """
 from __future__ import print_function, division, absolute_import
-from copy import copy
 import itertools
 import logging
 import multiprocessing as mp
@@ -13,8 +12,6 @@ import os
 from typing import *
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
-import numpy as np
-from numpy.typing import ArrayLike, NDArray
 import keras
 from keras.callbacks import ModelCheckpoint, TerminateOnNaN
 import keras.ops as ko
@@ -23,6 +20,8 @@ from keras.losses import BinaryCrossentropy
 from keras.models import load_model, Model
 from keras.optimizers import RMSprop
 from keras.regularizers import l1_l2, l2
+import numpy as np
+from numpy.typing import ArrayLike, NDArray
 import scipy.sparse as sparse
 from tqdm import tqdm
 
@@ -35,13 +34,6 @@ logging.getLogger().setLevel(logging.INFO)
 logging.basicConfig(format='%(asctime)s: %(message)s')
 
 GENE_FEATURE_OPTIONS = {'vjl', 'joint_vj', 'indep_vj', 'v', 'j', 'none'}
-
-#Set input = raw_input for python 2
-try:
-    import __builtin__
-    input = getattr(__builtin__, 'raw_input')
-except (ImportError, AttributeError):
-    pass
 
 class Sonia(object):
     """Class used to infer a Q selection model.
@@ -112,20 +104,20 @@ class Sonia(object):
     def __init__(
         self,
         ppost_model: Optional[str] = None,
-        data_seqs: List[Iterable[str]] = [],
-        gen_seqs: List[Iterable[str]] = [],
+        data_seqs: List[Sequence[str]] = [],
+        gen_seqs: List[Sequence[str]] = [],
         pgen_model: Optional[str] = None,
         load_seqs: bool = True,
         gene_features: str = 'joint_vj',
         include_aminoacids: bool = True,
-        features: List[Iterable[str]] = [],
+        features: Sequence[Sequence[str]] = [],
         recompute_productive_norm: bool = False,
         max_depth: int = 25,
         max_L: int = 30,
         objective: str = 'BCE',
         l2_reg: float = 0.,
         l1_reg: float = 0.,
-        gamma: int = 1,
+        gamma: float = 1.,
         min_energy_clip: int = -5,
         max_energy_clip: int = 10,
         seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
@@ -343,7 +335,8 @@ class Sonia(object):
         indices = []
         indptr = [0]
 
-        for seq in tqdm(sequences, position=0):
+        tqdm_desc = 'Encoding sequence features'
+        for seq in tqdm(sequences, position=0, desc=tqdm_desc):
             specified_features = self.find_seq_features(seq, features)
             indices += specified_features
             indptr.append(len(specified_features) + indptr[-1])
@@ -383,7 +376,10 @@ class Sonia(object):
 
         feature_strs = []
         zipped = zip(encoding.indptr[:-1], encoding.indptr[1:])
-        for idx1, idx2 in tqdm(zipped, total=encoding.shape[0], position=0):
+        tqdm_desc = 'Getting feature strings'
+        for idx1, idx2 in tqdm(
+            zipped, total=encoding.shape[0], position=0, desc=tqdm_desc
+        ):
             feature_strs.append(np_features[encoding.indices[idx1:idx2]].tolist())
 
         return feature_strs
@@ -409,7 +405,10 @@ class Sonia(object):
         """
         feature_idxs = []
         zipped = zip(encoding.indptr[:-1], encoding.indptr[1:])
-        for idx1, idx2 in tqdm(zipped, total=encoding.shape[0], position=0):
+        tqdm_desc = 'Getting feature indices'
+        for idx1, idx2 in tqdm(
+            zipped, total=encoding.shape[0], position=0, desc=tqdm_desc,
+        ):
             feature_idxs.append(encoding.indices[idx1:idx2].tolist())
 
         return feature_idxs
@@ -417,6 +416,8 @@ class Sonia(object):
     def compute_energy(
         self,
         encoding: sparse.csr_array,
+        chunksize: int = int(1e6),
+        verbose: bool = True,
     ) -> NDArray[np.float32]:
         """
         Compute the energy of a list of sequences according to the model.
@@ -425,18 +426,42 @@ class Sonia(object):
         ----------
         encoding : scipy.sparse.csr_array
             Sparse representation of one-hot-encoded sequence features.
+        chunksize : int, default int(1e6)
+            The amount of sequences to be evaluated in a single call to the model.
+            Since a dense one-hot encoding is used, RAM usage will blow up for
+            very large amounts of sequences.
+        verbose : bool, default True
+            Show a progress bar for the chunks being evaluated.
 
         Returns
         -------
         energies : numpy.ndarray of numpy.float32
             Energies of sequences according to the model.
         """
-        dense_encoding = encoding.toarray()
+        length_encoding = encoding.shape[0]
+        num_slices = (
+            length_encoding // chunksize
+            + 1 * (length_encoding % chunksize != 0)
+        )
 
-        if hasattr(self, 'split_encoding'):
-            return self.model(self.split_encoding(dense_encoding))[:, 0].numpy()
+        energies = []
+        tqdm_desc = 'Computing energies'
+        disable = not verbose
+        for idx in tqdm(
+            range(num_slices), position=0, desc=tqdm_desc, disable=disable
+        ):
+            start_idx = idx * chunksize
+            encoding_slice = encoding[start_idx:start_idx + chunksize]
 
-        energies = self.model(dense_encoding)[:, 0].numpy()
+            dense_encoding = encoding_slice.toarray()
+
+            if hasattr(self, 'split_encoding'):
+                dense_encoding = self.split_encoding(dense_encoding)
+
+            energies_slice = self.model(dense_encoding)[:, 0].numpy()
+            energies.append(energies_slice)
+
+        energies = np.concatenate(energies)
         return energies
 
     def compute_marginals(
@@ -501,7 +526,11 @@ class Sonia(object):
         else:
             energies = self.compute_energy(encoding)
             qs = sparse.csr_array(np.exp(-energies))
-            marginals = (qs.dot(encoding) / qs.data.sum()).toarray()[0]
+            marginals = (qs.dot(encoding) / qs.data.sum())
+            # In older versions of scipy, performing a dot product ensued in
+            # a two-dimensional array.
+            marginals = marginals.toarray().ravel()
+            return marginals
 
         return marginals
 
@@ -565,7 +594,6 @@ class Sonia(object):
             input_data = self.split_encoding(self.X.toarray())
         else:
             input_data = self.X.toarray()
-
         self.learning_history = self.model.fit(
             input_data, self.Y, epochs=epochs, batch_size=batch_size,
             validation_split=validation_split, verbose=verbose, callbacks=callbacks,
@@ -655,10 +683,10 @@ class Sonia(object):
             if True, it initializes to linear model, otherwise it updates to new structure
         """
         length_input = np.max([len(self.features), 1])
-        min_clip = copy(self.min_energy_clip)
-        max_clip = copy(self.max_energy_clip)
-        l2_reg = copy(self.l2_reg)
-        l1_reg = copy(self.l1_reg)
+        min_clip = self.min_energy_clip
+        max_clip = self.max_energy_clip
+        l2_reg = self.l2_reg
+        l1_reg = self.l1_reg
 
         if initialize:
             input_layer = Input(shape=(length_input,))
@@ -1224,7 +1252,7 @@ class Sonia(object):
         error_rate: Optional[int] = None,
         add_error: bool = False,
         seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
-    ) -> np.ndarray:
+    ) -> NDArray[str]:
         """Generates MonteCarlo sequences for gen_seqs using OLGA in parallel.
         Only generates seqs from a V(D)J model. Requires the OLGA package
         (pip install olga). If you add error_rate, only the aminoacid sequence is modified.
@@ -1262,7 +1290,8 @@ class Sonia(object):
                 seqs = pool.starmap(generate_sequence, zipped)
         else:
             seqs = []
-            for i in tqdm(range(int(num_seqs)), position=0):
+            tqdm_desc = 'Generating sequences'
+            for i in tqdm(range(int(num_seqs)), position=0, desc=tqdm_desc):
                 np.random.seed(rng.integers(0, 2**32 - 1))
                 seq = self.seqgen_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
 
@@ -1289,126 +1318,156 @@ class Sonia(object):
         upper_bound: float = 10,
         nucleotide: bool = False,
         seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
-        chunk_size: int = int(2e6)
-    ) -> np.ndarray:
-        """Generates MonteCarlo sequences from Sonia through rejection sampling.
+        max_chunksize: int = int(2e6),
+    ) -> NDArray[str]:
+        """
+        Generate Monte Carlo sequences from Sonia through rejection sampling.
+
         Parameters
         ----------
-        num_seqs : int or float
-            Number of MonteCarlo sequences to generate and add to the specified
+        num_seqs : int, deafult 1
+            Number of Monte Carlo sequences to generate and add to the specified
             sequence pool.
-        upper_bound: int
-            accept all above the threshold. Relates to the percentage of
-            sequences that pass selection.
+        upper_bound : float, default 10
+            The value of Q at above which all generated sequences are accepted.
+        nucleotide : bool, default False
+            Return the CDR3 nulceotide sequences in addition to the CDR3 amino
+            acid sequence, V gene, and J gene.
+        seed : int or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
+            The seed for random number generation.
+        max_chunksize : int, default int(2e6)
+            The maximum chunksize for generating sequences. The default is to
+            generate int(1.1 * upper_bound * num_seqs) sequences and then perform
+            rejection sampling. However, if num_seqs is very large, this can ensue
+            in high memory costs. The minimum between max_chunksize and the
+            aforementioned default amount is used for chunking.
+
         Returns
-        --------------
-        seqs : list
-            MonteCarlo sequences drawn from a VDJ recomb model that pass selection.
+        -------
+        seqs : numpy.ndarray of str
+            Monte Carlo sequences drawn from a VDJ recomb model that pass selection.
         """
         if seed is None:
             rng = self.rng
         else:
             rng = np.random.default_rng(seed)
 
-        num_seqs_left = num_seqs
-        seqs_out = []
+        seqs = []
 
-        while len(seqs_out) < num_seqs + 1:
+        chunksize = min(
+            max_chunksize, int(upper_bound * num_seqs * 1.1)
+        )
+
+        while len(seqs) < num_seqs + 1:
             # generate sequences from pre
-            seqs = self.generate_sequences_pre(
-                num_seqs=int(1.1 * upper_bound * num_seqs),
-                nucleotide=nucleotide, seed=rng)
+            seqs_gen = self.generate_sequences_pre(
+                num_seqs=chunksize, nucleotide=nucleotide, seed=rng
+            )
 
             # compute features and energies 
-            encoding = self.encode_data(seqs)
+            encoding = self.encode_data(seqs_gen)
             energies = self.compute_energy(encoding)
 
             #do rejection
             rejection_selection = self.rejection_sampling(
-                upper_bound=upper_bound, energies=energies, seed=rng
+                energies, upper_bound, rng
             )
 
-            seqs_post = seqs[rejection_selection]
-            if len(seqs_out) == 0 and len(seqs_post) > 0: seqs_out = seqs_post
-            elif len(seqs_post) > 0: seqs_out = np.concatenate((seqs_out, seqs_post), axis=0)
-        return seqs_out[:num_seqs]
+            seqs_post = seqs_gen[rejection_selection]
+            if len(seqs) == 0 and len(seqs_post) > 0:
+                seqs = seqs_post
+            elif len(seqs) > 0:
+                seqs = np.concatenate((seqs, seqs_post), axis=0)
+        return seqs[:num_seqs]
 
     def rejection_sampling(
         self,
+        energies: NDArray[np.float32],
         upper_bound: float = 10,
-        energies: Optional[np.ndarray] = None,
         seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
-    ) -> np.ndarray:
-
-        ''' Returns acceptance from rejection sampling of a list of seqs.
-        By default uses the generated sequences within the sonia model.
+    ) -> NDArray[bool]:
+        """
+        Return whether sequences would pass selection using rejection sampling.
 
         Parameters
         ----------
-        upper_bound : int or float
-            accept all above the threshold. Relates to the percentage of
-            sequences that pass selection
+        energies : numpy.ndarray of numpy.float32
+            The energies computed by the model.
+        upper_bound : float, default 10
+            The value of Q at above which all generated sequences are accepted.
+        seed : int or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
+            The seed for random number generation.
+
         Returns
         -------
-        rejection selection: array of bool
-            acceptance of each sequence.
-        '''
+        numpy.ndarray of bool
+            An array of whether the sequence associated with that energy passed
+            selection.
+        """
         if seed is None:
             rng = self.rng
         else:
             rng = np.random.default_rng(seed)
 
-        if energies is None: energies = self.energies_gen
-        Q = np.exp(-energies) / self.Z
-        random_samples = rng.uniform(size=len(energies)) # sample from uniform distribution
+        q = np.exp(-energies) / self.Z
+        random_samples = rng.uniform(size=len(energies))
 
-        return random_samples < Q / float(upper_bound)
+        return random_samples < q / upper_bound
 
     def evaluate_seqs(
         self,
         seqs: Sequence[Sequence[str]] = [],
         include_genes: bool = True
-    ) -> Tuple[np.ndarray]:
-        '''Returns selection factors, pgen and pposts of sequences.
+    ) -> Tuple[NDArray[np.float32] | NDArray[np.float64]]:
+        """
+        Return the selection factors, Pgen, and Ppost of sequences.
+
         Parameters
         ----------
-        seqs: list
-            list of sequences to evaluate
+        seqs : sequence of sequence of str
+            Each subsequence is the CDR3 amino acid sequence, V gene, and J gene.
+
         Returns
         -------
-        Q: array
-            selection factor Q (of Ppost=Q*Pgen) of the sequences
-        pgens: array
-            pgen of the sequences
-        pposts: array
-            ppost of the sequences
-        '''
+        qs : numpy.ndarray of numpy.float32
+            The normalized selection factors computed by the model associated
+            with each sequence.
+        pgens : numpy.ndarray of numpy.float64
+            The probabilities of generating the sequences normalized by the
+            probability of generating a productive sequence.
+        pposts : numpy.ndarray of numpy.float64
+            The product of the normalized selection factors and productive-normalized
+            probabilities of generating the given sequences.
+        """
         encoding = self.encode_data(seqs)
-        energies = self.compute_energy(encoding) # compute energies
-        Q = np.exp(-energies) / self.Z # compute Q
-        pgens = self.compute_all_pgens(seqs, include_genes) / self.norm_productive # compute pgen
-        pposts = pgens * Q # compute ppost
+        energies = self.compute_energy(encoding)
+        qs = np.exp(-energies) / self.Z
+        pgens = self.compute_all_pgens(seqs, include_genes) / self.norm_productive
+        pposts = pgens * qs
 
-        return Q, pgens, pposts
+        return qs, pgens, pposts
 
     def evaluate_selection_factors(
         self,
-        seqs: List[Iterable[str]] = []
-    ) -> np.ndarray:
-        '''Returns normalised selection factor Q (of Ppost=Q*Pgen) of list of sequences (faster than evaluate_seqs because it does not compute pgen and ppost)
+        seqs: Sequence[Sequence[str]] = []
+    ) -> NDArray[np.float32]:
+        """
+        Return the normalized selection factors.
+
         Parameters
         ----------
-        seqs: list
-            list of sequences to evaluate
+        seqs : sequence of sequence of str
+            Each subsequence is the CDR3 amino acid sequence, V gene, and J gene.
+
         Returns
         -------
-        Q: array
-            selection factor Q (of Ppost=Q*Pgen) of the sequences
-        '''
+        numpy.ndarray of numpy.float32
+            The normalized selection factors computed by the model associated
+            with each sequence.
+        """
         encoding = self.encode_data(seqs)
-        energies = self.compute_energy(encoding) # compute energies
-
-        return np.exp(-energies)/self.Z
+        energies = self.compute_energy(encoding)
+        return np.exp(-energies) / self.Z
 
     def joint_marginals(
         self,
@@ -1545,7 +1604,7 @@ class Sonia(object):
 
     def compute_all_pgens(
         self,
-        seqs: Iterable[Iterable[str]],
+        seqs: Sequence[Sequence[str]],
         include_genes: bool = True
     ) -> np.ndarray:
         '''Compute Pgen of sequences using OLGA in parallel
