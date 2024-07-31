@@ -5,6 +5,7 @@ Created on Wed Jan 30 12:06:58 2019
 @author: Giulio Isacchini and Zachary Sethna
 """
 from __future__ import print_function, division, absolute_import
+import inspect
 import itertools
 import logging
 import multiprocessing as mp
@@ -26,9 +27,11 @@ import scipy.sparse as sparse
 from tqdm import tqdm
 
 from sonnia.utils import (
-    compute_pgen_expand, compute_pgen_expand_novj, define_pgen_model,
+    CSV_READER_PARAMS, compute_pgen_expand, compute_pgen_expand_novj, define_pgen_model,
     filter_seqs, gene_to_num_str, get_model_dir, partial_joint_marginals
 )
+
+FILTER_SEQS_PARAMS = inspect.signature(filter_seqs).parameters.keys()
 
 logging.getLogger().setLevel(logging.INFO)
 logging.basicConfig(format='%(asctime)s: %(message)s')
@@ -137,6 +140,10 @@ class Sonia(object):
         **kwargs : dict of {str : any}
             Keyword arguments for sonnia.utils.filter_seqs for preprocessing.
         """
+        for keyword in kwargs:
+            if keyword not in CSV_READER_PARAMS and keyword not in FILTER_SEQS_PARAMS:
+                raise RuntimeError(f'Unknown keyword: {keyword}.')
+
         if gene_features not in GENE_FEATURE_OPTIONS:
             gene_feature_options_str = f'{GENE_FEATURE_OPTIONS}'[1:-1]
             raise ValueError(f'{gene_features} is not a valid option for '
@@ -194,8 +201,8 @@ class Sonia(object):
             self.add_features()
         else:
             self.load_model(ppost_model=ppost_model, load_seqs=load_seqs)
-            if len(self.data_seqs) != 0: self.update_model(add_data_seqs=data_seqs, **kwargs)
-            if len(self.gen_seqs) != 0: self.update_model(add_data_seqs=gen_seqs)
+            if len(data_seqs) != 0: self.update_model(add_data_seqs=data_seqs, **kwargs)
+            if len(gen_seqs) != 0: self.update_model(add_data_seqs=gen_seqs)
 
         if seed is not None:
             self.rng = np.random.default_rng(seed)
@@ -839,10 +846,10 @@ class Sonia(object):
                 except Exception as e:
                     raise Exception(e)
 
-            add_data_seqs =np.array(
+            add_data_seqs = np.array(
                 [[seq, '', ''] if isinstance(seq, str) else seq for seq in add_data_seqs]
             )
-            if self.data_seqs == []: self.data_seqs = add_data_seqs
+            if len(self.data_seqs) == 0: self.data_seqs = add_data_seqs
             else: self.data_seqs = np.concatenate([self.data_seqs, add_data_seqs])
 
         if len(add_gen_seqs) > 0:
@@ -850,7 +857,7 @@ class Sonia(object):
             add_gen_seqs=np.array(
                 [[seq,'',''] if isinstance(seq, str) else seq for seq in add_gen_seqs]
             )
-            if self.gen_seqs == []: self.gen_seqs = add_gen_seqs
+            if len(self.gen_seqs): self.gen_seqs = add_gen_seqs
             else: self.gen_seqs = np.concatenate([self.gen_seqs, add_gen_seqs])
 
         if ((len(add_data_seqs) + len(add_features) + len(remove_features) > 0
