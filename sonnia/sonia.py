@@ -857,7 +857,7 @@ class Sonia(object):
             add_gen_seqs=np.array(
                 [[seq,'',''] if isinstance(seq, str) else seq for seq in add_gen_seqs]
             )
-            if len(self.gen_seqs): self.gen_seqs = add_gen_seqs
+            if len(self.gen_seqs) == 0: self.gen_seqs = add_gen_seqs
             else: self.gen_seqs = np.concatenate([self.gen_seqs, add_gen_seqs])
 
         if ((len(add_data_seqs) + len(add_features) + len(remove_features) > 0
