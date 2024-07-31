@@ -321,7 +321,7 @@ def filter_seqs(
                                 'be an integer pointing to the column containing '
                                 'the abundances.')
 
-    if not df[seq_col].str.contains('^[ACDEFGHIKLMNPQRSTVWY~_\*]+$', regex=True, na=False).all():
+    if not df[seq_col].str.contains(r'^[ACDEFGHIKLMNPQRSTVWY~_\*]+$', regex=True, na=False).all():
         raise RuntimeError(f'The seq_col pointed to by {seq_col} does '
                            'not contain strings with only amino acids. '
                            'Is this the correct column for amino acid CDR3 sequences?')
@@ -375,7 +375,7 @@ def filter_seqs(
             logging.info(f'{num_pass} sequences remain after removing sequences '
                          'with J genes inconsistent with the model.')
 
-    bool_arr[bool_arr] *= ~df.loc[bool_arr, seq_col].str.contains('\*|_|~', na=True, regex=True)
+    bool_arr[bool_arr] *= ~df.loc[bool_arr, seq_col].str.contains(r'\*|_|~', na=True, regex=True)
     if verbose:
         num_pass = np.count_nonzero(bool_arr)
         logging.info(f'{num_pass} sequences remain after removing data which '

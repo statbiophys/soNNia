@@ -464,8 +464,18 @@ class Sonia(object):
 
             if hasattr(self, 'split_encoding'):
                 dense_encoding = self.split_encoding(dense_encoding)
-
-            energies_slice = self.model(dense_encoding)[:, 0].numpy()
+            try:
+                energies_slice = self.model(dense_encoding)[:, 0].numpy()
+            except Exception as e:
+                if 'Failed copying' in str(e):
+                    raise RuntimeError(
+                        'There is not enough GPU memory available to copy the '
+                        'one-hot encoding from CPU to GPU. Try requesting more '
+                        'GPU memory or using a smaller chunksize when calling '
+                        'this function (compute_energy).'
+                    )
+                else:
+                    raise e
             energies.append(energies_slice)
 
         energies = np.concatenate(energies)
