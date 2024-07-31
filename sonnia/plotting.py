@@ -121,7 +121,7 @@ class Plotter(object):
 
         if len(self.sonia_model.data_seqs):
             num_data_seqs = len(self.sonia_model.data_seqs)
-            min_for_plot = 10**(np.floor(np.log10(num_data_seqs)))
+            min_for_plot = 10**(-np.ceil(np.log10(num_data_seqs)))
         else:
             min_nonzero_marginal = np.min(self.sonia_model.data_marginals[self.sonia_model.data_marginals != 0])
             min_for_plot = 10**(np.floor(np.log10(min_nonzero_marginal)))
