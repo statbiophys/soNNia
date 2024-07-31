@@ -177,7 +177,7 @@ class Plotter(object):
         None
         """
         df = pd.DataFrame(
-            {'feature': self.sonia_model.features,
+            {'feature': self.sonia_model.features.ravel(),
              'model_marginal': self.sonia_model.model_marginals,
              'gen_marginal': self.sonia_model.gen_marginals,
              'data_marginal': self.sonia_model.data_marginals,
