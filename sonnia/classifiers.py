@@ -1,7 +1,8 @@
-import numpy as np 
-from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
+import keras
+import numpy as np
 from tqdm import tqdm
-import tensorflow.keras as keras
+
+from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
 
 class Linear(object):
     '''

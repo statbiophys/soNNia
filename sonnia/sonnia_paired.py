@@ -1,9 +1,8 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 @author: Giulio Isacchini
 """
-from copy import copy
 import logging
 import multiprocessing as mp
 import os
@@ -20,13 +19,6 @@ from numpy.typing import NDArray
 
 from sonnia.sonia import GENE_FEATURE_OPTIONS
 from sonnia.sonia_paired import SoniaPaired
-
-#Set input = raw_input for python 2
-try:
-    import __builtin__
-    input = getattr(__builtin__, 'raw_input')
-except (ImportError, AttributeError):
-    pass
 
 class SoNNiaPaired(SoniaPaired):
     def __init__(
@@ -90,9 +82,9 @@ class SoNNiaPaired(SoniaPaired):
 
         self.lengt_encoding = np.max([len(self.features), 1])
 
-        min_clip = copy(self.min_energy_clip)
-        max_clip = copy(self.max_energy_clip)
-        l2_reg = copy(self.l2_reg)
+        min_clip = self.min_energy_clip
+        max_clip = self.max_energy_clip
+        l2_reg = self.l2_reg
 
         if initialize:
             input_l_light = keras.layers.Input(shape=(self.l_length_light,))

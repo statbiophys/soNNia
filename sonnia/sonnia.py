@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 # @author: Giulio Isacchini
-from copy import copy
 import itertools
 import logging
 import multiprocessing as mp
@@ -21,13 +20,6 @@ from tqdm import tqdm
 
 from sonnia.sonia import Sonia, GENE_FEATURE_OPTIONS
 from sonnia.utils import gene_to_num_str
-
-#Set input = raw_input for python 2
-try:
-    import __builtin__
-    input = getattr(__builtin__, 'raw_input')
-except (ImportError, AttributeError):
-    pass
 
 class SoNNia(Sonia):
     def __init__(
@@ -73,13 +65,13 @@ class SoNNia(Sonia):
 
         length_input = np.max([len(self.features), 1])
 
-        min_clip = copy(self.min_energy_clip)
-        max_clip = copy(self.max_energy_clip)
-        l2_reg = copy(self.l2_reg)
-        l1_reg = copy(self.l1_reg)
-        max_depth = copy(self.max_depth)
-        l_length = copy(self.l_length)
-        vj_length = copy(self.vj_length)
+        min_clip = self.min_energy_clip
+        max_clip = self.max_energy_clip
+        l2_reg = self.l2_reg
+        l1_reg = self.l1_reg
+        max_depth = self.max_depth
+        l_length = self.l_length
+        vj_length = self.vj_length
 
         if initialize:
             input_l = keras.layers.Input(shape=(l_length,), dtype='float32')
