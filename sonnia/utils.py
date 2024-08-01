@@ -1,3 +1,4 @@
+from __future__ import annotations
 import inspect
 import logging
 import os
@@ -181,7 +182,7 @@ def define_pgen_model(
 
 def filter_seqs(
     seqs: Sequence[Sequence[str]] | pd.DataFrame | str,
-    model_dir: str,
+    model: str | Sonia | SoNNia,
     seq_col: str = 'amino_acid',
     v_col: str = 'v_gene',
     j_col: str = 'j_gene',
@@ -205,6 +206,8 @@ def filter_seqs(
     seqs : iterable of iterable of str or str
         If str, this should point to a csv file. Otherwise, seqs must be
         an iterable of iterable of str.:
+    model : str or Sonia object or SoNNia object
+        The path to the Sonia model, a default Sonia model keyword, or a Sonia object.
     seq_col : str, default 'amino_acid'
         The label of the column pointing to the CDR3 nucleotide sequences.
     v_col : str, default 'v_gene'
@@ -247,17 +250,23 @@ def filter_seqs(
         if keyword not in CSV_READER_PARAMS:
             raise TypeError(f'{keyword} is an invalid keyword argument for filter_seqs().')
 
-    def get_functional_genes(fin: str
-                            ) -> Set[str]:
+    def get_functional_genes(
+        infile: str
+    ) -> Set[str]:
         functional_genes = set()
-        with open(fin, 'r') as fin:
+        functional_markers = {'F', '(F)'}
+        gene_type = infile.split('/')[-1].partition('_')[0]
+        with open(infile, 'r') as fin:
             for line in fin:
                 gene, _, func = line.strip().split(',')
-                if func == 'F':
-                    functional_genes.add(gene.partition('*')[0])
+                if func in functional_markers:
+                    functional_genes.add(gene_to_num_str(gene, gene_type))
         return functional_genes
 
-    model_dir = get_model_dir(model_dir)
+    if isinstance(model, str):
+        model_dir = get_model_dir(model)
+    else:
+        model_dir = model.pgen_dir
 
     v_genes = get_functional_genes(os.path.join(model_dir, 'V_gene_CDR3_anchors.csv'))
     j_genes = get_functional_genes(os.path.join(model_dir, 'J_gene_CDR3_anchors.csv'))
@@ -332,6 +341,10 @@ def filter_seqs(
 
     bool_arr = np.ones(len(df), dtype=bool)
     num_pass = len(df)
+
+    # Convert genes to num_strs.
+    df[v_col] = df[v_col].apply(lambda x: gene_to_num_str(x, 'V'))
+    df[j_col] = df[j_col].apply(lambda x: gene_to_num_str(x, 'J'))
 
     if nt_seq_col is not None:
         if not df[nt_seq_col].str.contains('^[ACGTacgt]+$', regex=True, na=False).all():
