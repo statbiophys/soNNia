@@ -14,7 +14,7 @@ from typing import *
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 import keras
-from keras.callbacks import ModelCheckpoint, TerminateOnNaN
+from keras.callbacks import TerminateOnNaN
 import keras.ops as ko
 from keras.layers import Dense, Input, Lambda
 from keras.losses import BinaryCrossentropy
@@ -125,7 +125,6 @@ class Sonia(object):
         max_energy_clip: int = 10,
         seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
         processes: Optional[int] = None,
-        preprocess_seqs: bool = True,
         **kwargs: Dict[str, Any]
     ) -> None:
         """
@@ -194,7 +193,6 @@ class Sonia(object):
         self.gamma = gamma
         self.Z = 1.
         self.amino_acids = 'ACDEFGHIKLMNPQRSTVWY'
-        self.preprocess_seqs = preprocess_seqs
 
         if ppost_model is None:
             self.update_model(add_data_seqs=data_seqs, add_gen_seqs=gen_seqs, **kwargs)
@@ -202,7 +200,7 @@ class Sonia(object):
         else:
             self.load_model(ppost_model=ppost_model, load_seqs=load_seqs)
             if len(data_seqs) != 0: self.update_model(add_data_seqs=data_seqs, **kwargs)
-            if len(gen_seqs) != 0: self.update_model(add_data_seqs=gen_seqs)
+            if len(gen_seqs) != 0: self.update_model(add_gen_seqs=gen_seqs, **kwargs)
 
         if seed is not None:
             self.rng = np.random.default_rng(seed)
@@ -605,7 +603,9 @@ class Sonia(object):
         if num_data_seqs == self.Y.shape[0]:
             raise RuntimeError('No gen seqs were given. Cannot train a Sonia/SoNNia model.')
 
-        callbacks = [TerminateOnNaN()]
+        callbacks = [
+            TerminateOnNaN(),
+        ]
 
         if hasattr(self, 'split_encoding'):
             input_data = self.split_encoding(self.X.toarray())
@@ -844,17 +844,16 @@ class Sonia(object):
 
         if len(add_data_seqs) > 0:
             logging.info('Adding data seqs.')
-            if self.preprocess_seqs:
-                try:
-                    if 'Paired' not in type(self).__name__:
-                        add_data_seqs = filter_seqs(add_data_seqs, self.pgen_dir, **kwargs)
-                    else:
-                        pass
-                        #add_data_seqs = filter_seqs_paired(
-                        #   add_data_seqs, self.pgen_dir_heavy, self.pgen_dir_light, **kwargs
-                        #)
-                except Exception as e:
-                    raise Exception(e)
+            try:
+                if 'Paired' not in type(self).__name__:
+                    add_data_seqs = filter_seqs(add_data_seqs, self.pgen_dir, **kwargs)
+                else:
+                    pass
+                    #add_data_seqs = filter_seqs_paired(
+                    #   add_data_seqs, self.pgen_dir_heavy, self.pgen_dir_light, **kwargs
+                    #)
+            except Exception as e:
+                raise Exception(e)
 
             add_data_seqs = np.array(
                 [[seq, '', ''] if isinstance(seq, str) else seq for seq in add_data_seqs]
@@ -864,6 +863,13 @@ class Sonia(object):
 
         if len(add_gen_seqs) > 0:
             logging.info('Adding gen seqs.')
+            try:
+                if 'Paired' not in type(self).__name__:
+                    add_gen_seqs = filter_seqs(add_gen_seqs, self.pgen_dir, **kwargs)
+                else:
+                    pass
+            except Exception as e:
+                raise Exception(e)
             add_gen_seqs=np.array(
                 [[seq,'',''] if isinstance(seq, str) else seq for seq in add_gen_seqs]
             )

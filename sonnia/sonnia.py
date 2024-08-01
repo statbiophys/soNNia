@@ -26,6 +26,7 @@ class SoNNia(Sonia):
         self,
         *args: Tuple[Any],
         gene_features: str = 'indep_vj',
+        include_aminoacids: bool = True,
         deep: bool = True,
         **kwargs: Dict[str, Any],
     ) -> None:
@@ -33,9 +34,16 @@ class SoNNia(Sonia):
         if gene_features in invalid_gene_features:
             valid_gene_features = f'{GENE_FEATURE_OPTIONS - invalid_gene_features}'[1:-1]
             invalid_gene_features = f'{invalid_gene_features}'[1:-1]
-            raise ValueError(f'gene_features = \'{gene_features}\' is an invalid option '
-                             'when using a deep SoNNia model. Use one of the following '
-                             f'instead: {valid_gene_features}.')
+            raise ValueError(
+                f'gene_features = \'{gene_features}\' is an invalid option '
+                'when using a SoNNia model. Use one of the following '
+                f'instead: {valid_gene_features}.'
+            )
+
+        if not include_aminoacids:
+            raise ValueError(
+                'include_aminoacids must be True for a SoNNia model.'
+            )
 
         self.deep = deep
         Sonia.__init__(self, *args, gene_features=gene_features, **kwargs)
