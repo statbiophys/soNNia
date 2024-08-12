@@ -161,9 +161,9 @@ class SoNNia(Sonia):
         length_encoding = encoding.shape[0]
         enc1 = encoding[:, :self.l_length]
         enc2 = (encoding[:, self.l_length:self.l_length + self.a_length]
-                .reshape(length_encoding, 20, 50).swapaxes(1, 2))
+                .reshape(length_encoding, 20, self.max_depth * 2).swapaxes(1, 2))
         enc3 = encoding[:, self.l_length + self.a_length:]
-        return [enc1, enc2, enc3]
+        return enc1, enc2, enc3
 
     def _load_features_and_model(
         self,

@@ -345,18 +345,14 @@ class Plotter(object):
         -------
         None
         """
-        try:
-            self.sonia_model.energies_gen
-            self.sonia_model.energies_data
-        except:
-            self.sonia_model.energies_gen = (
-                self.sonia_model.compute_energy(self.sonia_model.gen_encoding)
-                + np.log(self.sonia_model.Z)
-            )
-            self.sonia_model.energies_data = (
-                self.sonia_model.compute_energy(self.sonia_model.data_encoding)
-                + np.log(self.sonia_model.Z)
-            )
+        self.sonia_model.energies_gen = (
+            self.sonia_model.compute_energy(self.sonia_model.gen_encoding)
+            + np.log(self.sonia_model.Z)
+        )
+        self.sonia_model.energies_data = (
+            self.sonia_model.compute_energy(self.sonia_model.data_encoding)
+            + np.log(self.sonia_model.Z)
+        )
 
         fig = plt.figure(figsize=(8,8))
         bins = np.logspace(-11, 5, 300)
