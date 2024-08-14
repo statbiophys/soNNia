@@ -537,8 +537,9 @@ class Sonia(object):
             encoding = self.encode_data(seqs, features)
 
         if use_flat_distribution:
-            marginals = (np.bincount(encoding.indices, minlength=num_features)
-                         / encoding.shape[0])
+            marginals = (
+                np.bincount(encoding.indices, minlength=num_features) / encoding.shape[0]
+            )
         else:
             energies = self.compute_energy(encoding)
             qs = sparse.csr_array(np.exp(-energies))
@@ -559,7 +560,7 @@ class Sonia(object):
         validation_split: float = 0.2,
         verbose: int = 0,
         set_gauge: bool = True,
-        sampling: str = 'unbalanced'
+        sampling: Optional[str] = None
     ) -> None:
         """
         Infer model parameters, i.e. energies for each model feature.
@@ -609,15 +610,17 @@ class Sonia(object):
 
         num_data_seqs = np.count_nonzero(self.Y == 0)
         if num_data_seqs == 0:
-            raise RuntimeError('No data seqs were given. Cannot train a Sonia/SoNNia model.')
+            raise RuntimeError('No data seqs were given. Cannot infer a selection model.')
         if num_data_seqs == self.Y.shape[0]:
-            raise RuntimeError('No gen seqs were given. Cannot train a Sonia/SoNNia model.')
+            raise RuntimeError('No gen seqs were given. Cannot infer a selection model.')
 
         callbacks = [
             TerminateOnNaN(),
         ]
 
-        if sampling == 'legacy':
+        if sampling is None:
+            # Presently, GPU cannot process sparse arrays, so the encoding
+            # must be in the dense representation.
             if hasattr(self, 'split_encoding'):
                 input_data = self.split_encoding(self.X.toarray())
             else:
@@ -665,13 +668,10 @@ class Sonia(object):
         self.model_params = self.model.get_weights()
 
         if np.isnan(self.likelihood_train).any() or np.isnan(self.likelihood_test).any():
-            raise RuntimeError('The training or validation likelihood history '
-                               'contains nans. This occurs if a mini-batch contains '
-                               'data_seqs only or gen_seqs only. Consider '
-                               'increasing the batch_size so that it is certain '
-                               'that a batch includes both data_seqs and gen_seqs, '
-                               'changing how many generated sequences you are using, '
-                               'or using the SoniaDataset loader.')
+            raise RuntimeError(
+                'The training or validation likelihood history contains nans. '
+                'Report a bug.'
+            )
 
         logging.info('Finished training.')
 
@@ -799,8 +799,10 @@ class Sonia(object):
         We fix the gauge by adding the constraint (Z-1)**2 to the likelihood.
         """
         y = ko.cast(y_true, dtype='bool')
-        data = ko.mean(y_pred[ko.logical_not(y)])
-        gen = ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true))
+        data = ko.nan_to_num(ko.mean(y_pred[ko.logical_not(y)]))
+        gen = ko.nan_to_num(
+            ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true)), neginf=0
+        )
         return gen + data + self.gamma * gen * gen
 
     def _likelihood(
@@ -815,10 +817,10 @@ class Sonia(object):
         the mini-batch.
         """
         y = ko.cast(y_true, dtype='bool')
-        data = ko.mean(y_pred[ko.logical_not(y)])
-        gen = ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true))
-        #data = ko.nan_to_num(ko.mean(y_pred[ko.logical_not(y)]))
-        #gen = ko.nan_to_num(ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true)), neginf=0)
+        data = ko.nan_to_num(ko.mean(y_pred[ko.logical_not(y)]))
+        gen = ko.nan_to_num(
+            ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true)), neginf=0
+        )
         return gen + data
 
     def update_model(

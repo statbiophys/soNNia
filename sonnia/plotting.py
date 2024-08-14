@@ -363,10 +363,15 @@ class Plotter(object):
         c, _ = np.histogram(
             np.exp(-self.sonia_model.energies_data), bins, density=True
         )
+
+        ratio = np.zeros(shape=len(c)) + np.nan
+        ratio = np.divide(c, a, where=a > 0, out=ratio)
+        ratio[(c > 0) & (a == 0)] = 1e9
+
         plt.plot([-1, 1000], [-1, 1000], c='k')
         plt.xlim([0.001, 200])
         plt.ylim([0.001, 200])
-        plt.plot(bin_centers, (c + 1e-30) / (a+1e-30), c='r', linewidth=3, alpha=0.9)
+        plt.plot(bin_centers, ratio, c='r', linewidth=3, alpha=0.9)
         plt.xscale('log')
         plt.yscale('log')
         plt.xticks(fontsize=20)
