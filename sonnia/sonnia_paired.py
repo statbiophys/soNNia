@@ -189,7 +189,7 @@ class SoNNiaPaired(SoniaPaired):
 
         encv_l = encoding[:, l_length_total + a_length_total:l_length_total + a_length_total + self.vj_length_light]
         encv_h = encoding[:, l_length_total + a_length_total + self.vj_length_light:]
-        return [encl_l, encl_h, enca_l, enca_h, encv_l, encv_h]
+        return encl_l, encl_h, enca_l, enca_h, encv_l, encv_h
 
     def _loss(
         self,

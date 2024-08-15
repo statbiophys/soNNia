@@ -26,6 +26,7 @@ from numpy.typing import ArrayLike, NDArray
 import scipy.sparse as sparse
 from tqdm import tqdm
 
+from sonnia.sonia_dataset import SoniaDataset
 from sonnia.utils import (
     CSV_READER_PARAMS, compute_pgen_expand, compute_pgen_expand_novj, define_pgen_model,
     filter_seqs, gene_to_num_str, get_model_dir, partial_joint_marginals
@@ -536,8 +537,9 @@ class Sonia(object):
             encoding = self.encode_data(seqs, features)
 
         if use_flat_distribution:
-            marginals = (np.bincount(encoding.indices, minlength=num_features)
-                         / encoding.shape[0])
+            marginals = (
+                np.bincount(encoding.indices, minlength=num_features) / encoding.shape[0]
+            )
         else:
             energies = self.compute_energy(encoding)
             qs = sparse.csr_array(np.exp(-energies))
@@ -557,7 +559,8 @@ class Sonia(object):
         seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
         validation_split: float = 0.2,
         verbose: int = 0,
-        set_gauge: bool = True
+        set_gauge: bool = True,
+        sampling: Optional[str] = None
     ) -> None:
         """
         Infer model parameters, i.e. energies for each model feature.
@@ -578,6 +581,11 @@ class Sonia(object):
             Output the training progress.
         set_gauge : bool, default True
             Set the gauge for the model output.
+        sampling : str, default 'unbalanced'
+            How the data seqs and gen seqs should be loaded into mini-batches.
+            If 'legacy' the sonnia.SoniaDataset class will not be used, and
+            a data sequence always appearing in a mini-batch will not be guaranteed.
+            See sonnia.SoniaDataset for other sampling options.
 
         Returns
         -------
@@ -590,7 +598,10 @@ class Sonia(object):
 
         if initialize:
             self.X = sparse.vstack((self.data_encoding, self.gen_encoding))
-            self.Y = np.zeros(self.data_encoding.shape[0] + self.gen_encoding.shape[0])
+            self.Y = np.zeros(
+                self.data_encoding.shape[0] + self.gen_encoding.shape[0],
+                dtype=np.int8
+            )
             self.Y[self.data_encoding.shape[0]:] += 1
 
             shuffle = rng.permutation(self.X.shape[0])
@@ -599,34 +610,68 @@ class Sonia(object):
 
         num_data_seqs = np.count_nonzero(self.Y == 0)
         if num_data_seqs == 0:
-            raise RuntimeError('No data seqs were given. Cannot train a Sonia/SoNNia model.')
+            raise RuntimeError('No data seqs were given. Cannot infer a selection model.')
         if num_data_seqs == self.Y.shape[0]:
-            raise RuntimeError('No gen seqs were given. Cannot train a Sonia/SoNNia model.')
+            raise RuntimeError('No gen seqs were given. Cannot infer a selection model.')
 
         callbacks = [
             TerminateOnNaN(),
         ]
 
-        if hasattr(self, 'split_encoding'):
-            input_data = self.split_encoding(self.X.toarray())
+        if sampling is None:
+            # Presently, GPU cannot process sparse arrays, so the encoding
+            # must be in the dense representation.
+            if hasattr(self, 'split_encoding'):
+                input_data = self.split_encoding(self.X.toarray())
+            else:
+                input_data = self.X.toarray()
+            self.learning_history = self.model.fit(
+                input_data, self.Y, epochs=epochs, batch_size=batch_size,
+                validation_split=validation_split, verbose=verbose, callbacks=callbacks,
+            )
         else:
-            input_data = self.X.toarray()
-        self.learning_history = self.model.fit(
-            input_data, self.Y, epochs=epochs, batch_size=batch_size,
-            validation_split=validation_split, verbose=verbose, callbacks=callbacks,
-        )
+            if validation_split < 0 or validation_split >= 1:
+                raise ValueError('validation_split must be in [0, 1).')
+            if validation_split == 0:
+                validation_data = None
+            else:
+                if hasattr(self, 'split_encoding'):
+                    split_encoding = self.split_encoding
+                else:
+                    split_encoding = None
+
+                val_end_idx = int(validation_split * len(self.Y))
+                val_x, val_y = self.X[:val_end_idx], self.Y[:val_end_idx]
+                train_x, train_y = self.X[val_end_idx:], self.Y[val_end_idx:]
+
+                child_rngs = [
+                    np.random.default_rng(child_state)
+                    for child_state in rng.bit_generator._seed_seq.spawn(2)
+                ]
+
+                train_generator = SoniaDataset(
+                    train_x, train_y, sampling, batch_size, seed=child_rngs[0],
+                    split_encoding=split_encoding,
+                )
+                val_generator = SoniaDataset(
+                    val_x, val_y, sampling, batch_size, seed=child_rngs[1],
+                    split_encoding=split_encoding,
+                )
+
+                self.learning_history = self.model.fit(
+                    train_generator, validation_data=val_generator, epochs=epochs,
+                    batch_size=batch_size, verbose=verbose, callbacks=callbacks,
+                )
+
         self.likelihood_train = -np.array(self.learning_history.history['_likelihood']) * 1.44
         self.likelihood_test = -np.array(self.learning_history.history['val__likelihood']) * 1.44
         self.model_params = self.model.get_weights()
 
         if np.isnan(self.likelihood_train).any() or np.isnan(self.likelihood_test).any():
-            raise RuntimeError('The training or validation likelihood history '
-                               'contains nans. This occurs if a batch contains '
-                               'data_seqs only or gen_seqs only. Consider '
-                               'increasing the batch_size so that it is certain '
-                               'that a batch includes both data_seqs and gen_seqs '
-                               'or consider changing how many generated sequences '
-                               'you are using.')
+            raise RuntimeError(
+                'The training or validation likelihood history contains nans. '
+                'Report a bug.'
+            )
 
         logging.info('Finished training.')
 
@@ -745,15 +790,19 @@ class Sonia(object):
         y_true,
         y_pred
     ) -> float:
-        """Loss function for keras training.
-            We assume a model of the form P(x)=exp(-E(x))P_0(x)/Z.
-            We minimize the neg-loglikelihood: <-logP> = log(Z) - <-E>.
-            Normalization of P gives Z=<exp(-E)>_{P_0}.
-            We fix the gauge by adding the constraint (Z-1)**2 to the likelihood.
+        """
+        Loss function for keras training.
+
+        We assume a model of the form P(x)=exp(-E(x))P_0(x)/Z.
+        We minimize the neg-loglikelihood: <-logP> = log(Z) - <-E>.
+        Normalization of P gives Z=<exp(-E)>_{P_0}.
+        We fix the gauge by adding the constraint (Z-1)**2 to the likelihood.
         """
         y = ko.cast(y_true, dtype='bool')
-        data = ko.mean(y_pred[ko.logical_not(y)])
-        gen = ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true))
+        data = ko.nan_to_num(ko.mean(y_pred[ko.logical_not(y)]))
+        gen = ko.nan_to_num(
+            ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true)), neginf=0
+        )
         return gen + data + self.gamma * gen * gen
 
     def _likelihood(
@@ -763,10 +812,15 @@ class Sonia(object):
     ) -> float:
         """
         This is the "I" loss in the arxiv paper with added regularization
+
+        A likelihood value of nan means no data sequences were present in
+        the mini-batch.
         """
         y = ko.cast(y_true, dtype='bool')
-        data = ko.mean(y_pred[ko.logical_not(y)])
-        gen = ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true))
+        data = ko.nan_to_num(ko.mean(y_pred[ko.logical_not(y)]))
+        gen = ko.nan_to_num(
+            ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true)), neginf=0
+        )
         return gen + data
 
     def update_model(
@@ -905,10 +959,10 @@ class Sonia(object):
 
     def add_generated_seqs(
         self,
-        num_gen_seqs: int = 0,
+        num_gen_seqs,
         reset_gen_seqs: bool = True,
         add_error: bool = False,
-        error_rate: Optional[int] = None
+        error_rate: Optional[int] = None,
     ) -> None:
         """Generates MonteCarlo sequences for gen_seqs using OLGA.
         Only generates seqs from a V(D)J model. Requires the OLGA package
@@ -935,8 +989,9 @@ class Sonia(object):
             Features gen_seqs have been projected onto.
         """
         logging.info(f'Generating {num_gen_seqs} using the pgen model in {self.pgen_dir}.')
-        seqs = self.generate_sequences_pre(num_gen_seqs, nucleotide=False,
-                                           add_error=add_error, error_rate=error_rate)
+        seqs = self.generate_sequences_pre(
+            num_gen_seqs, nucleotide=False, add_error=add_error, error_rate=error_rate
+        )
         if reset_gen_seqs: self.gen_seqs = []
         self.update_model(add_gen_seqs=seqs)
 
@@ -1270,7 +1325,7 @@ class Sonia(object):
 
     def generate_sequences_pre(
         self,
-        num_seqs: int = 1,
+        num_seqs: int,
         nucleotide: bool = False,
         error_rate: Optional[int] = None,
         add_error: bool = False,
@@ -1334,6 +1389,16 @@ class Sonia(object):
             return seqs
         else:
             return seqs[:, :-1]
+
+#        if seed is None:
+#            seed = self.rng
+#
+#        seqs = rg.generate_pgen_seqs(
+#            self.pgen_dir, num_seqs, seed, processes=self.processes)
+#
+#        if nucleotide:
+#            return seqs
+#        return seqs[:, :-1]
 
     def generate_sequences_post(
         self,

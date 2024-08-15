@@ -345,18 +345,14 @@ class Plotter(object):
         -------
         None
         """
-        try:
-            self.sonia_model.energies_gen
-            self.sonia_model.energies_data
-        except:
-            self.sonia_model.energies_gen = (
-                self.sonia_model.compute_energy(self.sonia_model.gen_encoding)
-                + np.log(self.sonia_model.Z)
-            )
-            self.sonia_model.energies_data = (
-                self.sonia_model.compute_energy(self.sonia_model.data_encoding)
-                + np.log(self.sonia_model.Z)
-            )
+        self.sonia_model.energies_gen = (
+            self.sonia_model.compute_energy(self.sonia_model.gen_encoding)
+            + np.log(self.sonia_model.Z)
+        )
+        self.sonia_model.energies_data = (
+            self.sonia_model.compute_energy(self.sonia_model.data_encoding)
+            + np.log(self.sonia_model.Z)
+        )
 
         fig = plt.figure(figsize=(8,8))
         bins = np.logspace(-11, 5, 300)
@@ -367,10 +363,15 @@ class Plotter(object):
         c, _ = np.histogram(
             np.exp(-self.sonia_model.energies_data), bins, density=True
         )
+
+        ratio = np.zeros(shape=len(c)) + np.nan
+        ratio = np.divide(c, a, where=a > 0, out=ratio)
+        ratio[(c > 0) & (a == 0)] = 1e9
+
         plt.plot([-1, 1000], [-1, 1000], c='k')
         plt.xlim([0.001, 200])
         plt.ylim([0.001, 200])
-        plt.plot(bin_centers, (c + 1e-30) / (a+1e-30), c='r', linewidth=3, alpha=0.9)
+        plt.plot(bin_centers, ratio, c='r', linewidth=3, alpha=0.9)
         plt.xscale('log')
         plt.yscale('log')
         plt.xticks(fontsize=20)
