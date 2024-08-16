@@ -988,9 +988,19 @@ class Sonia(object):
         gen_seq_features : list
             Features gen_seqs have been projected onto.
         """
-        logging.info(f'Generating {num_gen_seqs} using the pgen model in {self.pgen_dir}.')
+        if hasattr(self, 'pgen_dir'):
+            logging.info(
+                f'Generating {num_gen_seqs} using the pgen model in {self.pgen_dir}.'
+            )
+        elif hasattr(self, 'pgen_dir_light'):
+            logging.info(
+                f'Generating {num_gen_seqs} using the light pgen model in '
+                f'{self.pgen_dir_light} and the heavy pgen model in '
+                f'{self.pgen_dir_heavy}.'
+            )
+
         seqs = self.generate_sequences_pre(
-            num_gen_seqs, nucleotide=False, add_error=add_error, error_rate=error_rate
+            num_gen_seqs, nucleotide=False, add_error=add_error
         )
         if reset_gen_seqs: self.gen_seqs = []
         self.update_model(add_gen_seqs=seqs)

@@ -7,6 +7,7 @@ import numpy as np
 from sonnia.sonnia import SoNNia
 from sonnia.sonia import Sonia
 from sonnia.sonia_paired import SoniaPaired
+from sonnia.sonnia_paired import SoNNiaPaired
 import os
 import unittest
 import shutil
@@ -26,13 +27,13 @@ class Test(unittest.TestCase):
         qm1=SoNNia(ppost_model='test')
         shutil.rmtree('test')
         self.assertTrue(qm.feature_dict==qm1.feature_dict)
-        
+
     def test_load_default(self):
         chains = [ 'human_T_alpha', 'human_T_beta', 'human_B_heavy','human_B_kappa','human_B_lambda','mouse_T_beta','mouse_T_alpha']
         for chain in chains: qm=Sonia(ppost_model=chain)
         for chain in ['human_B_heavy_kappa','human_B_heavy_lambda','human_T_beta_alpha']:
             qm=SoniaPaired(ppost_model=chain)
-            
+
     def test_infer(self):
         qm=Sonia(ppost_model='humanTRB')
         seqs=qm.generate_sequences_post(int(1e4))
@@ -40,15 +41,26 @@ class Test(unittest.TestCase):
         qm1.add_generated_seqs(int(1e5))
         qm1.infer_selection(epochs=5)
         self.assertTrue(len(qm1.likelihood_test)==5)
-        
+
+        qm2 = SoniaPaired(ppost_model='humanTCR')
+        qm2.add_generated_seqs(int(1e4))
+        seqs = qm2.generate_sequences_post(int(1e4))
+        qm2.update_model(add_data_seqs=seqs)
+        qm2.infer_selection(epochs=5)
+        self.assertTrue(len(qm2.likelihood_test)==5)
+
+        qm3 = SoNNiaPaired(
+            gen_seqs=qm2.gen_seqs, data_seqs=qm2.data_seqs,
+            pgen_model_light=qm2.pgen_dir_light, pgen_model_heavy=qm2.pgen_dir_heavy
+        )
+        qm3.infer_selection(epochs=5)
+        self.assertTrue(len(qm3.likelihood_test)==5)
+
     def test_evaluate(self):
         qm=Sonia(ppost_model='humanTRB')
         pre_seqs=qm.generate_sequences_pre(int(1e3))
         q,pgen,ppost=qm.evaluate_seqs(pre_seqs)
         self.assertTrue(np.sum(q)>0)
-
-        
-
 
 if __name__ == '__main__':
     unittest.main()
