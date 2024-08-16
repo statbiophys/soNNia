@@ -260,7 +260,7 @@ def filter_seqs(
             for line in fin:
                 gene, _, func = line.strip().split(',')
                 if func in functional_markers:
-                    functional_genes.add(gene_to_num_str(gene, gene_type))
+                    functional_genes.add(gene.partition('*')[0])
         return functional_genes
 
     if isinstance(model, str):
@@ -343,8 +343,19 @@ def filter_seqs(
     num_pass = len(df)
 
     # Convert genes to num_strs.
-    df[v_col] = df[v_col].apply(lambda x: gene_to_num_str(x, 'V'))
-    df[j_col] = df[j_col].apply(lambda x: gene_to_num_str(x, 'J'))
+    df[v_col] = df[v_col].str.replace('TCR', 'TR')
+    df[j_col] = df[j_col].str.replace('TCR', 'TR')
+
+    remove_dash_1 = df[v_col].str.replace('-1', '')
+    should_remove_dash = remove_dash_1.isin(v_genes)
+    df.loc[should_remove_dash, v_col] = remove_dash_1.loc[should_remove_dash]
+
+    remove_dash_1 = df[j_col].str.replace('-1', '')
+    should_remove_dash = remove_dash_1.isin(j_genes)
+    df.loc[should_remove_dash, j_col] = remove_dash_1.loc[should_remove_dash]
+    
+    #df[v_col] = df[v_col].apply(lambda x: gene_to_num_str(x, 'V'))
+    #df[j_col] = df[j_col].apply(lambda x: gene_to_num_str(x, 'J'))
 
     if nt_seq_col is not None:
         if not df[nt_seq_col].str.contains('^[ACGTacgt]+$', regex=True, na=False).all():
