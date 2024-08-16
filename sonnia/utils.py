@@ -342,20 +342,17 @@ def filter_seqs(
     bool_arr = np.ones(len(df), dtype=bool)
     num_pass = len(df)
 
-    # Convert genes to num_strs.
-    df[v_col] = df[v_col].str.replace('TCR', 'TR')
-    df[j_col] = df[j_col].str.replace('TCR', 'TR')
+    # Convert genes
+    for col, gene_ref in zip((v_col, j_col), (v_genes, j_genes)):
+        df[col] = df[col].str.replace('TCR', 'TR')
 
-    remove_dash_1 = df[v_col].str.replace('-1', '')
-    should_remove_dash = remove_dash_1.isin(v_genes)
-    df.loc[should_remove_dash, v_col] = remove_dash_1.loc[should_remove_dash]
+        has_dash_1 = df.loc[df[col].str.contains('-1')]
+        remove_dash_1 = has_dash_1.loc[~has_dash_1[col].isin(gene_ref), col]
+        df.loc[remove_dash_1.index, col] = remove_dash_1.str.replace('-1', '')
 
-    remove_dash_1 = df[j_col].str.replace('-1', '')
-    should_remove_dash = remove_dash_1.isin(j_genes)
-    df.loc[should_remove_dash, j_col] = remove_dash_1.loc[should_remove_dash]
-    
-    #df[v_col] = df[v_col].apply(lambda x: gene_to_num_str(x, 'V'))
-    #df[j_col] = df[j_col].apply(lambda x: gene_to_num_str(x, 'J'))
+        no_dash = df.loc[~df[col].str.contains('-')]
+        add_dash_1 = no_dash.loc[~no_dash[col].isin(gene_ref), col]
+        df.loc[add_dash_1.index, col] = add_dash_1 + '-1'
 
     if nt_seq_col is not None:
         if not df[nt_seq_col].str.contains('^[ACGTacgt]+$', regex=True, na=False).all():
