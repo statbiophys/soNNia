@@ -661,7 +661,7 @@ def gene_to_num_str(
     pre_hyphen, hyphen, post_hyphen = gene_name.partition(gene_type)[-1].partition('-')
     suffix = (pre_hyphen.lstrip('0')
               + hyphen + post_hyphen.lstrip('0')
-             ).replace('/', '').replace('-1', '')
+             ).replace('/', '')#.replace('-1', '')
     return gene_type + suffix
 
 def compute_pgen_expand(x):
