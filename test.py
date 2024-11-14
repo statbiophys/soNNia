@@ -30,7 +30,8 @@ class Test(unittest.TestCase):
 
     def test_load_default(self):
         chains = [ 'human_T_alpha', 'human_T_beta', 'human_B_heavy','human_B_kappa','human_B_lambda','mouse_T_beta','mouse_T_alpha']
-        for chain in chains: qm=Sonia(ppost_model=chain)
+        for chain in chains: 
+            qm=Sonia(ppost_model=chain)
         for chain in ['human_B_heavy_kappa','human_B_heavy_lambda','human_T_beta_alpha']:
             qm=SoniaPaired(ppost_model=chain)
 
