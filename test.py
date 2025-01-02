@@ -10,6 +10,14 @@ import unittest
 import numpy as np
 from sonnia import Sonia, SoNNia, SoniaPaired, SoNNiaPaired
 
+SINGLE_CHAIN_MODELS = [
+    'human_T_beta', 'human_T_alpha', 'human_B_heavy', 'human_B_kappa', 'human_B_lambda',
+    'mouse_T_beta', 'mouse_T_alpha',
+]
+PAIRED_CHAIN_MODELS = [
+    'human_B_heavy_kappa', 'human_B_heavy_lambda', 'human_T_beta_alpha'
+]
+
 class Test(unittest.TestCase):
     def test_save_load(self):
         seqs = np.array(
@@ -26,14 +34,9 @@ class Test(unittest.TestCase):
         self.assertTrue(qm.feature_dict == qm1.feature_dict)
 
     def test_load_default(self):
-        chains = [
-            'human_T_alpha', 'human_T_beta',
-            'human_B_heavy', 'human_B_kappa', 'human_B_lambda',
-            'mouse_T_beta', 'mouse_T_alpha'
-        ]
-        for chain in chains:
+        for chain in SINGLE_CHAIN_MODELS:
             qm = Sonia(ppost_model=chain)
-        for chain in ['human_B_heavy_kappa', 'human_B_heavy_lambda', 'human_T_beta_alpha']:
+        for chain in PAIRED_CHAIN_MODELS:
             qm = SoniaPaired(ppost_model=chain)
 
     def test_infer(self):
@@ -67,11 +70,6 @@ class Test(unittest.TestCase):
     def test_gene_encoding(self):
         logger = logging.getLogger('SoniaTests')
 
-        models = [
-            'human_T_beta', 'human_T_alpha', 'human_B_heavy', 'human_B_kappa', 'human_B_lambda',
-            'mouse_T_beta', 'mouse_T_alpha',
-        ]
-
         # Default model parameters
         max_length = 30
         max_depth = 25
@@ -79,7 +77,7 @@ class Test(unittest.TestCase):
 
         num_seqs = int(1e6)
 
-        for model in models:
+        for model in SINGLE_CHAIN_MODELS:
             qm = Sonia(ppost_model=model)
             seqs = qm.generate_sequences_pre(num_seqs)
             seqs[:, 0] = ''
@@ -95,8 +93,7 @@ class Test(unittest.TestCase):
             self.assertTrue(counter == num_seqs)
 
         gene_feature_start *= 2
-        models = ['human_T_beta_alpha', 'human_B_heavy_kappa', 'human_B_heavy_lambda', ]
-        for model in models:
+        for model in PAIRED_CHAIN_MODELS:
             qm = SoniaPaired(ppost_model=model)
             seqs = qm.generate_sequences_pre(num_seqs)
             seqs[:, 0] = ''
@@ -111,6 +108,12 @@ class Test(unittest.TestCase):
                     )
                     counter -= 1
             self.assertTrue(counter == num_seqs)
+
+    def test_norms(self):
+        for model in NORM_PRODUCTIVES:
+            qm = Sonia(pgen_model=model)
+            res = qm.pgen_model.compute_regex_CDR3_template_pgen('CX{0,}')
+            self.assertTRUE(np.isclose(NORM_PRODUCTIVES[model], res))
 
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stderr)

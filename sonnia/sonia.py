@@ -1,46 +1,54 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Created on Wed Jan 30 12:06:58 2019
 @author: Giulio Isacchini and Zachary Sethna
 """
-from __future__ import print_function, division, absolute_import
+
 import inspect
 import itertools
 import logging
 import multiprocessing as mp
 import os
 from typing import *
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 import keras
-from keras.callbacks import TerminateOnNaN
 import keras.ops as ko
+import numpy as np
+import scipy.sparse as sparse
+from keras.callbacks import TerminateOnNaN
 from keras.layers import Dense, Input, Lambda
 from keras.losses import BinaryCrossentropy
-from keras.models import load_model, Model
+from keras.models import Model
 from keras.optimizers import RMSprop
-from keras.regularizers import l1_l2, l2
-import numpy as np
-from numpy.typing import ArrayLike, NDArray
-import scipy.sparse as sparse
+from keras.regularizers import l1_l2
+from numpy.typing import NDArray
 from tqdm import tqdm
 
 from sonnia.sonia_dataset import SoniaDataset
 from sonnia.utils import (
-    CSV_READER_PARAMS, compute_pgen_expand, compute_pgen_expand_novj, define_pgen_model,
-    filter_seqs, gene_to_num_str, get_model_dir, partial_joint_marginals
+    CSV_READER_PARAMS,
+    compute_pgen_expand,
+    compute_pgen_expand_novj,
+    define_pgen_model,
+    filter_seqs,
+    gene_to_num_str,
+    get_model_dir,
+    partial_joint_marginals,
 )
 
 FILTER_SEQS_PARAMS = inspect.signature(filter_seqs).parameters.keys()
 
 logging.getLogger().setLevel(logging.INFO)
-logging.basicConfig(format='%(asctime)s: %(message)s')
+logging.basicConfig(format="%(asctime)s: %(message)s")
 
-GENE_FEATURE_OPTIONS = {'vjl', 'joint_vj', 'indep_vj', 'v', 'j', 'none'}
+GENE_FEATURE_OPTIONS = {"vjl", "joint_vj", "indep_vj", "v", "j", "none"}
 
-class Sonia(object):
+
+class Sonia:
     """Class used to infer a Q selection model.
+
     Attributes
     ----------
     features : ndarray
@@ -79,8 +87,9 @@ class Sonia(object):
         'humanTRB' (default), 'humanIGH', 'humanIGL', 'humanIGK' and 'mouseTRB'.
     l2_reg : float or None
         L2 regularization. If None (default) then no regularization.
+
     Methods
-    ----------
+    -------
     seq_feature_proj(feature, seq)
         Determines if a feature matches/is found in a sequence.
     find_seq_features(seq, features = None)
@@ -105,6 +114,7 @@ class Sonia(object):
     load_model(self, load_dir)
         Loads a model.
     """
+
     def __init__(
         self,
         ppost_model: Optional[str] = None,
@@ -112,21 +122,23 @@ class Sonia(object):
         gen_seqs: List[Sequence[str]] = [],
         pgen_model: Optional[str] = None,
         load_seqs: bool = True,
-        gene_features: str = 'joint_vj',
+        gene_features: str = "joint_vj",
         include_aminoacids: bool = True,
         features: Sequence[Sequence[str]] = [],
         recompute_productive_norm: bool = False,
         max_depth: int = 25,
         max_L: int = 30,
-        objective: str = 'BCE',
-        l2_reg: float = 0.,
-        l1_reg: float = 0.,
-        gamma: float = 1.,
+        objective: str = "BCE",
+        l2_reg: float = 0.0,
+        l1_reg: float = 0.0,
+        gamma: float = 1.0,
         min_energy_clip: int = -5,
         max_energy_clip: int = 10,
-        seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
+        seed: Optional[
+            int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence
+        ] = None,
         processes: Optional[int] = None,
-        **kwargs: Dict[str, Any]
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Init Sonia/SoNNia object.
@@ -142,31 +154,35 @@ class Sonia(object):
         """
         for keyword in kwargs:
             if keyword not in CSV_READER_PARAMS and keyword not in FILTER_SEQS_PARAMS:
-                raise RuntimeError(f'Unknown keyword: {keyword}.')
+                raise RuntimeError(f"Unknown keyword: {keyword}.")
 
         if gene_features not in GENE_FEATURE_OPTIONS:
-            gene_feature_options_str = f'{GENE_FEATURE_OPTIONS}'[1:-1]
-            raise ValueError(f'{gene_features} is not a valid option for '
-                             'gene_features. gene_features must be one of '
-                             f'{gene_feature_options_str}.')
+            gene_feature_options_str = f"{GENE_FEATURE_OPTIONS}"[1:-1]
+            raise ValueError(
+                f"{gene_features} is not a valid option for "
+                "gene_features. gene_features must be one of "
+                f"{gene_feature_options_str}."
+            )
 
         if ppost_model is None:
             self.recompute_productive_norm = True
         else:
             self.recompute_productive_norm = recompute_productive_norm
 
-        if 'Paired' in type(self).__name__:
+        if "Paired" in type(self).__name__:
             pass
         else:
             if ppost_model is None and pgen_model is None:
-                raise ValueError('Both ppost_model and pgen_model cannot be None.')
+                raise ValueError("Both ppost_model and pgen_model cannot be None.")
             elif ppost_model is not None and pgen_model is None:
                 self.pgen_model = ppost_model
             elif ppost_model is None and pgen_model is not None:
                 self.pgen_model = pgen_model
             else:
-                raise ValueError('Both ppost_model and pgen_model cannot be given. '
-                                 'One of them must be None.')
+                raise ValueError(
+                    "Both ppost_model and pgen_model cannot be given. "
+                    "One of them must be None."
+                )
             self.load_pgen_model()
 
         self.features = np.array(features, dtype=object)
@@ -190,27 +206,28 @@ class Sonia(object):
         self.include_aminoacids = include_aminoacids
         self.max_depth = max_depth
         self.max_L = max_L
-        if processes is None: self.processes = mp.cpu_count()
+        if processes is None:
+            self.processes = mp.cpu_count()
         self.gamma = gamma
-        self.Z = 1.
-        self.amino_acids = 'ACDEFGHIKLMNPQRSTVWY'
+        self.Z = 1.0
+        self.amino_acids = "ACDEFGHIKLMNPQRSTVWY"
 
         if ppost_model is None:
             self.update_model(add_data_seqs=data_seqs, add_gen_seqs=gen_seqs, **kwargs)
             self.add_features()
         else:
             self.load_model(ppost_model=ppost_model, load_seqs=load_seqs)
-            if len(data_seqs) != 0: self.update_model(add_data_seqs=data_seqs, **kwargs)
-            if len(gen_seqs) != 0: self.update_model(add_gen_seqs=gen_seqs, **kwargs)
+            if len(data_seqs) != 0:
+                self.update_model(add_data_seqs=data_seqs, **kwargs)
+            if len(gen_seqs) != 0:
+                self.update_model(add_gen_seqs=gen_seqs, **kwargs)
 
         if seed is not None:
             self.rng = np.random.default_rng(seed)
         else:
             self.rng = np.random.default_rng()
 
-    def add_features(
-        self
-    ) -> None:
+    def add_features(self) -> None:
         """
         Generate a list of feature_lsts for L/R pos model.
 
@@ -223,40 +240,56 @@ class Sonia(object):
         None
         """
         features = []
-        if self.gene_features == 'vjl':
-            features += [[v, j, 'l'+str(l)]
-                         for v in set([gene_to_num_str(genV[0],'V')
-                                       for genV in self.genomic_data.genV])
-                         for j in set([gene_to_num_str(genJ[0],'J')
-                                       for genJ in self.genomic_data.genJ])
-                         for l in range(1, self.max_L + 1)]
+        if self.gene_features == "vjl":
+            features += [
+                [v, j, "l" + str(l)]
+                for v in set(
+                    [gene_to_num_str(genV[0], "V") for genV in self.genomic_data.genV]
+                )
+                for j in set(
+                    [gene_to_num_str(genJ[0], "J") for genJ in self.genomic_data.genJ]
+                )
+                for l in range(1, self.max_L + 1)
+            ]
         else:
-            features += [['l' + str(L)] for L in range(1, self.max_L + 1)]
+            features += [["l" + str(L)] for L in range(1, self.max_L + 1)]
 
         if self.include_aminoacids:
             for aa in self.amino_acids:
-                features += [['a' + aa + str(L)] for L in range(-self.max_depth, self.max_depth)]
+                features += [
+                    ["a" + aa + str(L)] for L in range(-self.max_depth, self.max_depth)
+                ]
 
-        if self.gene_features == 'joint_vj':
-            features += [[v, j]
-                         for v in set([gene_to_num_str(genV[0],'V')
-                                       for genV in self.genomic_data.genV])
-                         for j in set([gene_to_num_str(genJ[0],'J')
-                                       for genJ in self.genomic_data.genJ])]
+        if self.gene_features == "joint_vj":
+            features += [
+                [v, j]
+                for v in set(
+                    [gene_to_num_str(genV[0], "V") for genV in self.genomic_data.genV]
+                )
+                for j in set(
+                    [gene_to_num_str(genJ[0], "J") for genJ in self.genomic_data.genJ]
+                )
+            ]
 
-        if self.gene_features in {'indep_vj', 'v'}:
-            features += [[v] for v in set([gene_to_num_str(genV[0],'V')
-                                           for genV in self.genomic_data.genV])]
-        if self.gene_features in {'indep_vj', 'j'}:
-            features += [[j] for j in set([gene_to_num_str(genJ[0],'J')
-                                           for genJ in self.genomic_data.genJ])]
+        if self.gene_features in {"indep_vj", "v"}:
+            features += [
+                [v]
+                for v in set(
+                    [gene_to_num_str(genV[0], "V") for genV in self.genomic_data.genV]
+                )
+            ]
+        if self.gene_features in {"indep_vj", "j"}:
+            features += [
+                [j]
+                for j in set(
+                    [gene_to_num_str(genJ[0], "J") for genJ in self.genomic_data.genJ]
+                )
+            ]
 
         self.update_model(add_features=features)
 
     def find_seq_features(
-        self,
-        seq: Sequence[str],
-        feature_dict: Optional[Dict[Tuple[str], int]] = None
+        self, seq: Sequence[str], feature_dict: Optional[Dict[Tuple[str], int]] = None
     ) -> List[int]:
         """
         Obtain the one-hot encoding of features for a sequence.
@@ -282,20 +315,20 @@ class Sonia(object):
         seq_features = set()
 
         cdr3_len = len(seq[0])
-        cdr3_len_key = (f'l{cdr3_len}',)
+        cdr3_len_key = (f"l{cdr3_len}",)
         if cdr3_len_key in feature_dict:
             seq_features.add(feature_dict[cdr3_len_key])
 
         for idx, amino_acid in enumerate(list(seq[0])):
-            fwd_key = (f'a{amino_acid}{idx}',)
-            bkd_key = (f'a{amino_acid}{idx - cdr3_len}',)
+            fwd_key = (f"a{amino_acid}{idx}",)
+            bkd_key = (f"a{amino_acid}{idx - cdr3_len}",)
             if fwd_key in feature_dict:
                 seq_features.add(feature_dict[fwd_key])
             if bkd_key in feature_dict:
                 seq_features.add(feature_dict[bkd_key])
 
-        v_key = (gene_to_num_str(seq[1], 'V'),)
-        j_key = (gene_to_num_str(seq[2], 'J'),)
+        v_key = (gene_to_num_str(seq[1], "V"),)
+        j_key = (gene_to_num_str(seq[2], "J"),)
         vj_key = v_key + j_key
         vjl_key = v_key + j_key + cdr3_len_key
         if v_key in feature_dict:
@@ -331,9 +364,7 @@ class Sonia(object):
             A sparse array representation of the one-hot encoding.
         """
         if features is not None:
-            feature_dict = {
-                tuple(feature): idx for idx, feature in enumerate(features)
-            }
+            feature_dict = {tuple(feature): idx for idx, feature in enumerate(features)}
             num_features = len(features)
         else:
             num_features = len(self.features)
@@ -341,7 +372,7 @@ class Sonia(object):
         indices = []
         indptr = [0]
 
-        tqdm_desc = 'Encoding sequence features'
+        tqdm_desc = "Encoding sequence features"
         for seq in tqdm(sequences, position=0, desc=tqdm_desc):
             specified_features = self.find_seq_features(seq, features)
             indices += specified_features
@@ -349,15 +380,14 @@ class Sonia(object):
 
         data = np.ones(len(indices), dtype=np.int8)
         csr_arr = sparse.csr_array(
-            (data, indices, indptr),
-            shape=(len(sequences), num_features)
+            (data, indices, indptr), shape=(len(sequences), num_features)
         )
         return csr_arr
 
     def encoding_to_feature_strs(
         self,
         encoding: sparse.csr_array,
-        features: Optional[Sequence[Tuple[str]]] = None
+        features: Optional[Sequence[Tuple[str]]] = None,
     ) -> Sequence[Sequence[Tuple[str]]]:
         """
         Convert the one-hot encoded sequences to a list of their sequence features.
@@ -382,7 +412,7 @@ class Sonia(object):
 
         feature_strs = []
         zipped = zip(encoding.indptr[:-1], encoding.indptr[1:])
-        tqdm_desc = 'Getting feature strings'
+        tqdm_desc = "Getting feature strings"
         for idx1, idx2 in tqdm(
             zipped, total=encoding.shape[0], position=0, desc=tqdm_desc
         ):
@@ -411,9 +441,12 @@ class Sonia(object):
         """
         feature_idxs = []
         zipped = zip(encoding.indptr[:-1], encoding.indptr[1:])
-        tqdm_desc = 'Getting feature indices'
+        tqdm_desc = "Getting feature indices"
         for idx1, idx2 in tqdm(
-            zipped, total=encoding.shape[0], position=0, desc=tqdm_desc,
+            zipped,
+            total=encoding.shape[0],
+            position=0,
+            desc=tqdm_desc,
         ):
             feature_idxs.append(encoding.indices[idx1:idx2].tolist())
 
@@ -445,33 +478,30 @@ class Sonia(object):
             Energies of sequences according to the model.
         """
         length_encoding = encoding.shape[0]
-        num_slices = (
-            length_encoding // chunksize
-            + 1 * (length_encoding % chunksize != 0)
+        num_slices = length_encoding // chunksize + 1 * (
+            length_encoding % chunksize != 0
         )
 
         energies = []
-        tqdm_desc = 'Computing energies'
+        tqdm_desc = "Computing energies"
         disable = not verbose
-        for idx in tqdm(
-            range(num_slices), position=0, desc=tqdm_desc, disable=disable
-        ):
+        for idx in tqdm(range(num_slices), position=0, desc=tqdm_desc, disable=disable):
             start_idx = idx * chunksize
-            encoding_slice = encoding[start_idx:start_idx + chunksize]
+            encoding_slice = encoding[start_idx : start_idx + chunksize]
 
             dense_encoding = encoding_slice.toarray()
 
-            if hasattr(self, 'split_encoding'):
+            if hasattr(self, "split_encoding"):
                 dense_encoding = self.split_encoding(dense_encoding)
             try:
                 energies_slice = self.model(dense_encoding)[:, 0].numpy()
             except Exception as e:
-                if 'Failed copying' in str(e):
+                if "Failed copying" in str(e):
                     raise RuntimeError(
-                        'There is not enough GPU memory available to copy the '
-                        'one-hot encoding from CPU to GPU. Try requesting more '
-                        'GPU memory or using a smaller chunksize when calling '
-                        'this function (compute_energy).'
+                        "There is not enough GPU memory available to copy the "
+                        "one-hot encoding from CPU to GPU. Try requesting more "
+                        "GPU memory or using a smaller chunksize when calling "
+                        "this function (compute_energy)."
                     )
                 else:
                     raise e
@@ -519,14 +549,17 @@ class Sonia(object):
             Marginals of model features over seqs.
         """
         if encoding is None and seqs is None:
-            raise RuntimeError('Both encoding and seqs cannot be None.')
+            raise RuntimeError("Both encoding and seqs cannot be None.")
         if encoding is not None and seqs is not None:
-            raise RuntimeError('Both encoding and seqs cannot be given. '
-                             'One of them must be None.')
+            raise RuntimeError(
+                "Both encoding and seqs cannot be given. " "One of them must be None."
+            )
         if encoding is not None and features is not None:
-            raise RuntimeError('Both encoding and features cannot be given. '
-                               'If features is given, seqs must be given to redo '
-                               'the one-hot encoding.')
+            raise RuntimeError(
+                "Both encoding and features cannot be given. "
+                "If features is given, seqs must be given to redo "
+                "the one-hot encoding."
+            )
 
         if features is not None:
             num_features = len(features)
@@ -538,12 +571,13 @@ class Sonia(object):
 
         if use_flat_distribution:
             marginals = (
-                np.bincount(encoding.indices, minlength=num_features) / encoding.shape[0]
+                np.bincount(encoding.indices, minlength=num_features)
+                / encoding.shape[0]
             )
         else:
             energies = self.compute_energy(encoding)
             qs = sparse.csr_array(np.exp(-energies))
-            marginals = (qs.dot(encoding) / qs.data.sum())
+            marginals = qs.dot(encoding) / qs.data.sum()
             # In older versions of scipy, performing a dot product ensued in
             # a two-dimensional array.
             marginals = marginals.toarray().ravel()
@@ -556,11 +590,13 @@ class Sonia(object):
         epochs: int = 10,
         batch_size: int = 5000,
         initialize: bool = True,
-        seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
+        seed: Optional[
+            int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence
+        ] = None,
         validation_split: float = 0.2,
         verbose: int = 0,
         set_gauge: bool = True,
-        sampling: Optional[str] = None
+        sampling: Optional[str] = None,
     ) -> None:
         """
         Infer model parameters, i.e. energies for each model feature.
@@ -599,10 +635,9 @@ class Sonia(object):
         if initialize:
             self.X = sparse.vstack((self.data_encoding, self.gen_encoding))
             self.Y = np.zeros(
-                self.data_encoding.shape[0] + self.gen_encoding.shape[0],
-                dtype=np.int8
+                self.data_encoding.shape[0] + self.gen_encoding.shape[0], dtype=np.int8
             )
-            self.Y[self.data_encoding.shape[0]:] += 1
+            self.Y[self.data_encoding.shape[0] :] += 1
 
             shuffle = rng.permutation(self.X.shape[0])
             self.X = self.X[shuffle]
@@ -610,9 +645,13 @@ class Sonia(object):
 
         num_data_seqs = np.count_nonzero(self.Y == 0)
         if num_data_seqs == 0:
-            raise RuntimeError('No data seqs were given. Cannot infer a selection model.')
+            raise RuntimeError(
+                "No data seqs were given. Cannot infer a selection model."
+            )
         if num_data_seqs == self.Y.shape[0]:
-            raise RuntimeError('No gen seqs were given. Cannot infer a selection model.')
+            raise RuntimeError(
+                "No gen seqs were given. Cannot infer a selection model."
+            )
 
         callbacks = [
             TerminateOnNaN(),
@@ -621,21 +660,26 @@ class Sonia(object):
         if sampling is None:
             # Presently, GPU cannot process sparse arrays, so the encoding
             # must be in the dense representation.
-            if hasattr(self, 'split_encoding'):
+            if hasattr(self, "split_encoding"):
                 input_data = self.split_encoding(self.X.toarray())
             else:
                 input_data = self.X.toarray()
             self.learning_history = self.model.fit(
-                input_data, self.Y, epochs=epochs, batch_size=batch_size,
-                validation_split=validation_split, verbose=verbose, callbacks=callbacks,
+                input_data,
+                self.Y,
+                epochs=epochs,
+                batch_size=batch_size,
+                validation_split=validation_split,
+                verbose=verbose,
+                callbacks=callbacks,
             )
         else:
             if validation_split < 0 or validation_split >= 1:
-                raise ValueError('validation_split must be in [0, 1).')
+                raise ValueError("validation_split must be in [0, 1).")
             if validation_split == 0:
                 validation_data = None
             else:
-                if hasattr(self, 'split_encoding'):
+                if hasattr(self, "split_encoding"):
                     split_encoding = self.split_encoding
                 else:
                     split_encoding = None
@@ -650,89 +694,144 @@ class Sonia(object):
                 ]
 
                 train_generator = SoniaDataset(
-                    train_x, train_y, sampling, batch_size, seed=child_rngs[0],
+                    train_x,
+                    train_y,
+                    sampling,
+                    batch_size,
+                    seed=child_rngs[0],
                     split_encoding=split_encoding,
                 )
                 val_generator = SoniaDataset(
-                    val_x, val_y, sampling, batch_size, seed=child_rngs[1],
+                    val_x,
+                    val_y,
+                    sampling,
+                    batch_size,
+                    seed=child_rngs[1],
                     split_encoding=split_encoding,
                 )
 
                 self.learning_history = self.model.fit(
-                    train_generator, validation_data=val_generator, epochs=epochs,
-                    batch_size=batch_size, verbose=verbose, callbacks=callbacks,
+                    train_generator,
+                    validation_data=val_generator,
+                    epochs=epochs,
+                    batch_size=batch_size,
+                    verbose=verbose,
+                    callbacks=callbacks,
                 )
 
-        self.likelihood_train = -np.array(self.learning_history.history['_likelihood']) * 1.44
-        self.likelihood_test = -np.array(self.learning_history.history['val__likelihood']) * 1.44
+        self.likelihood_train = (
+            -np.array(self.learning_history.history["_likelihood"]) * 1.44
+        )
+        self.likelihood_test = (
+            -np.array(self.learning_history.history["val__likelihood"]) * 1.44
+        )
         self.model_params = self.model.get_weights()
 
-        if np.isnan(self.likelihood_train).any() or np.isnan(self.likelihood_test).any():
+        if (
+            np.isnan(self.likelihood_train).any()
+            or np.isnan(self.likelihood_test).any()
+        ):
             raise RuntimeError(
-                'The training or validation likelihood history contains nans. '
-                'Report a bug.'
+                "The training or validation likelihood history contains nans. "
+                "Report a bug."
             )
 
-        logging.info('Finished training.')
+        logging.info("Finished training.")
 
-        # set Z    
+        # set Z
         self.energies_gen = self.compute_energy(self.gen_encoding)
         self.Z = np.mean(np.exp(-self.energies_gen))
-        if set_gauge and self.gene_features != 'vjl': self.set_gauge()
-        logging.info('Updating marginals.')
+        if set_gauge and self.gene_features != "vjl":
+            self.set_gauge()
+        logging.info("Updating marginals.")
         self.update_model(update_marginals=True)
-        logging.info('Finished updating marginals.')
+        logging.info("Finished updating marginals.")
         self.model_params = self.model.get_weights()
 
-    def set_gauge(
-        self
-    ) -> None:
+    def set_gauge(self) -> None:
         """
-        sets gauge such as sum(q)_i =1 at each position of CDR3 (left and right).
+        Sets gauge such as sum(q)_i =1 at each position of CDR3 (left and right).
         """
-        logging.info('Setting gauge.')
+        logging.info("Setting gauge.")
         model_energy_parameters = self.model.get_weights()[0].flatten()
 
-        Gs_plus=[]
+        Gs_plus = []
         for i in list(range(self.max_depth)):
-            norm_p=sum([self.gen_marginals[self.feature_dict[( 'a' + aa + str(i),)]] for aa in self.amino_acids])
-            if norm_p==0:
-                G=1
+            norm_p = sum(
+                [
+                    self.gen_marginals[self.feature_dict[("a" + aa + str(i),)]]
+                    for aa in self.amino_acids
+                ]
+            )
+            if norm_p == 0:
+                G = 1
             else:
-                G = sum([self.gen_marginals[self.feature_dict[( 'a' + aa + str(i),)]] /norm_p *
-                          np.exp(-model_energy_parameters[self.feature_dict[( 'a' + aa + str(i),)]])
-                          for aa in self.amino_acids])
+                G = sum(
+                    [
+                        self.gen_marginals[self.feature_dict[("a" + aa + str(i),)]]
+                        / norm_p
+                        * np.exp(
+                            -model_energy_parameters[
+                                self.feature_dict[("a" + aa + str(i),)]
+                            ]
+                        )
+                        for aa in self.amino_acids
+                    ]
+                )
             Gs_plus.append(G)
-            for aa in self.amino_acids: model_energy_parameters[self.feature_dict[( 'a' + aa + str(i),)]] += np.log(G)
-        Gs_minus=[]
-        for i in list(range(-self.max_depth,0)):
-            norm_p=sum([self.gen_marginals[self.feature_dict[( 'a' + aa + str(i),)]] for aa in self.amino_acids])
-            if norm_p==0:
-                G=1
+            for aa in self.amino_acids:
+                model_energy_parameters[self.feature_dict[("a" + aa + str(i),)]] += (
+                    np.log(G)
+                )
+        Gs_minus = []
+        for i in list(range(-self.max_depth, 0)):
+            norm_p = sum(
+                [
+                    self.gen_marginals[self.feature_dict[("a" + aa + str(i),)]]
+                    for aa in self.amino_acids
+                ]
+            )
+            if norm_p == 0:
+                G = 1
             else:
-                G = sum([self.gen_marginals[self.feature_dict[( 'a' + aa + str(i),)]] /norm_p *
-                          np.exp(-model_energy_parameters[self.feature_dict[( 'a' + aa + str(i),)]])
-                          for aa in self.amino_acids])
+                G = sum(
+                    [
+                        self.gen_marginals[self.feature_dict[("a" + aa + str(i),)]]
+                        / norm_p
+                        * np.exp(
+                            -model_energy_parameters[
+                                self.feature_dict[("a" + aa + str(i),)]
+                            ]
+                        )
+                        for aa in self.amino_acids
+                    ]
+                )
             Gs_minus.append(G)
-            for aa in self.amino_acids: model_energy_parameters[self.feature_dict[( 'a' + aa + str(i),)]] += np.log(G)
-        for i in range(1,self.max_L+1):
-            for j in list(range(i,self.max_depth)):
-                model_energy_parameters[self.feature_dict[( 'l' + str(i),)]] += np.log(Gs_plus[j])
-            for j in list(range(-self.max_depth,-i)):
-                model_energy_parameters[self.feature_dict[( 'l' + str(i),)]] += np.log(Gs_minus[j])
-        delta_Z=np.sum([np.log(g) for g in Gs_plus])+np.sum([np.log(g) for g in Gs_minus])
+            for aa in self.amino_acids:
+                model_energy_parameters[self.feature_dict[("a" + aa + str(i),)]] += (
+                    np.log(G)
+                )
+        for i in range(1, self.max_L + 1):
+            for j in list(range(i, self.max_depth)):
+                model_energy_parameters[self.feature_dict[("l" + str(i),)]] += np.log(
+                    Gs_plus[j]
+                )
+            for j in list(range(-self.max_depth, -i)):
+                model_energy_parameters[self.feature_dict[("l" + str(i),)]] += np.log(
+                    Gs_minus[j]
+                )
+        delta_Z = np.sum([np.log(g) for g in Gs_plus]) + np.sum(
+            [np.log(g) for g in Gs_minus]
+        )
 
-        self.min_energy_clip=self.min_energy_clip+delta_Z
-        self.max_energy_clip=self.max_energy_clip+delta_Z
-        self.Z=self.Z*np.exp(-delta_Z)
+        self.min_energy_clip = self.min_energy_clip + delta_Z
+        self.max_energy_clip = self.max_energy_clip + delta_Z
+        self.Z = self.Z * np.exp(-delta_Z)
         self.update_model_structure(initialize=True)
         self.model.set_weights([np.array([model_energy_parameters]).T])
 
     def update_model_structure(
-        self,
-        output_layer: List = [],
-        input_layer: List = [],
-        initialize: bool = False
+        self, output_layer: List = [], input_layer: List = [], initialize: bool = False
     ) -> bool:
         """
         Defines the model structure and compiles it.
@@ -753,25 +852,27 @@ class Sonia(object):
         if initialize:
             input_layer = Input(shape=(length_input,))
             output_layer = Dense(
-                1, use_bias=False, activation='linear',
-                kernel_regularizer=l1_l2(l2=l2_reg,l1=l1_reg)
-            )(input_layer) #normal glm model
+                1,
+                use_bias=False,
+                activation="linear",
+                kernel_regularizer=l1_l2(l2=l2_reg, l1=l1_reg),
+            )(input_layer)  # normal glm model
 
         # Define model
-        clipped_out = Lambda(
-            ko.clip, arguments={'x_min': min_clip, 'x_max': max_clip}
-        )(output_layer)
+        clipped_out = Lambda(ko.clip, arguments={"x_min": min_clip, "x_max": max_clip})(
+            output_layer
+        )
         self.model = Model(inputs=input_layer, outputs=clipped_out)
 
         self.optimizer = RMSprop()
-        if self.objective=='BCE':
+        if self.objective == "BCE":
             self.model.compile(
                 optimizer=self.optimizer,
                 loss=BinaryCrossentropy(from_logits=True),
                 metrics=[
                     self._likelihood,
-                    BinaryCrossentropy(from_logits=True, name='binary_crossentropy')
-                ]
+                    BinaryCrossentropy(from_logits=True, name="binary_crossentropy"),
+                ],
             )
         else:
             self.model.compile(
@@ -779,17 +880,13 @@ class Sonia(object):
                 loss=self._loss,
                 metrics=[
                     self._likelihood,
-                    BinaryCrossentropy(from_logits=True, name='binary_crossentropy')
-                ]
+                    BinaryCrossentropy(from_logits=True, name="binary_crossentropy"),
+                ],
             )
         self.model_params = self.model.get_weights()
         return True
 
-    def _loss(
-        self,
-        y_true,
-        y_pred
-    ) -> float:
+    def _loss(self, y_true, y_pred) -> float:
         """
         Loss function for keras training.
 
@@ -798,29 +895,21 @@ class Sonia(object):
         Normalization of P gives Z=<exp(-E)>_{P_0}.
         We fix the gauge by adding the constraint (Z-1)**2 to the likelihood.
         """
-        y = ko.cast(y_true, dtype='bool')
+        y = ko.cast(y_true, dtype="bool")
         data = ko.nan_to_num(ko.mean(y_pred[ko.logical_not(y)]))
-        gen = ko.nan_to_num(
-            ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true)), neginf=0
-        )
+        gen = ko.nan_to_num(ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true)), neginf=0)
         return gen + data + self.gamma * gen * gen
 
-    def _likelihood(
-        self,
-        y_true,
-        y_pred
-    ) -> float:
+    def _likelihood(self, y_true, y_pred) -> float:
         """
         This is the "I" loss in the arxiv paper with added regularization
 
         A likelihood value of nan means no data sequences were present in
         the mini-batch.
         """
-        y = ko.cast(y_true, dtype='bool')
+        y = ko.cast(y_true, dtype="bool")
         data = ko.nan_to_num(ko.mean(y_pred[ko.logical_not(y)]))
-        gen = ko.nan_to_num(
-            ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true)), neginf=0
-        )
+        gen = ko.nan_to_num(ko.logsumexp(-y_pred[y]) - ko.log(ko.sum(y_true)), neginf=0)
         return gen + data
 
     def update_model(
@@ -832,7 +921,7 @@ class Sonia(object):
         add_constant_features: List[Sequence[str]] = [],
         update_marginals: bool = False,
         update_seq_features: bool = False,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Update the model attributes
@@ -881,7 +970,8 @@ class Sonia(object):
         """
         if len(remove_features) > 0:
             indices_to_keep = [
-                i for i, feature_lst in enumerate(self.features)
+                i
+                for i, feature_lst in enumerate(self.features)
                 if feature_lst not in remove_features and i not in remove_features
             ]
             self.features = self.features[indices_to_keep]
@@ -897,65 +987,88 @@ class Sonia(object):
             self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
 
         if len(add_data_seqs) > 0:
-            logging.info('Adding data seqs.')
+            logging.info("Adding data seqs.")
             try:
-                if 'Paired' not in type(self).__name__:
+                if "Paired" not in type(self).__name__:
                     add_data_seqs = filter_seqs(add_data_seqs, self.pgen_dir, **kwargs)
                 else:
                     pass
-                    #add_data_seqs = filter_seqs_paired(
+                    # add_data_seqs = filter_seqs_paired(
                     #   add_data_seqs, self.pgen_dir_heavy, self.pgen_dir_light, **kwargs
-                    #)
+                    # )
             except Exception as e:
                 raise Exception(e)
 
             add_data_seqs = np.array(
-                [[seq, '', ''] if isinstance(seq, str) else seq for seq in add_data_seqs]
+                [
+                    [seq, "", ""] if isinstance(seq, str) else seq
+                    for seq in add_data_seqs
+                ]
             )
-            if len(self.data_seqs) == 0: self.data_seqs = add_data_seqs
-            else: self.data_seqs = np.concatenate([self.data_seqs, add_data_seqs])
+            if len(self.data_seqs) == 0:
+                self.data_seqs = add_data_seqs
+            else:
+                self.data_seqs = np.concatenate([self.data_seqs, add_data_seqs])
 
         if len(add_gen_seqs) > 0:
-            logging.info('Adding gen seqs.')
+            logging.info("Adding gen seqs.")
             try:
-                if 'Paired' not in type(self).__name__:
+                if "Paired" not in type(self).__name__:
                     add_gen_seqs = filter_seqs(add_gen_seqs, self.pgen_dir, **kwargs)
                 else:
                     pass
             except Exception as e:
                 raise Exception(e)
-            add_gen_seqs=np.array(
-                [[seq,'',''] if isinstance(seq, str) else seq for seq in add_gen_seqs]
+            add_gen_seqs = np.array(
+                [[seq, "", ""] if isinstance(seq, str) else seq for seq in add_gen_seqs]
             )
-            if len(self.gen_seqs) == 0: self.gen_seqs = add_gen_seqs
-            else: self.gen_seqs = np.concatenate([self.gen_seqs, add_gen_seqs])
+            if len(self.gen_seqs) == 0:
+                self.gen_seqs = add_gen_seqs
+            else:
+                self.gen_seqs = np.concatenate([self.gen_seqs, add_gen_seqs])
 
-        if ((len(add_data_seqs) + len(add_features) + len(remove_features) > 0
-             or update_seq_features)
-             and len(self.features) > 0 and len(self.data_seqs) > 0):
-            logging.info('Encode data seqs.')
+        if (
+            (
+                len(add_data_seqs) + len(add_features) + len(remove_features) > 0
+                or update_seq_features
+            )
+            and len(self.features) > 0
+            and len(self.data_seqs) > 0
+        ):
+            logging.info("Encode data seqs.")
             self.data_encoding = self.encode_data(self.data_seqs)
 
-        if ((len(add_data_seqs) + len(add_features) + len(remove_features) > 0
-             or update_marginals) and len(self.features) > 0):
+        if (
+            len(add_data_seqs) + len(add_features) + len(remove_features) > 0
+            or update_marginals
+        ) and len(self.features) > 0:
             if self.data_encoding.shape[0]:
                 self.data_marginals = self.compute_marginals(
                     encoding=self.data_encoding, use_flat_distribution=True
                 )
 
-        if ((len(add_gen_seqs) + len(add_features) + len(remove_features) > 0
-             or update_seq_features)
-            and len(self.features) > 0 and len(self.gen_seqs) > 0):
-            logging.info('Encode gen seqs.')
+        if (
+            (
+                len(add_gen_seqs) + len(add_features) + len(remove_features) > 0
+                or update_seq_features
+            )
+            and len(self.features) > 0
+            and len(self.gen_seqs) > 0
+        ):
+            logging.info("Encode gen seqs.")
             self.gen_encoding = self.encode_data(self.gen_seqs)
 
-        if ((len(add_gen_seqs) + len(add_features) + len(remove_features) > 0
-             or update_marginals) and len(self.features) > 0):
+        if (
+            len(add_gen_seqs) + len(add_features) + len(remove_features) > 0
+            or update_marginals
+        ) and len(self.features) > 0:
             if self.gen_encoding.shape[0]:
                 self.gen_marginals = self.compute_marginals(
                     encoding=self.gen_encoding, use_flat_distribution=True
                 )
-                self.model_marginals = self.compute_marginals(encoding=self.gen_encoding)
+                self.model_marginals = self.compute_marginals(
+                    encoding=self.gen_encoding
+                )
 
     def add_generated_seqs(
         self,
@@ -967,6 +1080,7 @@ class Sonia(object):
         """Generates MonteCarlo sequences for gen_seqs using OLGA.
         Only generates seqs from a V(D)J model. Requires the OLGA package
         (pip install olga).
+
         Parameters
         ----------
         num_gen_seqs : int or float
@@ -988,21 +1102,22 @@ class Sonia(object):
         gen_seq_features : list
             Features gen_seqs have been projected onto.
         """
-        if hasattr(self, 'pgen_dir'):
+        if hasattr(self, "pgen_dir"):
             logging.info(
-                f'Generating {num_gen_seqs} using the pgen model in {self.pgen_dir}.'
+                f"Generating {num_gen_seqs} using the pgen model in {self.pgen_dir}."
             )
-        elif hasattr(self, 'pgen_dir_light'):
+        elif hasattr(self, "pgen_dir_light"):
             logging.info(
-                f'Generating {num_gen_seqs} using the light pgen model in '
-                f'{self.pgen_dir_light} and the heavy pgen model in '
-                f'{self.pgen_dir_heavy}.'
+                f"Generating {num_gen_seqs} using the light pgen model in "
+                f"{self.pgen_dir_light} and the heavy pgen model in "
+                f"{self.pgen_dir_heavy}."
             )
 
         seqs = self.generate_sequences_pre(
             num_gen_seqs, nucleotide=False, add_error=add_error
         )
-        if reset_gen_seqs: self.gen_seqs = []
+        if reset_gen_seqs:
+            self.gen_seqs = []
         self.update_model(add_gen_seqs=seqs)
 
     def save_model(
@@ -1010,9 +1125,10 @@ class Sonia(object):
         save_dir: str,
         save_data_seqs: bool = False,
         save_gen_seqs: bool = False,
-        force: bool = True
+        force: bool = True,
     ) -> None:
         """Saves model parameters and sequences
+
         Parameters
         ----------
         save_dir : str
@@ -1022,157 +1138,180 @@ class Sonia(object):
         """
         if os.path.isdir(save_dir):
             if not force:
-                if not input(f'The directory {save_dir} already exists. '
-                             'Overwrite existing model (y/n)? ').strip().lower() in ['y', 'yes']:
-                    print('Exiting...')
+                if input(
+                    f"The directory {save_dir} already exists. "
+                    "Overwrite existing model (y/n)? "
+                ).strip().lower() not in ["y", "yes"]:
+                    print("Exiting...")
                     return
         else:
             os.mkdir(save_dir)
 
         if save_data_seqs:
-            with open(os.path.join(save_dir, 'data_seqs.tsv'), 'w') as data_seqs_file:
+            with open(os.path.join(save_dir, "data_seqs.tsv"), "w") as data_seqs_file:
                 data_seq_energies = self.compute_energy(self.data_encoding)
                 data_seq_features = self.encoding_to_feature_strs(self.data_encoding)
-                data_seqs_file.write('Sequence;Genes\tLog(Q)\tFeatures\n')
+                data_seqs_file.write("Sequence;Genes\tLog(Q)\tFeatures\n")
                 data_seqs_file.write(
-                    '\n'.join(
-                        [';'.join(seq) + '\t'
-                         + str(-data_seq_energies[i] - np.log(self.Z)) + '\t'
-                         + ';'.join(
-                             [','.join(features) for features in data_seq_features[i]]
-                         )
-                         for i, seq in enumerate(self.data_seqs)]
-                    )
-                )
-
-        if save_gen_seqs:
-            with open(os.path.join(save_dir, 'gen_seqs.tsv'), 'w') as gen_seqs_file:
-                gen_seq_energies = self.compute_energy(self.gen_encoding)
-                gen_seq_features = self.encoding_to_feature_strs(self.gen_encoding)
-                gen_seqs_file.write('Sequence;Genes\tLog(Q)\tFeatures\n')
-                gen_seqs_file.write(
-                    '\n'.join(
-                        [';'.join(seq) + '\t'
-                         +  str(-gen_seq_energies[i] - np.log(self.Z)) + '\t'
-                         + ';'.join(
-                             [','.join(features) for features in gen_seq_features[i]]
-                         )
-                         for i, seq in enumerate(self.gen_seqs)
+                    "\n".join(
+                        [
+                            ";".join(seq)
+                            + "\t"
+                            + str(-data_seq_energies[i] - np.log(self.Z))
+                            + "\t"
+                            + ";".join(
+                                [
+                                    ",".join(features)
+                                    for features in data_seq_features[i]
+                                ]
+                            )
+                            for i, seq in enumerate(self.data_seqs)
                         ]
                     )
                 )
 
-        with open(os.path.join(save_dir, 'log.txt'), 'w') as L1_file:
-            L1_file.write('Z ='+str(self.Z)+'\n')
-            L1_file.write('norm_productive ='+str(self.norm_productive)+'\n')
-            L1_file.write('min_energy_clip ='+str(self.min_energy_clip)+'\n')
-            L1_file.write('max_energy_clip ='+str(self.max_energy_clip)+'\n')
-            L1_file.write('likelihood_train,likelihood_test\n')
-            for llh_train, llh_test in zip(self.likelihood_train, self.likelihood_test):
-                L1_file.write(f'{llh_train},{llh_test}\n')
+        if save_gen_seqs:
+            with open(os.path.join(save_dir, "gen_seqs.tsv"), "w") as gen_seqs_file:
+                gen_seq_energies = self.compute_energy(self.gen_encoding)
+                gen_seq_features = self.encoding_to_feature_strs(self.gen_encoding)
+                gen_seqs_file.write("Sequence;Genes\tLog(Q)\tFeatures\n")
+                gen_seqs_file.write(
+                    "\n".join(
+                        [
+                            ";".join(seq)
+                            + "\t"
+                            + str(-gen_seq_energies[i] - np.log(self.Z))
+                            + "\t"
+                            + ";".join(
+                                [",".join(features) for features in gen_seq_features[i]]
+                            )
+                            for i, seq in enumerate(self.gen_seqs)
+                        ]
+                    )
+                )
 
-        if 'Sonia' in type(self).__name__:
+        with open(os.path.join(save_dir, "log.txt"), "w") as L1_file:
+            L1_file.write("Z =" + str(self.Z) + "\n")
+            L1_file.write("norm_productive =" + str(self.norm_productive) + "\n")
+            L1_file.write("min_energy_clip =" + str(self.min_energy_clip) + "\n")
+            L1_file.write("max_energy_clip =" + str(self.max_energy_clip) + "\n")
+            L1_file.write("likelihood_train,likelihood_test\n")
+            for llh_train, llh_test in zip(self.likelihood_train, self.likelihood_test):
+                L1_file.write(f"{llh_train},{llh_test}\n")
+
+        if "Sonia" in type(self).__name__:
             energies = self.model.get_weights()[0].ravel()
-            with open(os.path.join(save_dir, 'features.tsv'), 'w') as feature_file:
-                feature_file.write('Feature,energy,marginal_data,marginal_model,marginal_gen\n')
+            with open(os.path.join(save_dir, "features.tsv"), "w") as feature_file:
+                feature_file.write(
+                    "Feature,energy,marginal_data,marginal_model,marginal_gen\n"
+                )
                 for i, _ in enumerate(self.features):
                     feature_file.write(
-                        ';'.join(self.features[i])
-                        + ',' + str(energies[i])
-                        + ',' + str(self.data_marginals[i])
-                        + ',' + str(self.model_marginals[i])
-                        + ',' + str(self.gen_marginals[i])
-                        + '\n'
+                        ";".join(self.features[i])
+                        + ","
+                        + str(energies[i])
+                        + ","
+                        + str(self.data_marginals[i])
+                        + ","
+                        + str(self.model_marginals[i])
+                        + ","
+                        + str(self.gen_marginals[i])
+                        + "\n"
                     )
         else:
-            with open(os.path.join(save_dir, 'features.tsv'), 'w') as feature_file:
-                feature_file.write('Feature,marginal_data,marginal_model,marginal_gen\n')
+            with open(os.path.join(save_dir, "features.tsv"), "w") as feature_file:
+                feature_file.write(
+                    "Feature,marginal_data,marginal_model,marginal_gen\n"
+                )
                 for i, _ in enumerate(self.features):
                     feature_file.write(
-                        ';'.join(self.features[i])
-                        + ',' + str(self.data_marginals[i])
-                        + ',' + str(self.model_marginals[i])
-                        + ',' + str(self.gen_marginals[i])
-                        + '\n'
+                        ";".join(self.features[i])
+                        + ","
+                        + str(self.data_marginals[i])
+                        + ","
+                        + str(self.model_marginals[i])
+                        + ","
+                        + str(self.gen_marginals[i])
+                        + "\n"
                     )
 
-        self.model.save(os.path.join(save_dir, 'model.h5'))
+        self.model.save(os.path.join(save_dir, "model.h5"))
         self._save_pgen_model(save_dir)
 
-    def _save_pgen_model(
-        self,
-        save_dir: str
-    ) -> None:
+    def _save_pgen_model(self, save_dir: str) -> None:
         import shutil
-        shutil.copy2(os.path.join(self.pgen_dir, 'model_params.txt'), save_dir)
-        shutil.copy2(os.path.join(self.pgen_dir, 'model_marginals.txt'), save_dir)
-        shutil.copy2(os.path.join(self.pgen_dir, 'V_gene_CDR3_anchors.csv'), save_dir)
-        shutil.copy2(os.path.join(self.pgen_dir, 'J_gene_CDR3_anchors.csv'), save_dir)
+
+        shutil.copy2(os.path.join(self.pgen_dir, "model_params.txt"), save_dir)
+        shutil.copy2(os.path.join(self.pgen_dir, "model_marginals.txt"), save_dir)
+        shutil.copy2(os.path.join(self.pgen_dir, "V_gene_CDR3_anchors.csv"), save_dir)
+        shutil.copy2(os.path.join(self.pgen_dir, "J_gene_CDR3_anchors.csv"), save_dir)
 
     def load_model(
-        self,
-        ppost_model: str,
-        load_seqs: bool = True,
-        verbose: bool = True
+        self, ppost_model: str, load_seqs: bool = True, verbose: bool = True
     ) -> None:
         """Loads model from directory.
+
         Parameters
         ----------
         load_dir : str
             Directory name to load model attributes from.
         """
-        paired = 'Paired' in type(self).__name__
+        paired = "Paired" in type(self).__name__
         self.ppost_dir = get_model_dir(ppost_model, paired)
 
-        ppost_files = ('features.tsv', 'log.txt')
+        ppost_files = ("features.tsv", "log.txt")
 
-        if 'NN' in type(self).__name__:
-            ppost_files += ('model.h5', )
+        if "NN" in type(self).__name__:
+            ppost_files += ("model.h5",)
 
         files_in_dir = set(os.listdir(self.ppost_dir))
         missing_files = set(ppost_files) - files_in_dir
 
         if len(missing_files) > 0:
-            missing_files = f'{missing_files}'[1:-1]
-            if 'model.h5' in missing_files:
-                if 'Paired' in type(self).__name__:
-                    pair_msg = 'Paired'
+            missing_files = f"{missing_files}"[1:-1]
+            if "model.h5" in missing_files:
+                if "Paired" in type(self).__name__:
+                    pair_msg = "Paired"
                 else:
-                    pair_msg = ''
-                raise RuntimeError('The model cannot be loaded. The following files '
-                                   f'are missing: {missing_files}. Should a Sonia{pair_msg} '
-                                   'model be initialized instead?')
+                    pair_msg = ""
+                raise RuntimeError(
+                    "The model cannot be loaded. The following files "
+                    f"are missing: {missing_files}. Should a Sonia{pair_msg} "
+                    "model be initialized instead?"
+                )
             else:
-                raise RuntimeError('The model cannot be loaded. The following files '
-                                   f'are missing: {missing_files}.')
+                raise RuntimeError(
+                    "The model cannot be loaded. The following files "
+                    f"are missing: {missing_files}."
+                )
 
-        feature_file = os.path.join(self.ppost_dir, 'features.tsv')
-        model_file = os.path.join(self.ppost_dir, 'model.h5')
-        data_seq_file = os.path.join(self.ppost_dir, 'data_seqs.tsv')
-        gen_seq_file = os.path.join(self.ppost_dir, 'gen_seqs.tsv')
-        log_file = os.path.join(self.ppost_dir, 'log.txt')
+        feature_file = os.path.join(self.ppost_dir, "features.tsv")
+        model_file = os.path.join(self.ppost_dir, "model.h5")
+        data_seq_file = os.path.join(self.ppost_dir, "data_seqs.tsv")
+        gen_seq_file = os.path.join(self.ppost_dir, "gen_seqs.tsv")
+        log_file = os.path.join(self.ppost_dir, "log.txt")
 
-        with open(log_file, 'r') as L1_file:
+        with open(log_file) as L1_file:
             self.L1_converge_history = []
 
             # Zeroth line is Z.
-            self.Z = float(next(L1_file).strip().partition('=')[-1])
+            self.Z = float(next(L1_file).strip().partition("=")[-1])
 
             # First line is productive norm.
             if self.recompute_productive_norm:
                 next(L1_file)
             else:
-                self.norm_productive = float(next(L1_file).strip().partition('=')[-1])
+                self.norm_productive = float(next(L1_file).strip().partition("=")[-1])
 
             # Second line is minimum energy clip.
             try:
-                self.min_energy_clip=float(next(L1_file).strip().partition('=')[-1])
+                self.min_energy_clip = float(next(L1_file).strip().partition("=")[-1])
             except:
                 pass
 
             # Third line is maximum energy clip.
             try:
-                self.max_energy_clip=float(next(L1_file).strip().partition('=')[-1])
+                self.max_energy_clip = float(next(L1_file).strip().partition("=")[-1])
             except:
                 pass
 
@@ -1181,7 +1320,7 @@ class Sonia(object):
                 if len(line) == 0:
                     continue
                 try:
-                    train_val, _, test_val = line.partition(',')
+                    train_val, _, test_val = line.partition(",")
                     self.likelihood_train.append(float(train_val))
                     self.likelihood_test.append(float(test_val))
                 except:
@@ -1198,17 +1337,17 @@ class Sonia(object):
         ) -> sparse.csr_array:
             indices = []
             indptr = [0]
-            with open(infile, 'r') as fin:
+            with open(infile) as fin:
                 next(fin)
 
                 for line in fin:
-                    split_line = line.split('\t')
-                    seqs.append(split_line[0].split(';'))
-                    features = split_line[2].strip().split(';')
+                    split_line = line.split("\t")
+                    seqs.append(split_line[0].split(";"))
+                    features = split_line[2].strip().split(";")
                     specified_features = []
                     for feature in features:
-                        if ',' in feature:
-                            feature = tuple(feature.split(','))
+                        if "," in feature:
+                            feature = tuple(feature.split(","))
                         else:
                             feature = (feature,)
                         if feature in self.feature_dict:
@@ -1217,27 +1356,23 @@ class Sonia(object):
                     indptr.append(len(specified_features) + indptr[-1])
             data = np.ones(len(indices), dtype=np.int8)
             return sparse.csr_array(
-                (data, indices, indptr),
-                shape=(len(indptr) - 1, len(self.features))
+                (data, indices, indptr), shape=(len(indptr) - 1, len(self.features))
             )
 
         if os.path.isfile(data_seq_file):
             self.data_seqs = []
             self.data_encoding = seq_loader(data_seq_file, self.data_seqs)
         elif verbose:
-            logging.info('Cannot find data_seqs.tsv  --  no data seqs loaded.')
+            logging.info("Cannot find data_seqs.tsv  --  no data seqs loaded.")
 
         if os.path.isfile(gen_seq_file):
             self.gen_seqs = []
             self.gen_encoding = seq_loader(gen_seq_file, self.gen_seqs)
         elif verbose:
-            logging.info('Cannot find gen_seqs.tsv  --  no generated seqs loaded.')
+            logging.info("Cannot find gen_seqs.tsv  --  no generated seqs loaded.")
 
     def _load_features_and_model(
-        self,
-        feature_file: str,
-        model_file: str,
-        verbose: bool = True
+        self, feature_file: str, model_file: str, verbose: bool = True
     ) -> None:
         """
         Loads features and model.
@@ -1251,15 +1386,17 @@ class Sonia(object):
         gen_marginals = []
         energies = []
 
-        with open(feature_file, 'r') as features_file:
+        with open(feature_file) as features_file:
             column_names = next(features_file)
-            sonia_or_sonnia = column_names.split(',')[1]
-            if sonia_or_sonnia == 'marginal_data': k = 0
-            else: k = 1
+            sonia_or_sonnia = column_names.split(",")[1]
+            if sonia_or_sonnia == "marginal_data":
+                k = 0
+            else:
+                k = 1
 
             for line in features_file:
-                splitted = line.strip().split(',')
-                features.append(splitted[0].split(';'))
+                splitted = line.strip().split(",")
+                features.append(splitted[0].split(";"))
                 data_marginals.append(float(splitted[1 + k]))
                 model_marginals.append(float(splitted[2 + k]))
                 gen_marginals.append(float(splitted[3 + k]))
@@ -1284,49 +1421,57 @@ class Sonia(object):
                 self.model = keras.models.load_model(
                     model_file,
                     custom_objects={
-                        'loss': self._loss, 'likelihood': self._likelihood,
-                        'clip': ko.clip,
+                        "loss": self._loss,
+                        "likelihood": self._likelihood,
+                        "clip": ko.clip,
                     },
-                    compile=False
+                    compile=False,
                 )
             except Exception as e:
-                if 'Unknown layer' in str(e):
-                    paired_str = 'Paired' if 'Paired' in type(self).__name__ else ''
-                    raise RuntimeError('The loaded model structure is supposed to be for '
-                                       f'a SoNNia{paired_str} model, but a Sonia{paired_str} '
-                                       'model is trying to be initialized. Try loading '
-                                       f'the model using the SoNNia{paired_str} class instead.')
+                if "Unknown layer" in str(e):
+                    paired_str = "Paired" if "Paired" in type(self).__name__ else ""
+                    raise RuntimeError(
+                        "The loaded model structure is supposed to be for "
+                        f"a SoNNia{paired_str} model, but a Sonia{paired_str} "
+                        "model is trying to be initialized. Try loading "
+                        f"the model using the SoNNia{paired_str} class instead."
+                    )
                 else:
                     raise e
 
             if len(self.model.layers) > 3:
-                paired_str = 'Paired' if 'Paired' in type(self).__name__ else ''
-                raise RuntimeError('The loaded model structure is supposed to be '
-                                   f'for a SoNNia{paired_str} model, but a Sonia{paired_str} '
-                                   'model is trying to be initialized. Try loading '
-                                   f'the model using the SoNNia{paired_str} class instead.')
+                paired_str = "Paired" if "Paired" in type(self).__name__ else ""
+                raise RuntimeError(
+                    "The loaded model structure is supposed to be "
+                    f"for a SoNNia{paired_str} model, but a Sonia{paired_str} "
+                    "model is trying to be initialized. Try loading "
+                    f"the model using the SoNNia{paired_str} class instead."
+                )
 
             self.optimizer = keras.optimizers.RMSprop()
             self.model.compile(
-                optimizer=self.optimizer, loss=self._loss,metrics=[self._likelihood]
+                optimizer=self.optimizer, loss=self._loss, metrics=[self._likelihood]
             )
 
-    def load_pgen_model(
-        self
-    ) -> None:
-        '''
-        load olga model.
-        '''
-        #Load generative model
-        (self.genomic_data, self.generative_model,
-         self.pgen_model, self.seqgen_model, self.norm_productive,
-         self.pgen_dir) = define_pgen_model(
-             self.pgen_model, self.recompute_productive_norm, return_pgen_dir=True
-         )
+    def load_pgen_model(self) -> None:
+        """
+        Load olga model.
+        """
+        # Load generative model
+        (
+            self.genomic_data,
+            self.generative_model,
+            self.pgen_model,
+            self.seqgen_model,
+            self.norm_productive,
+            self.pgen_dir,
+        ) = define_pgen_model(
+            self.pgen_model, self.recompute_productive_norm, return_pgen_dir=True
+        )
 
-        with open(os.path.join(self.pgen_dir, 'model_params.txt'), 'r') as fin:
+        with open(os.path.join(self.pgen_dir, "model_params.txt")) as fin:
             sep = 0
-            error_rate = ''
+            error_rate = ""
             lines = fin.read().splitlines()
             while len(error_rate) < 1:
                 error_rate = lines[-1 + sep]
@@ -1339,11 +1484,14 @@ class Sonia(object):
         nucleotide: bool = False,
         error_rate: Optional[int] = None,
         add_error: bool = False,
-        seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
+        seed: Optional[
+            int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence
+        ] = None,
     ) -> NDArray[str]:
         """Generates MonteCarlo sequences for gen_seqs using OLGA in parallel.
         Only generates seqs from a V(D)J model. Requires the OLGA package
         (pip install olga). If you add error_rate, only the aminoacid sequence is modified.
+
         Parameters
         ----------
         num_seqs : int or float
@@ -1351,15 +1499,18 @@ class Sonia(object):
             sequence pool.
 
         Returns
-        --------------
+        -------
         seqs : list
             MonteCarlo sequences drawn from a VDJ recomb model
         """
-        from sonnia.utils import add_random_error, generate_sequence
         from olga.utils import nt2aa
 
-        if error_rate is None: error_rate = self.error_rate
-        else: error_rate = error_rate
+        from sonnia.utils import add_random_error, generate_sequence
+
+        if error_rate is None:
+            error_rate = self.error_rate
+        else:
+            error_rate = error_rate
 
         if seed is None:
             rng = self.rng
@@ -1368,29 +1519,35 @@ class Sonia(object):
 
         if num_seqs > 20000:
             seeds = rng.integers(low=0, high=2**32 - 1, size=num_seqs)
-            zipped = zip(itertools.repeat(self.seqgen_model, num_seqs),
-                         itertools.repeat(self.genomic_data, num_seqs),
-                         seeds,
-                         itertools.repeat(add_error, num_seqs),
-                         itertools.repeat(error_rate, num_seqs))
+            zipped = zip(
+                itertools.repeat(self.seqgen_model, num_seqs),
+                itertools.repeat(self.genomic_data, num_seqs),
+                seeds,
+                itertools.repeat(add_error, num_seqs),
+                itertools.repeat(error_rate, num_seqs),
+            )
 
             with mp.Pool(processes=self.processes) as pool:
                 seqs = pool.starmap(generate_sequence, zipped)
         else:
             seqs = []
-            tqdm_desc = 'Generating sequences'
+            tqdm_desc = "Generating sequences"
             for i in tqdm(range(int(num_seqs)), position=0, desc=tqdm_desc):
                 np.random.seed(rng.integers(0, 2**32 - 1))
-                seq = self.seqgen_model.gen_rnd_prod_CDR3(conserved_J_residues='ABCEDFGHIJKLMNOPQRSTUVWXYZ')
+                seq = self.seqgen_model.gen_rnd_prod_CDR3(
+                    conserved_J_residues="ABCEDFGHIJKLMNOPQRSTUVWXYZ"
+                )
 
                 if add_error:
                     err_seq = add_random_error(seq[0], self.error_rate)
                     seq = [err_seq, nt2aa(err_seq), seq[2], seq[3]]
 
-                seq = [seq[1],
-                       self.genomic_data.genV[seq[2]][0].partition('*')[0],
-                       self.genomic_data.genJ[seq[3]][0].partition('*')[0],
-                       seq[0]]
+                seq = [
+                    seq[1],
+                    self.genomic_data.genV[seq[2]][0].partition("*")[0],
+                    self.genomic_data.genJ[seq[3]][0].partition("*")[0],
+                    seq[0],
+                ]
 
                 seqs.append(seq)
 
@@ -1400,22 +1557,24 @@ class Sonia(object):
         else:
             return seqs[:, :-1]
 
-#        if seed is None:
-#            seed = self.rng
-#
-#        seqs = rg.generate_pgen_seqs(
-#            self.pgen_dir, num_seqs, seed, processes=self.processes)
-#
-#        if nucleotide:
-#            return seqs
-#        return seqs[:, :-1]
+    #        if seed is None:
+    #            seed = self.rng
+    #
+    #        seqs = rg.generate_pgen_seqs(
+    #            self.pgen_dir, num_seqs, seed, processes=self.processes)
+    #
+    #        if nucleotide:
+    #            return seqs
+    #        return seqs[:, :-1]
 
     def generate_sequences_post(
         self,
         num_seqs: int = 1,
         upper_bound: float = 10,
         nucleotide: bool = False,
-        seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
+        seed: Optional[
+            int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence
+        ] = None,
         max_chunksize: int = int(2e6),
     ) -> NDArray[str]:
         """
@@ -1452,9 +1611,7 @@ class Sonia(object):
 
         seqs = []
 
-        chunksize = min(
-            max_chunksize, int(upper_bound * num_seqs * 1.1)
-        )
+        chunksize = min(max_chunksize, int(upper_bound * num_seqs * 1.1))
 
         while len(seqs) < num_seqs + 1:
             # generate sequences from pre
@@ -1462,14 +1619,12 @@ class Sonia(object):
                 num_seqs=chunksize, nucleotide=nucleotide, seed=rng
             )
 
-            # compute features and energies 
+            # compute features and energies
             encoding = self.encode_data(seqs_gen)
             energies = self.compute_energy(encoding)
 
-            #do rejection
-            rejection_selection = self.rejection_sampling(
-                energies, upper_bound, rng
-            )
+            # do rejection
+            rejection_selection = self.rejection_sampling(energies, upper_bound, rng)
 
             seqs_post = seqs_gen[rejection_selection]
             if len(seqs) == 0 and len(seqs_post) > 0:
@@ -1482,7 +1637,9 @@ class Sonia(object):
         self,
         energies: NDArray[np.float32],
         upper_bound: float = 10,
-        seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
+        seed: Optional[
+            int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence
+        ] = None,
     ) -> NDArray[bool]:
         """
         Return whether sequences would pass selection using rejection sampling.
@@ -1513,9 +1670,7 @@ class Sonia(object):
         return random_samples < q / upper_bound
 
     def evaluate_seqs(
-        self,
-        seqs: Sequence[Sequence[str]] = [],
-        include_genes: bool = True
+        self, seqs: Sequence[Sequence[str]] = [], include_genes: bool = True
     ) -> Tuple[NDArray[np.float32] | NDArray[np.float64]]:
         """
         Return the selection factors, Pgen, and Ppost of sequences.
@@ -1546,8 +1701,7 @@ class Sonia(object):
         return qs, pgens, pposts
 
     def evaluate_selection_factors(
-        self,
-        seqs: Sequence[Sequence[str]] = []
+        self, seqs: Sequence[Sequence[str]] = []
     ) -> NDArray[np.float32]:
         """
         Return the normalized selection factors.
@@ -1574,8 +1728,9 @@ class Sonia(object):
         features: Optional[Sequence[Tuple[str]]] = None,
         use_flat_distribution: bool = False,
     ) -> None:
-        '''Returns joint marginals P(i,j) with i and j features of sonia (l3, aA6, etc..), index of features attribute is preserved.
+        """Returns joint marginals P(i,j) with i and j features of sonia (l3, aA6, etc..), index of features attribute is preserved.
            Matrix is lower-triangular.
+
         Parameters
         ----------
         features: list
@@ -1586,21 +1741,24 @@ class Sonia(object):
             seqs to encode.
         use_flat_distribution: bool
             for data and generated seqs is True, for model is False (weights with Q)
+
         Returns
         -------
         joint_marginals: array
             matrix (i,j) of joint marginals
-        '''
-
+        """
         if encoding is None and seqs is None:
-            raise RuntimeError('Both encoding and seqs cannot be None.')
+            raise RuntimeError("Both encoding and seqs cannot be None.")
         if encoding is not None and seqs is not None:
-            raise RuntimeError('Both encoding and seqs cannot be given. '
-                             'One of them must be None.')
+            raise RuntimeError(
+                "Both encoding and seqs cannot be given. " "One of them must be None."
+            )
         if encoding is not None and features is not None:
-            raise RuntimeError('Both encoding and features cannot be given. '
-                               'If features is given, seqs must be given to redo '
-                               'the one-hot encoding.')
+            raise RuntimeError(
+                "Both encoding and features cannot be given. "
+                "If features is given, seqs must be given to redo "
+                "the one-hot encoding."
+            )
         if features is not None:
             num_features = len(features)
         else:
@@ -1612,7 +1770,7 @@ class Sonia(object):
         seq_model_features = self.encoding_to_feature_idxs(encoding)
 
         l = len(features)
-        two_points_marginals = np.zeros((l,l))
+        two_points_marginals = np.zeros((l, l))
         n = len(seq_model_features)
         procs = mp.cpu_count()
         sizeSegment = int(n / procs)
@@ -1632,33 +1790,38 @@ class Sonia(object):
 
         # Create size segments list
         jobs = []
-        for i in range(0, procs-1):
-            jobs.append([seq_model_features[i*sizeSegment:(i+1)*sizeSegment],Qs[i*sizeSegment:(i+1)*sizeSegment],np.zeros((l,l))])
-        p=mp.Pool(procs)
+        for i in range(procs - 1):
+            jobs.append(
+                [
+                    seq_model_features[i * sizeSegment : (i + 1) * sizeSegment],
+                    Qs[i * sizeSegment : (i + 1) * sizeSegment],
+                    np.zeros((l, l)),
+                ]
+            )
+        p = mp.Pool(procs)
         pool = p.map(partial_joint_marginals, jobs)
         p.close()
-        Z=0
-        two_points_marginals=0
-        for m,z in pool:
-            Z+=z
-            two_points_marginals+=m
-        return two_points_marginals/Z
+        Z = 0
+        two_points_marginals = 0
+        for m, z in pool:
+            Z += z
+            two_points_marginals += m
+        return two_points_marginals / Z
 
-    def joint_marginals_independent(
-        self,
-        marginals: np.ndarray
-    ) -> np.ndarray:
-        '''Returns independent joint marginals P(i,j)=P(i)*P(j) with i and j features of sonia (l3, aA6, etc..), index of features attribute is preserved.
+    def joint_marginals_independent(self, marginals: np.ndarray) -> np.ndarray:
+        """Returns independent joint marginals P(i,j)=P(i)*P(j) with i and j features of sonia (l3, aA6, etc..), index of features attribute is preserved.
         Matrix is lower-triangular.
+
         Parameters
         ----------
         marginals: list
             marginals.
+
         Returns
         -------
         joint_marginals: array
             matrix (i,j) of joint marginals
-        '''
+        """
         joint_marginals = np.outer(marginals, marginals)
 
         # Return the lower triangle of the matrix with zeros along the diagonal,
@@ -1667,10 +1830,8 @@ class Sonia(object):
         np.fill_diagonal(joint_marginals, 0)
         return joint_marginals
 
-    def compute_joint_marginals(
-        self
-    ) -> None:
-        '''Computes joint marginals for all.
+    def compute_joint_marginals(self) -> None:
+        """Computes joint marginals for all.
         Attributes Set
         -------
         gen_marginals_two: array
@@ -1685,92 +1846,101 @@ class Sonia(object):
             matrix (i,j) of joint marginals for pre-selection distribution
         model_marginals_two_independent: array
             matrix (i,j) of joint marginals for pre-selection distribution
-        '''
-
+        """
         self.gen_marginals_two = self.joint_marginals(
-            encoding=self.gen_encoding,
-            use_flat_distribution=True
+            encoding=self.gen_encoding, use_flat_distribution=True
         )
         self.data_marginals_two = self.joint_marginals(
-            encoding=self.data_encoding,
-            use_flat_distribution=True
+            encoding=self.data_encoding, use_flat_distribution=True
         )
         self.model_marginals_two = self.joint_marginals(encoding=self.gen_encoding)
-        self.gen_marginals_two_independent = self.joint_marginals_independent(self.gen_marginals)
-        self.data_marginals_two_independent = self.joint_marginals_independent(self.data_marginals)
-        self.model_marginals_two_independent = self.joint_marginals_independent(self.model_marginals)
+        self.gen_marginals_two_independent = self.joint_marginals_independent(
+            self.gen_marginals
+        )
+        self.data_marginals_two_independent = self.joint_marginals_independent(
+            self.data_marginals
+        )
+        self.model_marginals_two_independent = self.joint_marginals_independent(
+            self.model_marginals
+        )
 
     def compute_all_pgens(
-        self,
-        seqs: Sequence[Sequence[str]],
-        include_genes: bool = True
+        self, seqs: Sequence[Sequence[str]], include_genes: bool = True
     ) -> np.ndarray:
-        '''Compute Pgen of sequences using OLGA in parallel
+        """Compute Pgen of sequences using OLGA in parallel
+
         Parameters
         ----------
         seqs: list
             list of sequences to evaluate.
+
         Returns
         -------
         pgens: array
             generation probabilities of the sequences.
-        '''
+        """
         if include_genes:
             with mp.Pool(processes=self.processes) as pool:
-                f = pool.map(compute_pgen_expand, zip(seqs, itertools.repeat(self.pgen_model)))
+                f = pool.map(
+                    compute_pgen_expand, zip(seqs, itertools.repeat(self.pgen_model))
+                )
             return np.array(f)
 
         with mp.Pool(processes=self.processes) as pool:
-            f = pool.map(compute_pgen_expand_novj, zip(seqs, itertools.repeat(self.pgen_model)))
+            f = pool.map(
+                compute_pgen_expand_novj, zip(seqs, itertools.repeat(self.pgen_model))
+            )
         return np.array(f)
 
     def entropy(
-        self,
-        n: int = int(2e4),
-        include_genes: bool = True,
-        remove_zeros: bool = True
+        self, n: int = int(2e4), include_genes: bool = True, remove_zeros: bool = True
     ) -> float:
-        '''Compute Entropy of Model
+        """Compute Entropy of Model
+
         Returns
         -------
         entropy: float
             entropy of the model
-        '''
+        """
         if self.gen_encoding.shape[0] >= int(1e4):
             encoding = self.gen_encoding[:n]
-            seqs= self.gen_seqs[:n]
+            seqs = self.gen_seqs[:n]
         else:
-            raise RuntimeError('At least 10,000 generated sequences must be used '
-                               f'for estimating entropy. Only {self.gen_encoding.shape[0]} '
-                              'generated sequences are present.')
+            raise RuntimeError(
+                "At least 10,000 generated sequences must be used "
+                f"for estimating entropy. Only {self.gen_encoding.shape[0]} "
+                "generated sequences are present."
+            )
 
-        energies = self.compute_energy(encoding) # compute energies
-        self.gen_Q = np.exp(-energies) / self.Z # compute Q
-        self.gen_pgen = self.compute_all_pgens(seqs, include_genes) / self.norm_productive # compute pgen
+        energies = self.compute_energy(encoding)  # compute energies
+        self.gen_Q = np.exp(-energies) / self.Z  # compute Q
+        self.gen_pgen = (
+            self.compute_all_pgens(seqs, include_genes) / self.norm_productive
+        )  # compute pgen
         sel = self.gen_pgen > 0
         num_zero_pgen = len(sel) - np.count_nonzero(sel)
         if num_zero_pgen > 0:
-            logging.info(f'{num_zero_pgen} sequences have zero Pgen, we remove '
-                         'them in the evaluation of the entropy')
-        self.gen_ppost = self.gen_pgen * self.gen_Q # compute ppost
+            logging.info(
+                f"{num_zero_pgen} sequences have zero Pgen, we remove "
+                "them in the evaluation of the entropy"
+            )
+        self.gen_ppost = self.gen_pgen * self.gen_Q  # compute ppost
         self._entropy = -np.mean(self.gen_Q[sel] * np.log2(self.gen_ppost[sel]))
         return self._entropy
 
-    def dkl_post_gen(
-        self,
-        n: int = int(1e5)
-    ) -> float:
-        '''Compute D_KL(P_post|P_gen)
+    def dkl_post_gen(self, n: int = int(1e5)) -> float:
+        """Compute D_KL(P_post|P_gen)
+
         Returns
         -------
         dkl: float
             D_KL(P_post|P_gen)
-        '''
-        if hasattr(self, 'energies_gen'): # energies gen exist
+        """
+        if hasattr(self, "energies_gen"):  # energies gen exist
             if len(self.energies_gen) < 1e4:
                 raise RuntimeError(
-                    'At least 10,000 generated sequences must be used for estimating '
-                    f'DKL(post || gen). Only {len(self.energies_gen)} were used.'
+                    "At least 10,000 generated sequences must be used for estimating "
+                    f"DKL(post || gen). Only {len(self.energies_gen)} were used."
                 )
             Q = np.exp(-self.energies_gen) / self.Z
             self.dkl = np.mean(Q * np.log2(Q))
@@ -1780,10 +1950,10 @@ class Sonia(object):
             encoding = self.gen_encoding[:n]
         else:
             raise RuntimeError(
-                'At least 10,000 generated sequences must be used for estimating '
-                f'entropy. Only {self.gen_encoding.shape[0]} are present.'
+                "At least 10,000 generated sequences must be used for estimating "
+                f"entropy. Only {self.gen_encoding.shape[0]} are present."
             )
-        energies = self.compute_energy(encoding) # compute energies
-        Q = np.exp(-energies) / self.Z # compute Q
+        energies = self.compute_energy(encoding)  # compute energies
+        Q = np.exp(-energies) / self.Z  # compute Q
         self.dkl = np.mean(Q * np.log2(Q))
         return self.dkl

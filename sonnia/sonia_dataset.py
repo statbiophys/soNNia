@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Copyright (C) 2024 Montague, Zachary
 #
@@ -15,15 +14,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-"""Script containing the SoniaDataset class for loading data into mini-batches.
-"""
+"""Script containing the SoniaDataset class for loading data into mini-batches."""
+
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import keras
 import keras.ops as ko
 import numpy as np
-from numpy.typing import NDArray
 import scipy.sparse as sparse
+from numpy.typing import NDArray
+
 
 class SoniaDataset(keras.utils.PyDataset):
     """
@@ -82,6 +82,7 @@ class SoniaDataset(keras.utils.PyDataset):
     on_epoch_end()
         How to update the indices (determined by the sampling scheme).
     """
+
     def __init__(
         self,
         x: NDArray[np.int8],
@@ -89,7 +90,9 @@ class SoniaDataset(keras.utils.PyDataset):
         sampling: str,
         batch_size: int = 512,
         shuffle: bool = True,
-        seed: Optional[int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence] = None,
+        seed: Optional[
+            int | np.random.Generator | np.random.BitGenerator | np.random.SeedSequence
+        ] = None,
         split_encoding: Optional[Callable] = None,
         **kwargs: Dict[str, Any],
     ) -> None:
@@ -132,11 +135,11 @@ class SoniaDataset(keras.utils.PyDataset):
 
         self.class_0_size = self.where_class_0.shape[0]
         if self.class_0_size == 0:
-            raise RuntimeError('No data seqs loaded into the SoniaDataset.')
+            raise RuntimeError("No data seqs loaded into the SoniaDataset.")
 
         self.class_1_size = self.where_class_1.shape[0]
         if self.class_1_size == 0:
-            raise RuntimeError('No gen seqs loaded into the SoniaDataset.')
+            raise RuntimeError("No gen seqs loaded into the SoniaDataset.")
 
         if self.class_0_size > self.class_1_size:
             self.bigger_size = self.class_0_size
@@ -148,47 +151,49 @@ class SoniaDataset(keras.utils.PyDataset):
             self.majority_class = 1
 
         self.sampling = sampling
-        if self.sampling == 'undersample':
+        if self.sampling == "undersample":
             self.batch_constraint = self.smaller_size * 2
             self.on_epoch_end = self.on_epoch_end_shuffle
-        elif self.sampling == 'oversample':
+        elif self.sampling == "oversample":
             self.batch_constraint = self.bigger_size * 2
             self.on_epoch_end = self.on_epoch_end_oversample
-        elif self.sampling == 'unbalanced':
+        elif self.sampling == "unbalanced":
             self.batch_constraint = self.class_0_size + self.class_1_size
             self.class_0_batch = int(
-                self.class_0_size / (self.class_0_size + self.class_1_size) * self.batch_size
+                self.class_0_size
+                / (self.class_0_size + self.class_1_size)
+                * self.batch_size
             )
 
             if self.class_0_batch == 0:
                 raise RuntimeError(
-                    'The classes are too imbalanced. Not every batch will contain '
-                    'a data sequence. One possible way to mitigate this is increasing '
-                    'the batch_size.'
+                    "The classes are too imbalanced. Not every batch will contain "
+                    "a data sequence. One possible way to mitigate this is increasing "
+                    "the batch_size."
                 )
 
-
             self.class_1_batch = int(
-                self.class_1_size / (self.class_0_size + self.class_1_size) * self.batch_size
+                self.class_1_size
+                / (self.class_0_size + self.class_1_size)
+                * self.batch_size
             )
             if self.class_1_batch == 0:
                 raise RuntimeError(
-                    'The classes are too imbalanced. Not every batch will contain '
-                    'a gen sequence. One possible way to mitigate this is increasing '
-                    'the batch_size.'
+                    "The classes are too imbalanced. Not every batch will contain "
+                    "a gen sequence. One possible way to mitigate this is increasing "
+                    "the batch_size."
                 )
 
             self.on_epoch_end = self.on_epoch_end_shuffle
         else:
             raise ValueError(
-                'sampling must be \'undersample\', \'oversample\', or \'unbalanced\'.'
+                "sampling must be 'undersample', 'oversample', or 'unbalanced'."
             )
 
         self.on_epoch_end()
 
     def __getitem__(
-        self,
-        index: int
+        self, index: int
     ) -> Tuple[NDArray[np.int8] | List[NDArray[np.int8]], NDArray[np.int8]]:
         """
         Return a mini-batch which is guaranteed to include both gen and data seqs.
@@ -210,7 +215,7 @@ class SoniaDataset(keras.utils.PyDataset):
         y : numpy.ndarray of numpy.int8
             The labels denoting which features come from class 0 or class 1 data.
         """
-        if self.sampling != 'unbalanced':
+        if self.sampling != "unbalanced":
             start_idx = index * self.batch_size // 2
             end_idx = start_idx + self.batch_size // 2
             indices_0 = self.class_0_indices[start_idx:end_idx]
@@ -225,9 +230,9 @@ class SoniaDataset(keras.utils.PyDataset):
 
         # It is faster to concatenate indices than it is to concatenate arrays
         # of large two-dimensional arrays of features.
-        batch_indices = np.concatenate((
-            self.where_class_0[indices_0], self.where_class_1[indices_1]
-        ))
+        batch_indices = np.concatenate(
+            (self.where_class_0[indices_0], self.where_class_1[indices_1])
+        )
 
         if self.sparse_input:
             x = self.x[batch_indices].toarray()
@@ -240,9 +245,7 @@ class SoniaDataset(keras.utils.PyDataset):
             x = self.split_encoding(x)
         return x, y
 
-    def __len__(
-        self
-    ) -> int:
+    def __len__(self) -> int:
         """
         Return the number of mini-batches per epoch.
 
@@ -260,9 +263,7 @@ class SoniaDataset(keras.utils.PyDataset):
         """
         return int(np.ceil(self.batch_constraint / self.batch_size))
 
-    def on_epoch_end_oversample(
-        self
-    ) -> None:
+    def on_epoch_end_oversample(self) -> None:
         """
         Update the indices for the next epoch.
 
@@ -293,9 +294,7 @@ class SoniaDataset(keras.utils.PyDataset):
             if self.shuffle == True:
                 self.rng.shuffle(self.class_0_indices)
 
-    def on_epoch_end_shuffle(
-        self
-    ) -> None:
+    def on_epoch_end_shuffle(self) -> None:
         """
         Update the indices for the next epoch.
 

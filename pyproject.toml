@@ -51,3 +51,70 @@ Documentation = "https://sonnia.readthedocs.io/en/latest/index.html"
 sonnia-infer='sonnia.infer:main'
 sonnia-generate='sonnia.generate:main'
 sonnia-evaluate='sonnia.evaluate:main'
+
+[tool.ruff]
+line-length = 88
+fix = true
+exclude = [
+  "__init__.py",
+  "examples/"
+]
+
+[tool.ruff.lint]
+select = [
+  "ANN", # flake8-annotations
+  "B", # flake8-bugbear
+  "C4", # flake8-comprehensions
+  "D", # flake8-docstrings
+  "E", # pycodestyle
+  "EM", # flake8-errmsg
+  "F", # pyflakes
+  "FA", # flake8-future-annotations
+  "I", # isort
+  "ICN", # flake8-import-conventions
+  "INT", # flake8-gettext
+  "PERF", # perflint
+  "PIE", # flake8-pie
+  "PT", # flake8-pytest-style
+  "PYI", # flake8-pyi
+  "RUF", # ruff-specific rules
+  "SIM", # flake8-simplify
+  "TCH", # flake8-type-checking
+  "TD", # flake8-todos
+  "TID", # flake8-tidy-imports
+  "TRY", # tryceratops
+  "UP", # pyupgrade
+  "W", # pycodestyle
+]
+
+ignore = [
+  "ANN401", # Dynamically typed expressions (Any) are disallowed
+  "D401", # Relax NumPy docstring convention: first line should be imperative
+  "E501", # Line length regulated by formatter
+  "PT011", # pytest.raises is too broad, set match or use a more specific exception
+  "PYI041", # Use float instead of int | float
+  "RUF022", # `__all__` is not sorted
+  "RUF005", # Consider expression instead of concatenation
+  "SIM102", # Use a single `if` statement instead of nested `if` statements
+  "SIM108", # Use ternary operator
+  "SIM114", # Combine `if` branches
+  "TD002", # Missing author in TODO
+  "TD003", # Missing issue link on the line following this TODO
+  "TRY003", # Avoid specifying long messages outside the exception class
+]
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 88
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-type-checking]
+strict = true
+
+[tool.ruff.format]
+docstring-code-format = true
+indent-style = "space"
