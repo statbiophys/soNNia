@@ -1235,7 +1235,7 @@ class Sonia:
                         + "\n"
                     )
 
-        self.model.save(os.path.join(save_dir, "model.h5"))
+        self.model.save(os.path.join(save_dir, "model.keras"))
         self._save_pgen_model(save_dir)
 
     def _save_pgen_model(self, save_dir: str) -> None:
@@ -1247,7 +1247,7 @@ class Sonia:
         shutil.copy2(os.path.join(self.pgen_dir, "J_gene_CDR3_anchors.csv"), save_dir)
 
     def load_model(
-        self, ppost_model: str, load_seqs: bool = True, verbose: bool = True
+        self, ppost_model: str, load_seqs: bool = True, verbose: bool = False
     ) -> None:
         """Loads model from directory.
 
@@ -1260,16 +1260,19 @@ class Sonia:
         self.ppost_dir = get_model_dir(ppost_model, paired)
 
         ppost_files = ("features.tsv", "log.txt")
+        files_in_dir = set(os.listdir(self.ppost_dir))
 
         if "NN" in type(self).__name__:
-            ppost_files += ("model.h5",)
+            if "model.h5" in files_in_dir:
+                ppost_files += ("model.h5",)
+            else:
+                ppost_files += ("model.keras",)
 
-        files_in_dir = set(os.listdir(self.ppost_dir))
         missing_files = set(ppost_files) - files_in_dir
 
         if len(missing_files) > 0:
             missing_files = f"{missing_files}"[1:-1]
-            if "model.h5" in missing_files:
+            if "model.keras" in missing_files:
                 if "Paired" in type(self).__name__:
                     pair_msg = "Paired"
                 else:
@@ -1286,7 +1289,11 @@ class Sonia:
                 )
 
         feature_file = os.path.join(self.ppost_dir, "features.tsv")
-        model_file = os.path.join(self.ppost_dir, "model.h5")
+        try: 
+            model_file = os.path.join(self.ppost_dir, "model.keras")
+        except:
+            model_file = os.path.join(self.ppost_dir, "model.h5")
+
         data_seq_file = os.path.join(self.ppost_dir, "data_seqs.tsv")
         gen_seq_file = os.path.join(self.ppost_dir, "gen_seqs.tsv")
         log_file = os.path.join(self.ppost_dir, "log.txt")

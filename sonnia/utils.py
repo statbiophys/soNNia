@@ -110,7 +110,7 @@ def get_model_dir(model_dir: str, paired: bool = False) -> str:
             f"Try using one of the default options for a {paired_str}model "
             f"or an existing directory containing a {paired_str}model."
         )
-    return model_dir
+    return str(model_dir)
 
 
 def define_pgen_model(
@@ -542,11 +542,9 @@ def filter_seqs(
 
 
 def sample_olga(
-    num_gen_seqs=1, custom_model_folder=None, vj=False, chain_type="human_T_beta"
+    num_gen_seqs=1, custom_model_folder=None
 ):
-    (genomic_data, generative_model, _, seq_model) = define_pgen_model(
-        custom_model_folder, chain_type, vj
-    )
+    (genomic_data, generative_model, pgen_model, sg_model, _) = define_pgen_model(custom_model_folder)
 
     # Generate sequences
     return [

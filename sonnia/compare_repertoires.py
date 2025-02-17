@@ -15,24 +15,90 @@ from sonnia.sonia import Sonia
 
 
 class Compare:
+    """
+    A class to compare repertoires using various statistical and machine learning methods.
+    
+    Attributes:
+    -----------
+    pgen_model : object
+        Pgen model, default is the same as chain_type.
+    processor : Processing
+        An instance of the Processing class.
+    data : list
+        List of data file paths.
+    datasets : list
+        List of datasets loaded from the data file paths.
+    labels : list
+        List of labels for the datasets.
+    pairs : itertools.combinations
+        Combinations of dataset indices for pairwise comparison.
+    selection_models : list
+        List of selection models inferred from the datasets.
+    selection : list
+        List of selection factors.
+    qs_data : list
+        List of evaluated selection factors for data.
+    qs_gen : list
+        List of evaluated selection factors for generated sequences.
+    dist_matrix : np.ndarray
+        Distance matrix for the datasets.
+    differential_qs : list
+        List of differential selection factors between datasets.
+    
+    Methods:
+    --------
+    infer_models():
+        Infers selection models for the datasets.
+    JSD(i, j):
+        Computes the Jensen-Shannon Divergence between two datasets.
+    evaluate(max_n=int(2e4), upper_limit=10):
+        Evaluates the selection models and computes the distance matrix.
+    likelihood(p, Q4, Q8):
+        Computes the likelihood given parameters p, Q4, and Q8.
+    histogram(value, binning, density=True, c="k", linewidth=1, label=None, alpha=1):
+        Plots a histogram of the given values.
+    compute_roc(k, ax):
+        Computes the ROC curve for the k-th pair of datasets.
+    plot_dist_matrix(vmax=None):
+        Plots the distance matrix as a heatmap with hierarchical clustering.
+    plot_report_inference(qm, save_fig=None):
+        Plots the report of the inference process.
+    plot_q_distributions(save_fig=None):
+        Plots the distributions of the selection factors.
+    plot_roc_curves(upper=False, save_fig=None):
+        Plots the ROC curves for the pairwise comparisons of datasets.
+    save_dist_matrix(file_path):
+        Saves the distance matrix to a CSV file.
+    """
+
+
     def __init__(
         self,
         data=[],
-        chain_type="human_T_beta",
         pgen_model=None,
         gen_seqs=None,
-        vj=False,
     ):
-        self.chain_type = chain_type
-        self.custom_pgen_model = pgen_model
-        if pgen_model is None:
-            self.pgen_model = chain_type
-        else:
-            self.pgen_model = pgen_model
+        """
+        Initialize the compare_repertoires class.
+        
+        Parameters:
+        data (list): A list of file paths to CSV files containing the data to be compared.
+        pgen_model (optional): A model used for generating sequences. Default is None.
+        gen_seqs (optional): Pre-generated sequences. If not provided, sequences will be generated using the pgen_model.
+        
+        Attributes:
+        pgen_model: The model used for generating sequences.
+        processor: An instance of the Processing class initialized with the pgen_model.
+        data (list): A list containing the string "$P_{gen}$" followed by the file paths provided in the data parameter.
+        datasets (list): A list of datasets, where the first element is the generated sequences and the rest are the filtered datasets from the provided CSV files.
+        labels (list): A list of labels for the datasets, where the first element is "$P_{gen}$" and the rest are derived from the file names of the provided CSV files.
+        pairs: An iterator of combinations of dataset indices, used for comparing pairs of datasets.
+        """
+        self.pgen_model = pgen_model
         if gen_seqs is not None:
             gen = gen_seqs
         else:
-            qm = SoNNia(pgen_model=self.pgen_model)
+            qm = Sonia(pgen_model=self.pgen_model)
             gen_seqs = qm.generate_sequences_pre(int(1e6))
         self.processor = Processing(pgen_model=self.pgen_model)
 
@@ -49,6 +115,16 @@ class Compare:
         self.pairs = itertools.combinations(np.arange(len(self.datasets)), 2)
 
     def infer_models(self):
+        """
+        Infers selection models for the datasets.
+        This method initializes a Sonia model with the provided pgen_model and sets its weights to zero.
+        It then iterates over the datasets, inferring selection models for each dataset after the first one.
+        The inferred models are stored in the selection_models attribute.
+        
+        Attributes:
+            self.selection_models (list): A list to store the inferred selection models.
+        """
+
         qm = Sonia(pgen_model=self.pgen_model)
         len_feats = len(qm.features)
         qm.model.set_weights([np.zeros((len_feats, 1))])
@@ -63,6 +139,16 @@ class Compare:
             self.selection_models.append(qm)
 
     def JSD(self, i, j):
+        """
+        Calculate the Jensen-Shannon Divergence (JSD) between two probability distributions.
+        The JSD is a method of measuring the similarity between two probability distributions.
+        It is a symmetric and smoothed version of the Kullback-Leibler divergence.
+        Parameters:
+        i (int): Index of the first probability distribution.
+        j (int): Index of the second probability distribution.
+        Returns:
+        float: The Jensen-Shannon Divergence between the two distributions.
+        """
         part1 = (
             np.mean(
                 np.log2(
@@ -90,6 +176,22 @@ class Compare:
         return 1 + part1 + part2
 
     def evaluate(self, max_n=int(2e4), upper_limit=10):
+        """
+        Evaluate selection models and compute distance matrix and differential selection factors.
+        
+        Parameters:
+        max_n (int): Maximum number of samples to consider from each dataset. Default is 20000.
+        upper_limit (int): Multiplier for the upper limit of samples from the first dataset. Default is 10.
+        
+        Attributes:
+        selection (list): List of boolean arrays indicating selected samples.
+        qs_data (list): List of selection factors for the data.
+        qs_gen (list): List of selection factors for the generated data.
+        dist_matrix (ndarray): Matrix of Jensen-Shannon Divergence values between selection models.
+        differential_qs (list): List of differential selection factors between pairs of datasets.
+        pairs (iterator): Iterator over combinations of dataset indices.
+        """
+
         self.selection = []
         self.qs_data = []
         self.qs_gen = []
@@ -123,15 +225,48 @@ class Compare:
             self.differential_qs.append([self.qs_data[i], q_ij, q_ji, self.qs_data[j]])
 
     def likelihood(self, p, Q4, Q8):
+        """
+        Calculate the likelihood of a mixture model.
+        Parameters:
+        p (float): The mixing proportion between Q4 and Q8.
+        Q4 (numpy.ndarray): The first component of the mixture model.
+        Q8 (numpy.ndarray): The second component of the mixture model.
+        Returns:
+        float: The mean log-likelihood of the mixture model.
+        """
+
         return np.mean(np.log(p * Q4 + (1.0 - p) * Q8))
 
     def histogram(
         self, value, binning, density=True, c="k", linewidth=1, label=None, alpha=1
     ):
+        """
+        Plots a histogram of the given values.
+        
+        Parameters:
+        value (array-like): The data to be histogrammed.
+        binning (int or sequence): If an integer is given, it defines the number of equal-width bins in the given range. 
+                                   If a sequence is given, it defines the bin edges, including the rightmost edge.
+        density (bool, optional): If True, the first element of the return tuple will be the counts normalized to form a probability density, i.e., the area (or integral) under the histogram will sum to 1. Default is True.
+        c (str, optional): The color of the histogram plot. Default is 'k' (black).
+        linewidth (float, optional): The width of the lines of the histogram plot. Default is 1.
+        label (str, optional): The label for the histogram plot. Default is None.
+        alpha (float, optional): The alpha blending value, between 0 (transparent) and 1 (opaque). Default is 1.
+
+        """    
         counts, bins = np.histogram(value, binning, density=True)
         plt.plot(bins[:-1], counts, alpha=alpha, label=label, linewidth=linewidth, c=c)
 
     def compute_roc(self, k, ax):
+        """
+        Compute the Receiver Operating Characteristic (ROC) curve and Area Under the Curve (AUC) for the given data.
+        Parameters:
+        k (int): Index to access specific elements in the differential_qs attribute.
+        ax (matplotlib.axes.Axes): The axes on which to plot the ROC curve.
+        Returns:
+        float: The computed AUC value.
+        """
+
         ratio_i = np.log10(self.differential_qs[k][0] + 1e-30) - np.log10(
             self.differential_qs[k][2] + 1e-30
         )
@@ -148,6 +283,13 @@ class Compare:
         return roc_auc
 
     def plot_dist_matrix(self, vmax=None):
+        """
+        Plots a distance matrix as a clustered heatmap with dendrograms.
+        
+        Parameters:
+        vmax (float, optional): The maximum value for the colormap. If None, the maximum value in the distance matrix is used.
+        """
+
         if vmax is None:
             vmax = np.max(self.dist_matrix)
         linkage = hc.linkage(
@@ -186,6 +328,16 @@ class Compare:
         plt.tight_layout()
 
     def plot_report_inference(self, qm, save_fig=None):
+        """
+        Generates and saves plots for model learning, VJL, and logQ.
+        
+        Parameters:
+        qm : object
+            The model or data to be plotted.
+        save_fig : str, optional
+            The file path to save the figures. If None, the figures will not be saved.
+        """
+
         pl = Plotter(qm)
         pl.plot_model_learning(save_name=save_fig)
         pl.plot_vjl(save_name=save_fig)
@@ -212,6 +364,17 @@ class Compare:
             fig.savefig(save_fig)
 
     def plot_roc_curves(self, upper=False, save_fig=None):
+        """
+        Plots ROC curves for the models in the selection.
+        
+        Parameters:
+        upper (bool): If True, plots the ROC curves in the upper triangle of the subplot grid.
+                      If False, plots the ROC curves in the lower triangle of the subplot grid.
+                      Default is False.
+        save_fig (str or None): If a string is provided, saves the figure to the specified file path.
+                                If None, displays the figure. Default is None.
+        """
+        
         n = len(self.selection_models)
         self.pairs = itertools.combinations(np.arange(len(self.datasets)), 2)
 
@@ -244,3 +407,15 @@ class Compare:
             plt.show()
         else:
             fig.savefig(save_fig)
+
+    def save_dist_matrix(self, file_path):
+        """
+        Saves the distance matrix to a CSV file.
+
+        Parameters:
+        -----------
+        file_path : str
+            The path to the file where the distance matrix will be saved.
+        """
+        df = pd.DataFrame(self.dist_matrix, index=self.labels, columns=self.labels)
+        df.to_csv(file_path)
