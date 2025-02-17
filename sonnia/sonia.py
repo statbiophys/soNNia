@@ -17,7 +17,7 @@ import keras
 import keras.ops as ko
 import numpy as np
 import scipy.sparse as sparse
-from keras.callbacks import TerminateOnNaN
+from keras.callbacks import TerminateOnNaN,EarlyStopping
 from keras.layers import Dense, Input, Lambda
 from keras.losses import BinaryCrossentropy
 from keras.models import Model
@@ -655,6 +655,11 @@ class Sonia:
 
         callbacks = [
             TerminateOnNaN(),
+            EarlyStopping(
+                monitor="val_loss",
+                patience=30,
+                restore_best_weights=True,
+            )
         ]
 
         if sampling is None:

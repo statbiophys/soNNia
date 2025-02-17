@@ -21,7 +21,7 @@ class SoNNia(Sonia):
     def __init__(
         self,
         *args: Tuple[Any],
-        gene_features: str = "indep_vj",
+        gene_features: str = "joint_vj",
         include_aminoacids: bool = True,
         deep: bool = True,
         **kwargs: Dict[str, Any],
