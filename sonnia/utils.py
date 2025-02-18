@@ -544,7 +544,7 @@ def filter_seqs(
 def sample_olga(
     num_gen_seqs=1, custom_model_folder=None
 ):
-    (genomic_data, generative_model, pgen_model, sg_model, _) = define_pgen_model(custom_model_folder)
+    (genomic_data, generative_model, pgen_model, sg_model, _) = define_pgen_model(custom_model_folder,compute_norm=False)
 
     # Generate sequences
     return [
