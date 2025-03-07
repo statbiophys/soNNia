@@ -407,10 +407,6 @@ def main():
 
     if options.outfile_name is not None:
         outfile_name = options.outfile_name
-    #        if os.path.isfile(outfile_name):
-    #            if not input(outfile_name + ' already exists. Overwrite (y/n)? ').strip().lower() in ['y', 'yes']:
-    #                print('Exiting...')
-    #                return -1
 
     # Parse delimiter
     delimiter = options.delimiter
