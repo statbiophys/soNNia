@@ -20,20 +20,17 @@ This program will evaluate pgen and ppost of sequences
 """
 
 import os
-
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import multiprocessing as mp
 from optparse import OptionParser
-
 import olga.generation_probability as generation_probability
 import olga.load_model as olga_load_model
 from tqdm import tqdm
-
 import sonnia.sonnia
 from sonnia.sonia import Sonia
 from sonnia.sonnia import SoNNia
 from sonnia.utils import gene_to_num_str
-
+import pandas as pd
 
 def chunks(lst, n):
     return [lst[i : i + n] for i in range(0, len(lst), n)]
@@ -48,7 +45,7 @@ def main():
         "--humanTRA",
         "--human_T_alpha",
         action="store_true",
-        dest="humanTRA",
+        dest="human_T_alpha",
         default=False,
         help="use default human TRA model (T cell alpha chain)",
     )
@@ -56,23 +53,15 @@ def main():
         "--humanTRB",
         "--human_T_beta",
         action="store_true",
-        dest="humanTRB",
+        dest="human_T_beta",
         default=False,
         help="use default human TRB model (T cell beta chain)",
-    )
-    parser.add_option(
-        "--mouseTRB",
-        "--mouse_T_beta",
-        action="store_true",
-        dest="mouseTRB",
-        default=False,
-        help="use default mouse TRB model (T cell beta chain)",
     )
     parser.add_option(
         "--humanIGH",
         "--human_B_heavy",
         action="store_true",
-        dest="humanIGH",
+        dest="human_B_heavy",
         default=False,
         help="use default human IGH model (B cell heavy chain)",
     )
@@ -80,7 +69,7 @@ def main():
         "--humanIGK",
         "--human_B_kappa",
         action="store_true",
-        dest="humanIGK",
+        dest="human_B_kappa",
         default=False,
         help="use default human IGK model (B cell light kappa chain)",
     )
@@ -88,7 +77,7 @@ def main():
         "--humanIGL",
         "--human_B_lambda",
         action="store_true",
-        dest="humanIGL",
+        dest="human_B_lambda",
         default=False,
         help="use default human IGL model (B cell light lambda chain)",
     )
@@ -96,9 +85,25 @@ def main():
         "--mouseTRA",
         "--mouse_T_alpha",
         action="store_true",
-        dest="mouseTRA",
+        dest="mouse_T_alpha",
         default=False,
         help="use default mouse TRA model (T cell alpha chain)",
+    )
+    parser.add_option(
+        "--mouseTRB",
+        "--mouse_T_beta",
+        action="store_true",
+        dest="mouse_T_beta",
+        default=False,
+        help="use default mouse TRB model (T cell beta chain)",
+    )
+    parser.add_option(
+        "--mouseIGH",
+        "--mouse_B_heavy",
+        action="store_true",
+        dest="mouse_B_heavy",
+        default=False,
+        help="use default mouse IGH model (B cell heavy chain)",
     )
 
     parser.add_option(
@@ -106,12 +111,14 @@ def main():
         dest="vdj_model_folder",
         metavar="PATH/TO/FOLDER/",
         help="specify PATH/TO/FOLDER/ for a custom VDJ generative model",
+        default=None,
     )
     parser.add_option(
         "--set_custom_model_VJ",
         dest="vj_model_folder",
         metavar="PATH/TO/FOLDER/",
         help="specify PATH/TO/FOLDER/ for a custom VJ generative model",
+        default=None,
     )
     parser.add_option(
         "--ppost",
@@ -161,6 +168,13 @@ def main():
         dest="chunck_size",
         default=mp.cpu_count() * int(5e2),
         help="Number of sequences to evaluate at each iteration",
+    )
+    parser.add_option(
+        "--linear",
+        action="store_true",
+        dest="linear_model",
+        default=False,
+        help="Join gene features.",
     )
 
     # vj genes
@@ -288,61 +302,23 @@ def main():
 
     # Check that the model is specified properly
     main_folder = os.path.dirname(sonnia.sonnia.__file__)
-
-    default_models = {}
-    default_models["humanTRA"] = [
-        os.path.join(main_folder, "default_models", "human_T_alpha"),
-        "VJ",
-    ]
-    default_models["humanTRB"] = [
-        os.path.join(main_folder, "default_models", "human_T_beta"),
-        "VDJ",
-    ]
-    default_models["mouseTRB"] = [
-        os.path.join(main_folder, "default_models", "mouse_T_beta"),
-        "VDJ",
-    ]
-    default_models["humanIGH"] = [
-        os.path.join(main_folder, "default_models", "human_B_heavy"),
-        "VDJ",
-    ]
-    default_models["humanIGK"] = [
-        os.path.join(main_folder, "default_models", "human_B_kappa"),
-        "VJ",
-    ]
-    default_models["humanIGL"] = [
-        os.path.join(main_folder, "default_models", "human_B_lambda"),
-        "VJ",
-    ]
-    default_models["mouseTRA"] = [
-        os.path.join(main_folder, "default_models", "mouse_T_alpha"),
-        "VJ",
-    ]
-
-    num_models_specified = sum(
-        [
-            1
-            for x in list(default_models.keys())
-            + ["vj_model_folder", "vdj_model_folder"]
+    default_model_list=[
+            s 
+            for s in os.listdir(os.path.join(main_folder, "default_models")) 
+            if not '.' in s and len(s.split('_'))==3
+        ]
+    print(default_model_list)
+    model_folders=[
+            x
+            for x in default_model_list
             if getattr(options, x)
         ]
-    )
-    recompute_productive_norm = False
-    if num_models_specified == 1:  # exactly one model specified
-        try:
-            d_model = [x for x in default_models if getattr(options, x)][0]
-            model_folder = default_models[d_model][0]
-            recomb_type = default_models[d_model][1]
-        except IndexError:
-            if options.vdj_model_folder:  # custom VDJ model specified
-                recompute_productive_norm = True
-                model_folder = options.vdj_model_folder
-                recomb_type = "VDJ"
-            elif options.vj_model_folder:  # custom VJ model specified
-                recompute_productive_norm = True
-                model_folder = options.vj_model_folder
-                recomb_type = "VJ"
-    elif num_models_specified == 0:
+    if options.vdj_model_folder is not None:
+        model_folders.append(options.vdj_model_folder)
+    if options.vj_model_folder is not None:
+        model_folders.append(options.vj_model_folder)
+    num_models_specified = len(model_folders)
+    if num_models_specified == 0:
         print("Need to indicate generative model.")
         print("Exiting...")
         return -1
@@ -350,56 +326,13 @@ def main():
         print("Only specify one model")
         print("Exiting...")
         return -1
+    else:
+        model_folder=model_folders[0]
 
-    # Generative model specification -- note we'll probably change this syntax to
-    # allow for arbitrary model file specification
-    params_file_name = os.path.join(model_folder, "model_params.txt")
-    marginals_file_name = os.path.join(model_folder, "model_marginals.txt")
-    V_anchor_pos_file = os.path.join(model_folder, "V_gene_CDR3_anchors.csv")
-    J_anchor_pos_file = os.path.join(model_folder, "J_gene_CDR3_anchors.csv")
-
-    for x in [
-        params_file_name,
-        marginals_file_name,
-        V_anchor_pos_file,
-        J_anchor_pos_file,
-    ]:
-        if not os.path.isfile(x):
-            print("Cannot find: " + x)
-            print(
-                "Please check the files (and naming conventions) in the model folder "
-                + model_folder
-            )
-            print("Exiting...")
-            return -1
-
-    # Load up model based on recomb_type
-    # VDJ recomb case --- used for TCRB and IGH
-    if recomb_type == "VDJ":
-        genomic_data = olga_load_model.GenomicDataVDJ()
-        genomic_data.load_igor_genomic_data(
-            params_file_name, V_anchor_pos_file, J_anchor_pos_file
-        )
-        generative_model = olga_load_model.GenerativeModelVDJ()
-        generative_model.load_and_process_igor_model(marginals_file_name)
-        pgen_model = generation_probability.GenerationProbabilityVDJ(
-            generative_model, genomic_data
-        )
-    # VJ recomb case --- used for TCRA and light chain
-    elif recomb_type == "VJ":
-        genomic_data = olga_load_model.GenomicDataVJ()
-        genomic_data.load_igor_genomic_data(
-            params_file_name, V_anchor_pos_file, J_anchor_pos_file
-        )
-        generative_model = olga_load_model.GenerativeModelVJ()
-        generative_model.load_and_process_igor_model(marginals_file_name)
-        pgen_model = generation_probability.GenerationProbabilityVJ(
-            generative_model, genomic_data
-        )
+    recompute_productive_norm = False
 
     if options.infile_name is not None:
         infile_name = options.infile_name
-
         if not os.path.isfile(infile_name):
             print("Cannot find input file: " + infile_name)
             print("Exiting...")
@@ -407,16 +340,20 @@ def main():
 
     if options.outfile_name is not None:
         outfile_name = options.outfile_name
+    else:
+        outfile_name='evaluated_seqs.tsv'
 
     # Parse delimiter
+    junction_column='junction_aa'
     delimiter = options.delimiter
     if delimiter is None:  # Default case
         if options.infile_name is None:
             delimiter = "\t"
-        elif infile_name.endswith(".tsv"):  # parse TAB separated value file
+        elif ".tsv" in infile_name:  # parse TAB separated value file
             delimiter = "\t"
-        elif infile_name.endswith(".csv"):  # parse COMMA separated value file
+        elif ".csv" in infile_name:  # parse COMMA separated value file
             delimiter = ","
+            junction_column='amino_acid'
     else:
         try:
             delimiter = {"tab": "\t", "space": " ", ",": ",", ";": ";", ":": ":"}[
@@ -425,369 +362,30 @@ def main():
         except KeyError:
             pass  # Other string passed as the delimiter.
 
-    # Parse delimiter_out
-    delimiter_out = options.delimiter_out
-    if delimiter_out is None:  # Default case
-        if delimiter is None:
-            delimiter_out = "\t"
-        else:
-            delimiter_out = delimiter
-        if options.outfile_name is None:
-            pass
-        elif outfile_name.endswith(".tsv"):  # output TAB separated value file
-            delimiter_out = "\t"
-        elif outfile_name.endswith(".csv"):  # output COMMA separated value file
-            delimiter_out = ","
-    else:
-        try:
-            delimiter_out = {"tab": "\t", "space": " ", ",": ",", ";": ";", ":": ":"}[
-                delimiter_out
-            ]
-        except KeyError:
-            pass  # Other string passed as the delimiter.
-
-    # Parse gene_delimiter
-    gene_mask_delimiter = options.gene_mask_delimiter
-    if gene_mask_delimiter is None:  # Default case
-        gene_mask_delimiter = ","
-        if delimiter == ",":
-            gene_mask_delimiter = ";"
-    else:
-        try:
-            gene_mask_delimiter = {
-                "tab": "\t",
-                "space": " ",
-                ",": ",",
-                ";": ";",
-                ":": ":",
-            }[gene_mask_delimiter]
-        except KeyError:
-            pass  # Other string passed as the delimiter.
-
-    # More options
-    seq_in_index = (
-        options.seq_in_index
-    )  # where in the line the sequence is after line.split(delimiter)
-    lines_to_skip = options.lines_to_skip  # one method of skipping header
-    comment_delimiter = options.comment_delimiter  # another method of skipping header
-    max_number_of_seqs = options.max_number_of_seqs
-    V_mask_index = options.V_mask_index  # Default is not conditioning on V identity
-    J_mask_index = options.J_mask_index  # Default is not conditioning on J identity
-    skip_empty = options.skip_empty
-
     # choose sonia model type
+    print(model_folder)
     try:
         sonia_model = SoNNia(ppost_model=model_folder)
     except:
         sonia_model = Sonia(ppost_model=model_folder)
+
     if options.recompute_productive_norm:
         print("Recompute productive normalization.")
-        sonia_model.norm_productive = pgen_model.compute_regex_CDR3_template_pgen(
-            "CX{0,}"
-        )
+        sonia_model.norm_productive = pgen_model.compute_regex_CDR3_template_pgen("CX{0,}")
 
-    if (
-        options.infile_name is None
-    ):  # No infile specified -- args should be the input seq
-        print_warnings = True
-        if len(args) > 1:
-            print(
-                "ERROR: can process only one sequence at the time. Submit thourgh file instead."
-            )
-            return -1
-        seq = args[0]
+    print("Load file")
+    data_seqs = pd.read_csv(infile_name, delimiter=delimiter)[[junction_column,'v_gene','j_gene']].values
+    
+    print("Evaluate")
+    sonia_model.update_model(add_data_seqs=data_seqs)
+    Q, pgen, ppost = sonia_model.evaluate_seqs(sonia_model.data_seqs)
+    df_out=pd.DataFrame(sonia_model.data_seqs,columns=['junction_aa','v_gene','j_gene'])
+    df_out['Q']=Q
+    df_out['Pgen']=pgen
+    df_out['Ppost']=ppost
 
-        # Format V and J masks -- uniform for all argument input sequences
-
-        try:
-            V_mask = options.V_mask.split(",")
-            unrecognized_v_genes = [
-                v
-                for v in V_mask
-                if gene_to_num_str(v, "V") not in pgen_model.V_mask_mapping.keys()
-            ]
-            V_mask = [
-                v
-                for v in V_mask
-                if gene_to_num_str(v, "V") in pgen_model.V_mask_mapping.keys()
-            ]
-            if len(unrecognized_v_genes) > 0:
-                print(
-                    "These V genes/alleles are not recognized: "
-                    + ", ".join(unrecognized_v_genes)
-                )
-            if len(V_mask) == 0:
-                print(
-                    "No recognized V genes/alleles in the provided V_mask. Continuing without conditioning on V usage."
-                )
-                V_mask = None
-        except AttributeError:
-            V_mask = (
-                options.V_mask
-            )  # Default is None, i.e. not conditioning on V identity
-
-        try:
-            J_mask = options.J_mask.split(",")
-            unrecognized_j_genes = [
-                j
-                for j in J_mask
-                if gene_to_num_str(j, "J") not in pgen_model.J_mask_mapping.keys()
-            ]
-            J_mask = [
-                j
-                for j in J_mask
-                if gene_to_num_str(j, "J") in pgen_model.J_mask_mapping.keys()
-            ]
-            if len(unrecognized_j_genes) > 0:
-                print(
-                    "These J genes/alleles are not recognized: "
-                    + ", ".join(unrecognized_j_genes)
-                )
-            if len(J_mask) == 0:
-                print(
-                    "No recognized J genes/alleles in the provided J_mask. Continuing without conditioning on J usage."
-                )
-                J_mask = None
-        except AttributeError:
-            J_mask = (
-                options.J_mask
-            )  # Default is None, i.e. not conditioning on J identity
-
-        print("")
-
-        if options.ppost:
-            if options.V_mask is None:
-                V_mask = [""]
-            if options.J_mask is None:
-                J_mask = [""]
-
-            v, j = V_mask[0], J_mask[0]
-            Q, pgen, ppost = sonia_model.evaluate_seqs([[seq, v, j]])
-            print("Ppost of " + seq + " " + v + " " + j + ": " + str(ppost[0]))
-            print("Pgen of " + seq + " " + v + " " + j + ": " + str(pgen[0]))
-            print("Q of " + seq + " " + v + " " + j + ": " + str(Q[0]))
-            print("")
-        elif options.Q:
-            if options.V_mask is None:
-                V_mask = [""]
-            if options.J_mask is None:
-                J_mask = [""]
-            v, j = V_mask[0], J_mask[0]
-            Q = sonia_model.evaluate_selection_factors([[seq, v, j]])
-            print("Q of " + seq + " " + v + " " + j + ": " + str(Q[0]))
-        elif options.pgen:
-            pgen = pgen_model.compute_aa_CDR3_pgen(seq, V_mask, J_mask)
-            if J_mask is None:
-                J_mask = ""
-            if V_mask is None:
-                V_mask = ""
-            print(
-                "Pgen of "
-                + seq
-                + " "
-                + ",".join(V_mask)
-                + " "
-                + ",".join(J_mask)
-                + ": "
-                + str(pgen)
-            )
-
-        else:
-            print("Specify and option: --ppost, --pgen or --Q")
-
-    else:
-        print("Load file")
-
-        seqs = []
-        V_usage_masks = []
-        J_usage_masks = []
-
-        infile = open(infile_name)
-
-        for i, line in enumerate(infile):
-            if (
-                comment_delimiter is not None
-            ):  # Default case -- no comments/header delimiter
-                if line.startswith(comment_delimiter):  # allow comments
-                    continue
-            if i < lines_to_skip:
-                continue
-
-            if delimiter is None:  # Default delimiter is any whitespace
-                split_line = line.split("\n")[0].split()
-            else:
-                split_line = line.split("\n")[0].split(delimiter)
-            # Find the seq
-            try:
-                seq = split_line[seq_in_index].strip()
-                if len(seq.strip()) == 0:
-                    if skip_empty:
-                        continue
-                    else:
-                        seqs.append(seq)  # keep the blank seq as a placeholder
-                        # seq_types.append('aaseq')
-                else:
-                    seqs.append(seq)
-                    # seq_types.append(determine_seq_type(seq, aa_alphabet))
-            except IndexError:  # no index match for seq
-                if skip_empty and len(line.strip()) == 0:
-                    continue
-                print("seq_in_index is out of range")
-                print("Exiting...")
-                infile.close()
-                return -1
-
-            # Find and format V_usage_mask
-            if V_mask_index is None:
-                V_usage_masks.append(None)  # default mask
-            else:
-                try:
-                    V_usage_mask = (
-                        split_line[V_mask_index].strip().split(gene_mask_delimiter)
-                    )
-                    # check that all V gene/allele names are recognized
-                    if all(
-                        [
-                            gene_to_num_str(v, "V") in pgen_model.V_mask_mapping
-                            for v in V_usage_mask
-                        ]
-                    ):
-                        V_usage_masks.append(V_usage_mask)
-                    else:
-                        print(
-                            str(V_usage_mask)
-                            + " is not a usable V_usage_mask composed exclusively of recognized V gene/allele names"
-                        )
-                        print(
-                            "Unrecognized V gene/allele names: "
-                            + ", ".join(
-                                [
-                                    v
-                                    for v in V_usage_mask
-                                    if gene_to_num_str(v, "V")
-                                    not in pgen_model.V_mask_mapping.keys()
-                                ]
-                            )
-                        )
-                        print("Exiting...")
-                        infile.close()
-                        return -1
-                except IndexError:  # no index match for V_mask_index
-                    print("V_mask_index is out of range")
-                    print("Exiting...")
-                    infile.close()
-                    return -1
-
-            # Find and format J_usage_mask
-            if J_mask_index is None:
-                J_usage_masks.append(None)  # default mask
-            else:
-                try:
-                    J_usage_mask = (
-                        split_line[J_mask_index].strip().split(gene_mask_delimiter)
-                    )
-                    # check that all V gene/allele names are recognized
-                    if all(
-                        [
-                            gene_to_num_str(j, "J") in pgen_model.J_mask_mapping
-                            for j in J_usage_mask
-                        ]
-                    ):
-                        J_usage_masks.append(J_usage_mask)
-                    else:
-                        print(
-                            str(J_usage_mask)
-                            + " is not a usable J_usage_mask composed exclusively of recognized J gene/allele names"
-                        )
-                        print(
-                            "Unrecognized J gene/allele names: "
-                            + ", ".join(
-                                [
-                                    j
-                                    for j in J_usage_mask
-                                    if gene_to_num_str(j, "J")
-                                    not in pgen_model.J_mask_mapping.keys()
-                                ]
-                            )
-                        )
-                        print("Exiting...")
-                        infile.close()
-                        return -1
-                except IndexError:  # no index match for J_mask_index
-                    print("J_mask_index is out of range")
-                    print("Exiting...")
-                    infile.close()
-                    return -1
-
-            if max_number_of_seqs is not None:
-                if len(seqs) >= max_number_of_seqs:
-                    break
-
-        # combine sequences.
-        zipped = [
-            [seqs[i], V_usage_masks[i][0], J_usage_masks[i][0]]
-            for i in range(len(seqs))
-        ]
-
-        print("Evaluate")
-
-        if options.outfile_name is not None:  # OUTFILE SPECIFIED
-            with open(options.outfile_name, "w") as file:
-                if options.ppost:
-                    file.write("Q" + delimiter_out + "Pgen" + delimiter_out + "Ppost\n")
-                elif options.Q:
-                    file.write("Q\n")
-                elif options.pgen:
-                    file.write("Pgen\n")
-                else:
-                    print("Specify one option: --ppost, --pgen or --Q")
-                    return -1
-                for t in tqdm(chunks(zipped, options.chunck_size)):
-                    if options.ppost:
-                        Q, pgen, ppost = sonia_model.evaluate_seqs(t)
-                        for i in range(len(Q)):
-                            file.write(
-                                str(Q[i])
-                                + delimiter_out
-                                + str(pgen[i])
-                                + delimiter_out
-                                + str(ppost[i])
-                                + "\n"
-                            )
-                    elif options.Q:
-                        Q = sonia_model.evaluate_selection_factors(t)
-                        for i in range(len(Q)):
-                            file.write(str(Q[i]) + "\n")
-                    elif options.pgen:
-                        pgens = sonia_model.compute_all_pgens(t)
-                        for i in range(len(pgens)):
-                            file.write(str(pgens[i]) + "\n")
-
-        else:  # print to stdout
-            if options.ppost:
-                print("Q, Pgen, Ppost")
-            elif options.Q:
-                print("Q")
-            elif options.pgen:
-                print("Pgen")
-            else:
-                print("Specify one option: --ppost, --pgen or --Q")
-                return -1
-
-            for t in chunks(zipped, options.chunck_size):
-                if options.ppost:
-                    Q, pgen, ppost = sonia_model.evaluate_seqs(t)
-                    for i in range(len(Q)):
-                        print(Q[i], pgen[i], ppost[i])
-                elif options.Q:
-                    Q = sonia_model.evaluate_selection_factors(t)
-                    for i in range(len(Q)):
-                        print(Q[i])
-                elif options.pgen:
-                    pgens = sonia_model.compute_all_pgens(t)
-                    for i in range(len(pgens)):
-                        print(pgens[i])
-
+    print('Save output to',outfile_name)
+    df_out.to_csv(outfile_name,sep='\t',index=False)
 
 if __name__ == "__main__":
     main()

@@ -35,6 +35,7 @@ from sonnia.sonia import Sonia
 from sonnia.sonnia import SoNNia
 from sonnia.utils import gene_to_num_str
 import pandas as pd
+from sonnia.plotting import Plotter
 
 def main():
     """Evaluate sequences."""
@@ -338,7 +339,6 @@ def main():
 
     if options.infile_name is not None:
         infile_name = options.infile_name
-
         if not os.path.isfile(infile_name):
             print("Cannot find input file: " + infile_name)
             print("Exiting...")
@@ -346,12 +346,6 @@ def main():
 
     if options.outfile_name is not None:
         outfile_name = options.outfile_name
-        if os.path.isfile(outfile_name):
-            if input(
-                outfile_name + " already exists. Overwrite (y/n)? "
-            ).strip().lower() not in ["y", "yes"]:
-                print("Exiting...")
-                return -1
 
     # Parse delimiter
     junction_column='junction_aa'
@@ -372,28 +366,6 @@ def main():
         except KeyError:
             pass  # Other string passed as the delimiter.
     
-
-    # Parse delimiter_out
-    delimiter_out = options.delimiter_out
-    if delimiter_out is None:  # Default case
-        if delimiter is None:
-            delimiter_out = "\t"
-        else:
-            delimiter_out = delimiter
-        if options.outfile_name is None:
-            pass
-        elif outfile_name.endswith(".tsv"):  # output TAB separated value file
-            delimiter_out = "\t"
-        elif outfile_name.endswith(".csv"):  # output COMMA separated value file
-            delimiter_out = ","
-    else:
-        try:
-            delimiter_out = {"tab": "\t", "space": " ", ",": ",", ";": ";", ":": ":"}[
-                delimiter_out
-            ]
-        except KeyError:
-            pass  # Other string passed as the delimiter.
-
     data_seqs = pd.read_csv(infile_name, delimiter=delimiter)[[junction_column,'v_gene','j_gene']].values
     print('Succesfully loaded ',len(data_seqs),'sequences')
     # define number of gen_seqs:
@@ -403,7 +375,7 @@ def main():
     if options.infile_gen is None:
         generate_sequences = True
         if n_gen_seqs == 0:
-            n_gen_seqs = np.max([int(5e5), 3 * len(data_seqs)])
+            n_gen_seqs = len(data_seqs)#np.max([int(5e5), 3 * len(data_seqs)])
     else:
         gen_seqs = pd.read_csv(options.infile_gen, delimiter=delimiter)[[junction_column,'v_gene','j_gene']].values
     
@@ -444,7 +416,6 @@ def main():
     sonia_model.save_model(name_out)
 
     if options.plot_report:
-        from sonnia.plotting import Plotter
         pl = Plotter(sonia_model)
         pl.plot_model_learning(os.path.join(name_out, "model_learning.png"))
         pl.plot_vjl(os.path.join(name_out, "marginals.png"))
