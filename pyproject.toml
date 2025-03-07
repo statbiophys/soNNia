@@ -8,49 +8,121 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sonnia"
 version = "0.3.2"
-#dynamic = ["version"]
 requires-python = ">=3.9"
-dependencies = [
-    'keras >= 3',
-    'matplotlib',
-    'olga >= 1.1.3',
-    'numpy',
-    'pandas',
-    'seaborn',
-    'scikit-learn',
-    'scipy >= 1.10',
-    'tensorflow >= 2.16',
-    'tqdm',
-]
+#dependencies = [
+#    "keras >= 3",
+#    "matplotlib",
+#    "olga >= 1.1.3",
+#    "numpy",
+#    "pandas",
+#    "seaborn",
+#    "scikit-learn",
+#    "scipy >= 1.10",
+#    "tensorflow >= 2.16",
+#    "tqdm",
+#]
+
 authors = [ {name = "Giulio Isacchini", email = "giulioisac@gmail.com"}]
 maintainers = [{name = "Giulio Isacchini", email = "giulioisac@gmail.com"}]
-description = 'SoNNia is a Python 3 software developed to infer selection pressures on features of amino acid CDR3 sequences. SoNNia takes as input TCR CDR3 amino acid sequences with  V and J genes. Its output is sequence-level selection factors which indicate how more or less represented this sequence would be in the selected pool as compared to the pre-selected pool. These in turn could be used to calculate the probability of observing any sequence after selection and sample from the selected repertoire.'
+description = "SoNNia is a Python 3 software developed to infer selection pressures on features of amino acid CDR3 sequences. SoNNia takes as input TCR CDR3 amino acid sequences with  V and J genes. Its output is sequence-level selection factors which indicate how more or less represented this sequence would be in the selected pool as compared to the pre-selected pool. These in turn could be used to calculate the probability of observing any sequence after selection and sample from the selected repertoire."
 readme = "README.md"
 license = {file = "LICENSE"}
 classifiers=[
-            'Development Status :: 3 - Alpha',
-            'Intended Audience :: Developers',
-            'Intended Audience :: Healthcare Industry',
-            'Intended Audience :: Science/Research',
-            'Topic :: Scientific/Engineering :: Bio-Informatics',
-            'Topic :: Scientific/Engineering :: Physics',
-            'Topic :: Scientific/Engineering :: Medical Science Apps.',
-            'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-            'Natural Language :: English',
-            'Programming Language :: Python :: 3.9',
-            'Programming Language :: Python :: 3.10',
-            'Programming Language :: Python :: 3.11',
-            'Programming Language :: Python :: 3.12',
-            ]
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Healthcare Industry",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Topic :: Scientific/Engineering :: Physics",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Natural Language :: English",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
              
 [project.urls]
 Homepage = "https://github.com/statbiophys/soNNia"
 Documentation = "https://sonnia.readthedocs.io/en/latest/index.html"
 
 [project.scripts]
-sonnia-infer='sonnia.infer:main'
-sonnia-generate='sonnia.generate:main'
-sonnia-evaluate='sonnia.evaluate:main'
+sonnia-infer="sonnia.infer:main"
+sonnia-generate="sonnia.generate:main"
+sonnia-evaluate="sonnia.evaluate:main"
+
+[tool.pixi.project]
+name = "soNNia"
+channels = ["apple", "conda-forge", "bioconda"]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
+
+[tool.pixi.feature.prod.dependencies]
+keras = ">=3.0"
+matplotlib = "*"
+ml_dtypes = "<0.4"
+numpy = "1.26.*"
+olga = "==1.2.4"
+pandas = "*"
+pip = "*"
+python = ">3.8,<3.13"
+polars = "*"
+seaborn = "*"
+scikit-learn = "*"
+scipy = ">=1.10"
+tqdm = "*"
+
+[tool.pixi.pypi-dependencies]
+righor = "*"
+
+[tool.pixi.feature.metal]
+platforms = ["osx-arm64"]
+pypi-dependencies = {tensorflow-macos = "*", tensorflow-metal = "*"}
+
+[tool.pixi.feature.non_metal]
+platforms = ["linux-64", "osx-64"]
+pypi-dependencies = {tensorflow = "==2.16.2"}
+
+[tool.pixi.feature.py39.dependencies]
+python = "3.9.*"
+
+[tool.pixi.feature.py310.dependencies]
+python = "3.10.*"
+
+[tool.pixi.feature.py311.dependencies]
+python = "3.11.*"
+
+[tool.pixi.feature.py312.dependencies]
+python = "3.12.*"
+
+[tool.pixi.feature.test.dependencies]
+pyright = "*"
+ruff = "*"
+
+[tool.pixi.feature.dev.dependencies]
+jupyterlab = "*"
+
+[tool.pixi.environments]
+    [tool.pixi.environments.default]
+    features = ["prod", "test", "dev", "metal",]
+
+    [tool.pixi.environments.test-prod]
+    features = ["prod", "test", "metal",]
+
+    [tool.pixi.environments.prod]
+    features = ["prod", "metal",]
+
+    [tool.pixi.environments.test-py39]
+    features = ["prod", "test", "py39", "metal",]
+
+    [tool.pixi.environments.test-py310]
+    features = ["prod", "test", "py310", "metal",]
+
+    [tool.pixi.environments.test-py312]
+    features = ["prod", "test", "py312", "metal",]
+    
+    [tool.pixi.environments.test-py311]
+    features = ["prod", "test", "py311", "metal",]
 
 [tool.ruff]
 line-length = 88
