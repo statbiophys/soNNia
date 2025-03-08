@@ -40,110 +40,32 @@ def main():
     """Evaluate sequences."""
     parser = OptionParser(conflict_handler="resolve")
 
-    # specify model
-    parser.add_option(
-        "--humanTRA",
-        "--human_T_alpha",
-        action="store_true",
-        dest="human_T_alpha",
-        default=False,
-        help="use default human TRA model (T cell alpha chain)",
-    )
-    parser.add_option(
-        "--humanTRB",
-        "--human_T_beta",
-        action="store_true",
-        dest="human_T_beta",
-        default=False,
-        help="use default human TRB model (T cell beta chain)",
-    )
-    parser.add_option(
-        "--humanIGH",
-        "--human_B_heavy",
-        action="store_true",
-        dest="human_B_heavy",
-        default=False,
-        help="use default human IGH model (B cell heavy chain)",
-    )
-    parser.add_option(
-        "--humanIGK",
-        "--human_B_kappa",
-        action="store_true",
-        dest="human_B_kappa",
-        default=False,
-        help="use default human IGK model (B cell light kappa chain)",
-    )
-    parser.add_option(
-        "--humanIGL",
-        "--human_B_lambda",
-        action="store_true",
-        dest="human_B_lambda",
-        default=False,
-        help="use default human IGL model (B cell light lambda chain)",
-    )
-    parser.add_option(
-        "--mouseTRA",
-        "--mouse_T_alpha",
-        action="store_true",
-        dest="mouse_T_alpha",
-        default=False,
-        help="use default mouse TRA model (T cell alpha chain)",
-    )
-    parser.add_option(
-        "--mouseTRB",
-        "--mouse_T_beta",
-        action="store_true",
-        dest="mouse_T_beta",
-        default=False,
-        help="use default mouse TRB model (T cell beta chain)",
-    )
-    parser.add_option(
-        "--mouseIGH",
-        "--mouse_B_heavy",
-        action="store_true",
-        dest="mouse_B_heavy",
-        default=False,
-        help="use default mouse IGH model (B cell heavy chain)",
-    )
+    models=[['humanTRA','human_T_alpha'],
+     ['humanTRB','human_T_beta'],
+     ['humanIGH','human_B_heavy'],
+     ['humanIGK','human_B_kappa'],
+     ['humanIGL','human_B_lambda'],
+     ['mouseTRA','mouse_T_alpha'],
+     ['mouseTRB','mouse_T_beta'],
+     ['mouseIGH','mouse_B_heavy']]
+    for model in models:
+        parser.add_option(
+            "--" + model[0],
+            "--" + model[1],
+            action="store_true",
+            dest=model[1],
+            default=False,
+            help="use default " + model[0] + " model",
+        )
 
     parser.add_option(
-        "--set_custom_model_VDJ",
-        dest="vdj_model_folder",
+        "--custom_model",
+        dest="custom_model",
         metavar="PATH/TO/FOLDER/",
-        help="specify PATH/TO/FOLDER/ for a custom VDJ generative model",
+        help="specify PATH/TO/FOLDER/ for a custom generative model",
         default=None,
     )
-    parser.add_option(
-        "--set_custom_model_VJ",
-        dest="vj_model_folder",
-        metavar="PATH/TO/FOLDER/",
-        help="specify PATH/TO/FOLDER/ for a custom VJ generative model",
-        default=None,
-    )
-    parser.add_option(
-        "--ppost",
-        "--Ppost",
-        action="store_true",
-        dest="ppost",
-        default=False,
-        help="compute Ppost, also computes pgen and Q",
-    )
-    parser.add_option(
-        "--pgen",
-        "--Pgen",
-        action="store_true",
-        dest="pgen",
-        default=False,
-        help="compute pgen",
-    )
-    parser.add_option(
-        "--Q",
-        "--selection_factor",
-        action="store_true",
-        dest="Q",
-        default=False,
-        help="compute Q",
-    )
+    
     parser.add_option(
         "--recompute_productive_norm",
         "--compute_norm",
@@ -151,62 +73,6 @@ def main():
         dest="recompute_productive_norm",
         default=False,
         help="recompute productive normalization",
-    )
-    parser.add_option(
-        "--skip_off",
-        "--skip_empty_off",
-        action="store_true",
-        dest="skip_empty",
-        default=True,
-        help="stop skipping empty or blank sequences/lines (if for example you want to keep line index fidelity between the infile and outfile).",
-    )
-    parser.add_option(
-        "-s",
-        "--chunk_size",
-        type="int",
-        metavar="N",
-        dest="chunck_size",
-        default=mp.cpu_count() * int(5e2),
-        help="Number of sequences to evaluate at each iteration",
-    )
-    parser.add_option(
-        "--linear",
-        action="store_true",
-        dest="linear_model",
-        default=False,
-        help="Join gene features.",
-    )
-
-    # vj genes
-    parser.add_option(
-        "--v_in",
-        "--v_mask_index",
-        type="int",
-        metavar="INDEX",
-        dest="V_mask_index",
-        default=1,
-        help="specifies V_masks are found in column INDEX in the input file. Default is 1.",
-    )
-    parser.add_option(
-        "--j_in",
-        "--j_mask_index",
-        type="int",
-        metavar="INDEX",
-        dest="J_mask_index",
-        default=2,
-        help="specifies J_masks are found in column INDEX in the input file. Default is 2.",
-    )
-    parser.add_option(
-        "--v_mask",
-        type="string",
-        dest="V_mask",
-        help="specify V usage to condition as arguments.",
-    )
-    parser.add_option(
-        "--j_mask",
-        type="string",
-        dest="J_mask",
-        help="specify J usage to condition as arguments.",
     )
 
     # input output
@@ -224,15 +90,7 @@ def main():
         metavar="PATH/TO/FILE",
         help="write CDR3 sequences and pgens to PATH/TO/FILE",
     )
-    parser.add_option(
-        "--seq_in",
-        "--seq_index",
-        type="int",
-        metavar="INDEX",
-        dest="seq_in_index",
-        default=0,
-        help="specifies sequences to be read in are in column INDEX. Default is index 0 (the first column).",
-    )
+    
     parser.add_option(
         "-m",
         "--max_number_of_seqs",
@@ -240,16 +98,9 @@ def main():
         metavar="N",
         dest="max_number_of_seqs",
         help="evaluate for at most N sequences.",
+        default=int(1e8),
     )
-    parser.add_option(
-        "--lines_to_skip",
-        type="int",
-        metavar="N",
-        dest="lines_to_skip",
-        default=0,
-        help="skip the first N lines of the file. Default is 0.",
-    )
-
+    
     # delimeters
     parser.add_option(
         "-d",
@@ -258,44 +109,6 @@ def main():
         dest="delimiter",
         choices=["tab", "space", ",", ";", ":"],
         help="declare infile delimiter. Default is tab for .tsv input files, comma for .csv files, and any whitespace for all others. Choices: 'tab', 'space', ',', ';', ':'",
-    )
-    parser.add_option(
-        "--raw_delimiter",
-        type="str",
-        dest="delimiter",
-        help="declare infile delimiter as a raw string.",
-    )
-    parser.add_option(
-        "--delimiter_out",
-        type="choice",
-        dest="delimiter_out",
-        choices=["tab", "space", ",", ";", ":"],
-        help="declare outfile delimiter. Default is tab for .tsv output files, comma for .csv files, and the infile delimiter for all others. Choices: 'tab', 'space', ',', ';', ':'",
-    )
-    parser.add_option(
-        "--raw_delimiter_out",
-        type="str",
-        dest="delimiter_out",
-        help="declare for the delimiter outfile as a raw string.",
-    )
-    parser.add_option(
-        "--gene_mask_delimiter",
-        type="choice",
-        dest="gene_mask_delimiter",
-        choices=["tab", "space", ",", ";", ":"],
-        help="declare gene mask delimiter. Default comma unless infile delimiter is comma, then default is a semicolon. Choices: 'tab', 'space', ',', ';', ':'",
-    )
-    parser.add_option(
-        "--raw_gene_mask_delimiter",
-        type="str",
-        dest="gene_mask_delimiter",
-        help="declare delimiter of gene masks as a raw string.",
-    )
-    parser.add_option(
-        "--comment_delimiter",
-        type="str",
-        dest="comment_delimiter",
-        help="character or string to indicate comment or header lines to skip.",
     )
 
     (options, args) = parser.parse_args()
@@ -307,16 +120,13 @@ def main():
             for s in os.listdir(os.path.join(main_folder, "default_models")) 
             if not '.' in s and len(s.split('_'))==3
         ]
-    print(default_model_list)
     model_folders=[
             x
             for x in default_model_list
             if getattr(options, x)
         ]
-    if options.vdj_model_folder is not None:
-        model_folders.append(options.vdj_model_folder)
-    if options.vj_model_folder is not None:
-        model_folders.append(options.vj_model_folder)
+    if options.custom_model is not None:
+        model_folders.append(options.custom_model)
     num_models_specified = len(model_folders)
     if num_models_specified == 0:
         print("Need to indicate generative model.")
@@ -363,7 +173,7 @@ def main():
             pass  # Other string passed as the delimiter.
 
     # choose sonia model type
-    print(model_folder)
+    print('Initialize soNNia model',model_folder)
     try:
         sonia_model = SoNNia(ppost_model=model_folder)
     except:
@@ -374,10 +184,13 @@ def main():
         sonia_model.norm_productive = pgen_model.compute_regex_CDR3_template_pgen("CX{0,}")
 
     print("Load file")
-    data_seqs = pd.read_csv(infile_name, delimiter=delimiter)[[junction_column,'v_gene','j_gene']].values
-    
+    try:
+        data_seqs = pd.read_csv(infile_name, delimiter=delimiter)[[junction_column,'v_gene','j_gene']].values
+    except:
+        data_seqs = pd.read_csv(infile_name, delimiter=delimiter,header=None).values
+
     print("Evaluate")
-    sonia_model.update_model(add_data_seqs=data_seqs)
+    sonia_model.update_model(add_data_seqs=data_seqs[:options.max_number_of_seqs])
     Q, pgen, ppost = sonia_model.evaluate_seqs(sonia_model.data_seqs)
     df_out=pd.DataFrame(sonia_model.data_seqs,columns=['junction_aa','v_gene','j_gene'])
     df_out['Q']=Q

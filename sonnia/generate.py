@@ -30,7 +30,7 @@ from tqdm import tqdm
 import sonnia.sonnia
 from sonnia.sonia import Sonia
 from sonnia.sonnia import SoNNia
-
+import pandas as pd
 
 def chuncks(n, size):
     if n % size:
@@ -42,75 +42,30 @@ def chuncks(n, size):
 def main():
     """Generate sequences."""
     parser = OptionParser(conflict_handler="resolve")
+    models=[['humanTRA','human_T_alpha'],
+     ['humanTRB','human_T_beta'],
+     ['humanIGH','human_B_heavy'],
+     ['humanIGK','human_B_kappa'],
+     ['humanIGL','human_B_lambda'],
+     ['mouseTRA','mouse_T_alpha'],
+     ['mouseTRB','mouse_T_beta'],
+     ['mouseIGH','mouse_B_heavy']]
+    for model in models:
+        parser.add_option(
+            "--" + model[0],
+            "--" + model[1],
+            action="store_true",
+            dest=model[1],
+            default=False,
+            help="use default " + model[0] + " model",
+        )
 
-    # specify model
     parser.add_option(
-        "--humanTRA",
-        "--human_T_alpha",
-        action="store_true",
-        dest="humanTRA",
-        default=False,
-        help="use default human TRA model (T cell alpha chain)",
-    )
-    parser.add_option(
-        "--humanTRB",
-        "--human_T_beta",
-        action="store_true",
-        dest="humanTRB",
-        default=False,
-        help="use default human TRB model (T cell beta chain)",
-    )
-    parser.add_option(
-        "--mouseTRB",
-        "--mouse_T_beta",
-        action="store_true",
-        dest="mouseTRB",
-        default=False,
-        help="use default mouse TRB model (T cell beta chain)",
-    )
-    parser.add_option(
-        "--humanIGH",
-        "--human_B_heavy",
-        action="store_true",
-        dest="humanIGH",
-        default=False,
-        help="use default human IGH model (B cell heavy chain)",
-    )
-    parser.add_option(
-        "--humanIGK",
-        "--human_B_kappa",
-        action="store_true",
-        dest="humanIGK",
-        default=False,
-        help="use default human IGK model (B cell light kappa chain)",
-    )
-    parser.add_option(
-        "--humanIGL",
-        "--human_B_lambda",
-        action="store_true",
-        dest="humanIGL",
-        default=False,
-        help="use default human IGL model (B cell light lambda chain)",
-    )
-    parser.add_option(
-        "--mouseTRA",
-        "--mouse_T_alpha",
-        action="store_true",
-        dest="mouseTRA",
-        default=False,
-        help="use default mouse TRA model (T cell alpha chain)",
-    )
-    parser.add_option(
-        "--set_custom_model_VDJ",
-        dest="vdj_model_folder",
+        "--custom_model",
+        dest="custom_model",
         metavar="PATH/TO/FOLDER/",
-        help="specify PATH/TO/FOLDER/ for a custom VDJ generative model",
-    )
-    parser.add_option(
-        "--set_custom_model_VJ",
-        dest="vj_model_folder",
-        metavar="PATH/TO/FOLDER/",
-        help="specify PATH/TO/FOLDER/ for a custom VJ generative model",
+        help="specify PATH/TO/FOLDER/ for a custom generative model",
+        default=None,
     )
     parser.add_option(
         "--post",
@@ -128,14 +83,7 @@ def main():
         default=False,
         help="sample from pre selected repertoire ",
     )
-    parser.add_option(
-        "--delimiter_out",
-        "-d",
-        type="choice",
-        dest="delimiter_out",
-        choices=["tab", "space", ",", ";", ":"],
-        help="declare outfile delimiter. Default is tab for .tsv output files, comma for .csv files, and the infile delimiter for all others. Choices: 'tab', 'space', ',', ';', ':'",
-    )
+    
     parser.add_option(
         "-s",
         "--chunk_size",
@@ -177,59 +125,20 @@ def main():
 
     # Check that the model is specified properly
     main_folder = os.path.dirname(sonnia.__file__)
-
-    default_models = {}
-    default_models["humanTRA"] = [
-        os.path.join(main_folder, "default_models", "human_T_alpha"),
-        "VJ",
-    ]
-    default_models["humanTRB"] = [
-        os.path.join(main_folder, "default_models", "human_T_beta"),
-        "VDJ",
-    ]
-    default_models["mouseTRB"] = [
-        os.path.join(main_folder, "default_models", "mouse_T_beta"),
-        "VDJ",
-    ]
-    default_models["humanIGH"] = [
-        os.path.join(main_folder, "default_models", "human_B_heavy"),
-        "VDJ",
-    ]
-    default_models["humanIGK"] = [
-        os.path.join(main_folder, "default_models", "human_B_kappa"),
-        "VJ",
-    ]
-    default_models["humanIGL"] = [
-        os.path.join(main_folder, "default_models", "human_B_lambda"),
-        "VJ",
-    ]
-    default_models["mouseTRA"] = [
-        os.path.join(main_folder, "default_models", "mouse_T_alpha"),
-        "VJ",
-    ]
-
-    num_models_specified = sum(
-        [
-            1
-            for x in list(default_models.keys())
-            + ["vj_model_folder", "vdj_model_folder"]
+    default_model_list=[
+            s 
+            for s in os.listdir(os.path.join(main_folder, "default_models")) 
+            if not '.' in s and len(s.split('_'))==3
+        ]
+    model_folders=[
+            x
+            for x in default_model_list
             if getattr(options, x)
         ]
-    )
-
-    if num_models_specified == 1:  # exactly one model specified
-        try:
-            d_model = [x for x in default_models if getattr(options, x)][0]
-            model_folder = default_models[d_model][0]
-            recomb_type = default_models[d_model][1]
-        except IndexError:
-            if options.vdj_model_folder:  # custom VDJ model specified
-                model_folder = options.vdj_model_folder
-                recomb_type = "VDJ"
-            elif options.vj_model_folder:  # custom VJ model specified
-                model_folder = options.vj_model_folder
-                recomb_type = "VJ"
-    elif num_models_specified == 0:
+    if options.custom_model is not None:
+        model_folders.append(options.custom_model)
+    num_models_specified = len(model_folders)
+    if num_models_specified == 0:
         print("Need to indicate generative model.")
         print("Exiting...")
         return -1
@@ -237,45 +146,8 @@ def main():
         print("Only specify one model")
         print("Exiting...")
         return -1
-
-    # Parse delimiter_out
-    delimiter_out = options.delimiter_out
-    if delimiter_out is None:  # Default case
-        delimiter_out = "\t"
-        if options.outfile_name is None:
-            pass
-        elif options.outfile_name.endswith(".tsv"):  # output TAB separated value file
-            delimiter_out = "\t"
-        elif options.outfile_name.endswith(".csv"):  # output COMMA separated value file
-            delimiter_out = ","
     else:
-        try:
-            delimiter_out = {"tab": "\t", "space": " ", ",": ",", ";": ";", ":": ":"}[
-                delimiter_out
-            ]
-        except KeyError:
-            pass  # Other string passed as the delimiter.
-    # Generative model specification -- note we'll probably change this syntax to
-    # allow for arbitrary model file specification
-    params_file_name = os.path.join(model_folder, "model_params.txt")
-    marginals_file_name = os.path.join(model_folder, "model_marginals.txt")
-    V_anchor_pos_file = os.path.join(model_folder, "V_gene_CDR3_anchors.csv")
-    J_anchor_pos_file = os.path.join(model_folder, "J_gene_CDR3_anchors.csv")
-
-    for x in [
-        params_file_name,
-        marginals_file_name,
-        V_anchor_pos_file,
-        J_anchor_pos_file,
-    ]:
-        if not os.path.isfile(x):
-            print("Cannot find: " + x)
-            print(
-                "Please check the files (and naming conventions) in the model folder "
-                + model_folder
-            )
-            print("Exiting...")
-            return -1
+        model_folder=model_folders[0]
 
     if options.pgen:
         sonia_model = Sonia(pgen_model=model_folder)
@@ -286,33 +158,18 @@ def main():
             sonia_model = Sonia(ppost_model=model_folder)
 
     if options.outfile_name is not None:  # OUTFILE SPECIFIED
-        with open(options.outfile_name, "w") as file:
-            to_generate = chuncks(options.num_seqs_to_generate, options.chunck_size)
-            for t in tqdm(to_generate):
-                if options.pgen:
-                    seqs = sonia_model.generate_sequences_pre(
-                        num_seqs=t, nucleotide=True
-                    )
-                elif options.ppost:
-                    seqs = sonia_model.generate_sequences_post(
-                        num_seqs=t, nucleotide=True, upper_bound=options.rejection_bound
-                    )
-                else:
-                    print("ERROR: give option between --pre or --post")
-                    return -1
-                for seq in seqs:
-                    file.write(
-                        seq[0]
-                        + delimiter_out
-                        + seq[1]
-                        + delimiter_out
-                        + seq[2]
-                        + delimiter_out
-                        + seq[3]
-                        + "\n"
-                    )
-    # np.savetxt(options.outfile_name,seqs,fmt='%s')
-
+        if options.pgen:
+            seqs = sonia_model.generate_sequences_pre(
+                num_seqs=options.num_seqs_to_generate, nucleotide=True
+            )
+        elif options.ppost:
+            seqs = sonia_model.generate_sequences_post(
+                num_seqs=options.num_seqs_to_generate, nucleotide=True, upper_bound=options.rejection_bound
+            )
+        else:
+            print("ERROR: give option between --pre or --post")
+            return -1
+        pd.DataFrame(seqs,columns=['junction_aa','v_gene','j_gene','junction']).to_csv(options.outfile_name,sep='\t',index=False)
     else:  # print to stdout
         to_generate = chuncks(options.num_seqs_to_generate, options.chunck_size)
         for t in to_generate:
@@ -325,6 +182,7 @@ def main():
             else:
                 print("ERROR: give option between --pre or --post")
                 return -1
+            print('junction_aa','v_gene','j_gene','junction')
             for seq in seqs:
                 print(seq[0], seq[1], seq[2], seq[3])
 
