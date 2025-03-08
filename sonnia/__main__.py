@@ -6,6 +6,7 @@ import sonnia.sonnia
 from sonnia.sonia import Sonia
 from sonnia.sonnia import SoNNia
 from typing import Optional
+from sonnia.plotting import Plotter
 
 app = typer.Typer(add_completion=False)
 
@@ -134,8 +135,6 @@ def generate(
 ):
     """Generate sequences using the model"""
     
-    delimiter = "\t" if ".tsv" in outfile_name else "," if ".csv" in outfile_name else ";"
-
     def chuncks(n, size):
         if n % size:
             return int(n / size) * [size] + [n % size]
@@ -170,7 +169,10 @@ def generate(
                 print(seq[0], seq[1], seq[2], seq[3])
 
     if outfile_name is not None: 
-        pd.concat(out_df).to_csv(outfile_name,sep=delimiter,index=False)
+        pd.concat(out_df).to_csv(outfile_name,
+            sep="\t" if ".tsv" in outfile_name else "," if ".csv" in outfile_name else ";",
+            index=False
+        )
 
 if __name__ == "__main__":
     app()
