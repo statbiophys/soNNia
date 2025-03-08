@@ -74,14 +74,16 @@ tqdm = "*"
 
 [tool.pixi.pypi-dependencies]
 righor = "*"
+sonnia = { path = ".", editable = true }
 
 [tool.pixi.feature.metal]
 platforms = ["osx-arm64"]
 pypi-dependencies = {tensorflow-macos = "*", tensorflow-metal = "*"}
 
-[tool.pixi.feature.non_metal]
-platforms = ["linux-64", "osx-64"]
-pypi-dependencies = {tensorflow = "==2.16.2"}
+# TODO Handle tensorflow for non osx-arm
+#[tool.pixi.feature.non_metal]
+#platforms = ["linux-64", "osx-64"]
+#pypi-dependencies = {tensorflow = "==2.16.2"}
 
 [tool.pixi.feature.py39.dependencies]
 python = "3.9.*"
