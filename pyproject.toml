@@ -19,7 +19,7 @@ dependencies = [
     'seaborn',
     'scikit-learn',
     'scipy >= 1.10',
-    'tensorflow >= 2.16',
+    'typer',   
     'tqdm',
 ]
 authors = [ {name = "Giulio Isacchini", email = "giulioisac@gmail.com"}]
@@ -51,6 +51,8 @@ Documentation = "https://sonnia.readthedocs.io/en/latest/index.html"
 sonnia-infer='sonnia.infer:main'
 sonnia-generate='sonnia.generate:main'
 sonnia-evaluate='sonnia.evaluate:main'
+sonnia='sonnia.__main__:app'
+
 
 [tool.ruff]
 line-length = 88
