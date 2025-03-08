@@ -23,15 +23,15 @@ MODELS = {
 @app.command()
 def evaluate(
     infile: str = typer.Option(..., "--infile", "-i", help="Path to input file"),
-    model: Optional[str] = typer.Option(None, "--model", help=f"Select model. If any from {MODELS.values()} then use default model. Otherwise, specify custom model folder."),
+    model: Optional[str] = typer.Option(..., "--model", help=f"Select model. If any from {MODELS.values()} then use default model. Otherwise, specify custom model folder."),
     outfile: str = typer.Option("evaluated_seqs.tsv", "--outfile", "-o", help="Path to output file"),
     max_seqs: int = typer.Option(int(1e8), "--max_seqs", "-m", help="Maximum number of sequences to evaluate"),
 ):
     """Infer model on input sequences."""
     
     # Determine delimiter
-    junction_column =  "amino_acid" if infile.endswith(".csv") else "junction_aa"
-    delimiter = "\t" if infile.endswith(".tsv") else "," if infile.endswith(".csv") else ";"
+    junction_column =  "amino_acid" if ".csv" in infile else "junction_aa"
+    delimiter = "\t" if ".tsv" in infile else "," if ".csv" in infile else ";"
     
     # Initialize model
     typer.echo(f"Initializing model from {model}")
@@ -39,10 +39,6 @@ def evaluate(
         sonia_model = SoNNia(ppost_model=model)
     except:
         sonia_model = Sonia(ppost_model=model)
-    
-    if recompute_norm:
-        typer.echo("Recomputing productive normalization.")
-        sonia_model.norm_productive = sonia_model.pgen_model.compute_regex_CDR3_template_pgen("CX{0,}")
     
     # Load input data
     typer.echo("Loading input data...")
@@ -63,7 +59,7 @@ def evaluate(
     
     # Save results
     typer.echo(f"Saving output to {outfile}")
-    df_out.to_csv(outfile, sep='\t', index=False)
+    df_out.to_csv(outfile, sep="\t" if ".tsv" in outfile else "," if ".csv" in outfile else ";", index=False)
 
 @app.command()
 def infer(
@@ -138,6 +134,8 @@ def generate(
 ):
     """Generate sequences using the model"""
     
+    delimiter = "\t" if ".tsv" in outfile_name else "," if ".csv" in outfile_name else ";"
+
     def chuncks(n, size):
         if n % size:
             return int(n / size) * [size] + [n % size]
@@ -172,7 +170,7 @@ def generate(
                 print(seq[0], seq[1], seq[2], seq[3])
 
     if outfile_name is not None: 
-        pd.concat(out_df).to_csv(outfile_name,sep='\t',index=False)
+        pd.concat(out_df).to_csv(outfile_name,sep=delimiter,index=False)
 
 if __name__ == "__main__":
     app()
