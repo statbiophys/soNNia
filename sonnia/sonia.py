@@ -658,7 +658,7 @@ class Sonia:
             EarlyStopping(
                 monitor="val_loss",
                 patience=30,
-                restore_best_weights=True,
+                restore_best_weights=False,
             )
         ]
 
