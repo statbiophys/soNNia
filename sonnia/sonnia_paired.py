@@ -5,8 +5,9 @@
 
 import logging
 from typing import *
-
-logging.getLogger("tensorflow").disabled = True
+import os
+#logging.getLogger("tensorflow").disabled = True
+os.environ["KERAS_BACKEND"] = "torch" # use torch backend
 
 import keras
 import keras.ops as ko

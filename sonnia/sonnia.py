@@ -5,8 +5,10 @@ import logging
 import os
 from typing import *
 
-logging.getLogger("tensorflow").disabled = True
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+#logging.getLogger("tensorflow").disabled = True
+#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+os.environ["KERAS_BACKEND"] = "torch" # use torch backend
 
 import keras
 import keras.ops as ko
@@ -145,7 +147,12 @@ class SoNNia(Sonia):
         )(output_layer)
 
         self.model = keras.models.Model(inputs=input_layer, outputs=clipped_out)
-        self.optimizer = keras.optimizers.RMSprop()
+        if self.optimizer_name == "adam":
+            self.optimizer = keras.optimizers.Adam()
+        elif self.optimizer_name == "rmsprop":
+            self.optimizer = keras.optimizers.RMSprop()
+        else:
+            raise RuntimeError(''f"Optimizer {self.optimizer_name} not recognized.")
 
         if self.objective == "BCE":
             self.model.compile(

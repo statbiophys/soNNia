@@ -12,6 +12,7 @@ import os
 from typing import *
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+os.environ["KERAS_BACKEND"] = "torch" # use torch backend
 
 import keras
 import keras.ops as ko
@@ -21,7 +22,7 @@ from keras.callbacks import TerminateOnNaN,EarlyStopping
 from keras.layers import Dense, Input, Lambda
 from keras.losses import BinaryCrossentropy
 from keras.models import Model
-from keras.optimizers import RMSprop
+from keras.optimizers import RMSprop,Adam
 from keras.regularizers import l1_l2
 from numpy.typing import NDArray
 from tqdm import tqdm
@@ -129,6 +130,7 @@ class Sonia:
         max_depth: int = 25,
         max_L: int = 30,
         objective: str = "BCE",
+        optimizer: str = "rmsprop",
         l2_reg: float = 0.0,
         l1_reg: float = 0.0,
         gamma: float = 1.0,
@@ -202,6 +204,7 @@ class Sonia:
         self.likelihood_train = []
         self.likelihood_test = []
         self.objective = objective
+        self.optimizer_name=optimizer.lower()
         self.gene_features = gene_features
         self.include_aminoacids = include_aminoacids
         self.max_depth = max_depth
@@ -494,7 +497,7 @@ class Sonia:
             if hasattr(self, "split_encoding"):
                 dense_encoding = self.split_encoding(dense_encoding)
             try:
-                energies_slice = self.model(dense_encoding)[:, 0].numpy()
+                energies_slice = self.model(dense_encoding)[:, 0].detach().numpy()
             except Exception as e:
                 if "Failed copying" in str(e):
                     raise RuntimeError(
@@ -597,6 +600,7 @@ class Sonia:
         verbose: int = 0,
         set_gauge: bool = True,
         sampling: Optional[str] = None,
+        patience: int =30,
     ) -> None:
         """
         Infer model parameters, i.e. energies for each model feature.
@@ -656,9 +660,10 @@ class Sonia:
         callbacks = [
             TerminateOnNaN(),
             EarlyStopping(
-                monitor="val_loss",
-                patience=30,
+                monitor="val__likelihood",
+                patience=patience,
                 restore_best_weights=False,
+                mode='min'
             )
         ]
 
@@ -736,9 +741,12 @@ class Sonia:
             np.isnan(self.likelihood_train).any()
             or np.isnan(self.likelihood_test).any()
         ):
-            raise RuntimeError(
+            msg = (
                 "The training or validation likelihood history contains nans. "
                 "Report a bug."
+            )
+            raise RuntimeError(
+                msg
             )
 
         logging.info("Finished training.")
@@ -869,7 +877,13 @@ class Sonia:
         )
         self.model = Model(inputs=input_layer, outputs=clipped_out)
 
-        self.optimizer = RMSprop()
+        if self.optimizer_name == "adam":
+            self.optimizer = Adam()
+        elif self.optimizer_name == "rmsprop":
+            self.optimizer = RMSprop()
+        else:
+            raise RuntimeError(''f"Optimizer {self.optimizer_name} not recognized.")
+
         if self.objective == "BCE":
             self.model.compile(
                 optimizer=self.optimizer,
@@ -889,7 +903,6 @@ class Sonia:
                 ],
             )
         self.model_params = self.model.get_weights()
-        return True
 
     def _loss(self, y_true, y_pred) -> float:
         """
