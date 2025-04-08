@@ -17,6 +17,8 @@
 """Script containing the SoniaDataset class for loading data into mini-batches."""
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
+import os 
+os.environ["KERAS_BACKEND"] = "torch" # use torch backend
 
 import keras
 import keras.ops as ko

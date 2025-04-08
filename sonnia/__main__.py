@@ -1,8 +1,6 @@
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import typer
 import pandas as pd
-import sonnia.sonnia
 from sonnia.sonia import Sonia
 from sonnia.sonnia import SoNNia
 from typing import Optional
@@ -78,10 +76,10 @@ def infer(
     infile_gen: Optional[str] = typer.Option(None, "--infile_gen", help="Path to input file for generated sequences"),
 ):
     """Evaluate sequences using a generative model."""
-    
+
     junction_column =  "amino_acid" if ".csv" in infile else "junction_aa"
     delimiter = "\t" if ".tsv" in infile else "," if ".csv" in infile else ";"
-    
+
     # Load input data
     typer.echo("Loading input data...")
     try:

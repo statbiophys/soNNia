@@ -1,6 +1,8 @@
+import os 
+os.environ["KERAS_BACKEND"] = "torch" # use torch backend
 import keras
 import numpy as np
-from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
+from sonnia import Sonia
 from tqdm import tqdm
 
 
@@ -11,15 +13,14 @@ class Linear:
     """
 
     def __init__(
-        self, sonia_model=None, include_indep_genes=False, include_joint_genes=True
+        self, 
+        sonia_model=None, 
+        chain_type='human_T_beta',
     ):
         if sonia_model is not None:
             self.sonia_model = sonia_model
         else:
-            self.sonia_model = SoniaLeftposRightpos(
-                include_indep_genes=include_indep_genes,
-                include_joint_genes=include_joint_genes,
-            )
+            self.sonia_model = Sonia(pgen_model=chain_type)
         self.input_size = len(self.sonia_model.features)
         self.update_model_structure(initialize=True)
 
@@ -67,15 +68,9 @@ class SoniaRatio:
     Sonia classifier as log likelihood ratio.
     """
 
-    def __init__(self, include_indep_genes=False, include_joint_genes=True):
-        self.sonia_model_positive = SoniaLeftposRightpos(
-            include_indep_genes=include_indep_genes,
-            include_joint_genes=include_joint_genes,
-        )
-        self.sonia_model_negative = SoniaLeftposRightpos(
-            include_indep_genes=include_indep_genes,
-            include_joint_genes=include_joint_genes,
-        )
+    def __init__(self, chain_type="human_T_beta"):
+        self.sonia_model_positive = Sonia(chain_type=chain_type)
+        self.sonia_model_negative = Sonia(chain_type=chain_type)
 
     def fit(self, x, y, val_split=0, epochs=30, gen_seqs=None):
         sel = y[:, 0].astype(np.bool)

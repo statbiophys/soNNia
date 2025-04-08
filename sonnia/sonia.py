@@ -12,6 +12,7 @@ import os
 from typing import *
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+os.environ["KERAS_BACKEND"] = "torch" # use torch backend
 
 import keras
 import keras.ops as ko
@@ -21,7 +22,7 @@ from keras.callbacks import TerminateOnNaN,EarlyStopping
 from keras.layers import Dense, Input, Lambda
 from keras.losses import BinaryCrossentropy
 from keras.models import Model
-from keras.optimizers import RMSprop
+from keras.optimizers import RMSprop,Adam
 from keras.regularizers import l1_l2
 from numpy.typing import NDArray
 from tqdm import tqdm
@@ -129,6 +130,7 @@ class Sonia:
         max_depth: int = 25,
         max_L: int = 30,
         objective: str = "BCE",
+        optimizer: str = "rmsprop",
         l2_reg: float = 0.0,
         l1_reg: float = 0.0,
         gamma: float = 1.0,
@@ -202,6 +204,7 @@ class Sonia:
         self.likelihood_train = []
         self.likelihood_test = []
         self.objective = objective
+        self.optimizer_name=optimizer.lower()
         self.gene_features = gene_features
         self.include_aminoacids = include_aminoacids
         self.max_depth = max_depth
@@ -494,7 +497,10 @@ class Sonia:
             if hasattr(self, "split_encoding"):
                 dense_encoding = self.split_encoding(dense_encoding)
             try:
-                energies_slice = self.model(dense_encoding)[:, 0].numpy()
+                if keras.backend.backend() == "tensorflow":
+                    energies_slice = self.model(dense_encoding).numpy()[:, 0]
+                else:
+                    energies_slice = self.model(dense_encoding)[:, 0].detach().numpy()
             except Exception as e:
                 if "Failed copying" in str(e):
                     raise RuntimeError(
@@ -597,6 +603,7 @@ class Sonia:
         verbose: int = 0,
         set_gauge: bool = True,
         sampling: Optional[str] = None,
+        patience: int =30,
     ) -> None:
         """
         Infer model parameters, i.e. energies for each model feature.
@@ -656,9 +663,10 @@ class Sonia:
         callbacks = [
             TerminateOnNaN(),
             EarlyStopping(
-                monitor="val_loss",
-                patience=30,
+                monitor="val__likelihood",
+                patience=patience,
                 restore_best_weights=False,
+                mode='min'
             )
         ]
 
@@ -736,9 +744,12 @@ class Sonia:
             np.isnan(self.likelihood_train).any()
             or np.isnan(self.likelihood_test).any()
         ):
-            raise RuntimeError(
+            msg = (
                 "The training or validation likelihood history contains nans. "
                 "Report a bug."
+            )
+            raise RuntimeError(
+                msg
             )
 
         logging.info("Finished training.")
@@ -869,7 +880,13 @@ class Sonia:
         )
         self.model = Model(inputs=input_layer, outputs=clipped_out)
 
-        self.optimizer = RMSprop()
+        if self.optimizer_name == "adam":
+            self.optimizer = Adam()
+        elif self.optimizer_name == "rmsprop":
+            self.optimizer = RMSprop()
+        else:
+            raise RuntimeError(''f"Optimizer {self.optimizer_name} not recognized.")
+
         if self.objective == "BCE":
             self.model.compile(
                 optimizer=self.optimizer,
@@ -889,7 +906,6 @@ class Sonia:
                 ],
             )
         self.model_params = self.model.get_weights()
-        return True
 
     def _loss(self, y_true, y_pred) -> float:
         """
@@ -1240,12 +1256,11 @@ class Sonia:
                         + "\n"
                     )
 
-        self.model.save(os.path.join(save_dir, "model.keras"))
+        self.model.save_weights(os.path.join(save_dir, "model.weights.h5"))
         self._save_pgen_model(save_dir)
 
     def _save_pgen_model(self, save_dir: str) -> None:
         import shutil
-
         shutil.copy2(os.path.join(self.pgen_dir, "model_params.txt"), save_dir)
         shutil.copy2(os.path.join(self.pgen_dir, "model_marginals.txt"), save_dir)
         shutil.copy2(os.path.join(self.pgen_dir, "V_gene_CDR3_anchors.csv"), save_dir)
@@ -1268,10 +1283,12 @@ class Sonia:
         files_in_dir = set(os.listdir(self.ppost_dir))
 
         if "NN" in type(self).__name__:
+            if "model.weights.h5" in files_in_dir:
+                ppost_files += ("model.weights.h5",)
             if "model.h5" in files_in_dir:
                 ppost_files += ("model.h5",)
-            else:
-                ppost_files += ("model.keras",)
+                raise RuntimeError("model.h5 files no longer supported. "
+                                   "Install a previous version of the software.")
 
         missing_files = set(ppost_files) - files_in_dir
 
@@ -1294,11 +1311,6 @@ class Sonia:
                 )
 
         feature_file = os.path.join(self.ppost_dir, "features.tsv")
-        try: 
-            model_file = os.path.join(self.ppost_dir, "model.keras")
-        except:
-            model_file = os.path.join(self.ppost_dir, "model.h5")
-
         data_seq_file = os.path.join(self.ppost_dir, "data_seqs.tsv")
         gen_seq_file = os.path.join(self.ppost_dir, "gen_seqs.tsv")
         log_file = os.path.join(self.ppost_dir, "log.txt")
@@ -1337,8 +1349,12 @@ class Sonia:
                     self.likelihood_test.append(float(test_val))
                 except:
                     continue
-
-        self._load_features_and_model(feature_file, model_file, verbose)
+        weights_file = os.path.join(self.ppost_dir, "model.weights.h5")
+        #try: 
+        #    model_file = os.path.join(self.ppost_dir, "model.keras")
+        #except:
+        #    model_file = os.path.join(self.ppost_dir, "model.h5")
+        self._load_features_and_model(feature_file, weights_file, verbose)
 
         if not load_seqs:
             return
@@ -1421,55 +1437,16 @@ class Sonia:
         self.gen_marginals = np.array(gen_marginals)
         self.model_marginals = np.array(model_marginals)
         self.feature_dict = {tuple(f): i for i, f in enumerate(self.features)}
-
+        self.update_model_structure(initialize=True)
         if k == 1:
             feature_energies = np.array(energies).reshape(len(self.features), 1)
-            self.update_model_structure(initialize=True)
             self.model.set_weights([feature_energies])
             self.model_params = self.model.get_weights()
-
         else:
-            try:
-                self.model = keras.models.load_model(
-                    model_file,
-                    custom_objects={
-                        "loss": self._loss,
-                        "likelihood": self._likelihood,
-                        "clip": ko.clip,
-                    },
-                    compile=False,
-                )
-            except Exception as e:
-                if "Unknown layer" in str(e):
-                    paired_str = "Paired" if "Paired" in type(self).__name__ else ""
-                    raise RuntimeError(
-                        "The loaded model structure is supposed to be for "
-                        f"a SoNNia{paired_str} model, but a Sonia{paired_str} "
-                        "model is trying to be initialized. Try loading "
-                        f"the model using the SoNNia{paired_str} class instead."
-                    )
-                else:
-                    raise e
-
-            if len(self.model.layers) > 3:
-                paired_str = "Paired" if "Paired" in type(self).__name__ else ""
-                raise RuntimeError(
-                    "The loaded model structure is supposed to be "
-                    f"for a SoNNia{paired_str} model, but a Sonia{paired_str} "
-                    "model is trying to be initialized. Try loading "
-                    f"the model using the SoNNia{paired_str} class instead."
-                )
-
-            self.optimizer = keras.optimizers.RMSprop()
-            self.model.compile(
-                optimizer=self.optimizer, loss=self._loss, metrics=[self._likelihood]
-            )
+            self.model.load_weights(model_file)
 
     def load_pgen_model(self) -> None:
-        """
-        Load olga model.
-        """
-        # Load generative model
+        """Load olga model."""
         (
             self.genomic_data,
             self.generative_model,
