@@ -17,7 +17,6 @@ from numpy.typing import NDArray
 from sonnia.sonia import GENE_FEATURE_OPTIONS
 from sonnia.sonia_paired import SoniaPaired
 
-
 class SoNNiaPaired(SoniaPaired):
     def __init__(
         self,
@@ -274,29 +273,8 @@ class SoNNiaPaired(SoniaPaired):
         self.vj_length_light = np.count_nonzero((initial == "v_l") | (initial == "j_l"))
         self.vj_length_heavy = np.count_nonzero((initial == "v_h") | (initial == "j_h"))
 
-        self.model = keras.models.load_model(
-            model_file,
-            custom_objects={
-                "loss": self._loss,
-                "likelihood": self._likelihood,
-                "EmbedViaMatrix": EmbedViaMatrix,
-                "clip": ko.clip,
-            },
-            compile=False,
-        )
-
-        if len(self.model.layers) == 3:
-            raise RuntimeError(
-                "The loaded model structure is supposed to be "
-                "for a SoniaPaired model, but a SoNNiaPaired "
-                "model is trying to be initialized. Try loading "
-                "the model using the SoniaPaired class instead."
-            )
-
-        self.optimizer = keras.optimizers.RMSprop()
-        self.model.compile(
-            optimizer=self.optimizer, loss=self._loss, metrics=[self._likelihood]
-        )
+        self.update_model_structure(initialize=True)
+        self.model.load_weights(model_file)
 
 
 class EmbedViaMatrix(keras.layers.Layer):

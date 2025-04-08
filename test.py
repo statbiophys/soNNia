@@ -30,7 +30,7 @@ PAIRED_CHAIN_MODELS = [
 ]
 
 class Test(unittest.TestCase):
-    
+
     def setUp(self):
         self.seqs = np.array(
             [['CASSAF', 'TRBV10-1', 'TRBJ2-7'],
@@ -39,9 +39,23 @@ class Test(unittest.TestCase):
              ['CRSSRF', 'TRBV10-1', 'TRBJ2-7']]
         )
 
+        self.seqs_paired = np.array([
+            ['CASSLLWRSEQYF', 'TRBV7-3', 'TRBJ2-7', 'CIVRVGAAGNKLTF','TRAV26-1', 'TRAJ17'],
+            ['CSARAYLSMNTEAFF', 'TRBV20-1', 'TRBJ1-1', 'CAPKLSF', 'TRAV12-3','TRAJ20'],
+            ['CAPPGSNQPQHF', 'TRBV6-4', 'TRBJ1-5', 'CATGGSNSNSGYALNF', 'TRAV17', 'TRAJ41'],
+            ['CASSKRPDQPQHF', 'TRBV9', 'TRBJ1-5', 'CAENKGQGNLIF', 'TRAV13-2', 'TRAJ42']])
+
     def test_save_load(self):
         for model in [Sonia, SoNNia]:
             qm = model(pgen_model='humanTRB',data_seqs=self.seqs)
+            qm.add_generated_seqs(10)
+            qm.save_model('test')
+            qm1 = model(ppost_model='test')
+            shutil.rmtree('test')
+            self.assertTrue(qm.feature_dict == qm1.feature_dict)
+
+        for model in [SoniaPaired, SoNNiaPaired]:
+            qm = model(pgen_model_light='human_T_alpha',pgen_model_heavy='human_T_beta',data_seqs=self.seqs_paired)
             qm.add_generated_seqs(10)
             qm.save_model('test')
             qm1 = model(ppost_model='test')
@@ -183,7 +197,7 @@ class Test(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
-if __name__ == '__main__':
-    logging.basicConfig(stream=sys.stderr)
-    logging.getLogger('SoniaTests').setLevel(logging.DEBUG)
-    unittest.main()
+#if __name__ == '__main__':
+#    logging.basicConfig(stream=sys.stderr)
+#    logging.getLogger('SoniaTests').setLevel(logging.DEBUG)
+#    unittest.main()
