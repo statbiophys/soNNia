@@ -171,4 +171,4 @@
 %GeneChoice_J_gene_Undefined_side_prio6_size7;Deletion_J_gene_Five_prime_prio5_size23
 @ErrorRate
 #SingleErrorRate
-0
+0.002054007712185786
