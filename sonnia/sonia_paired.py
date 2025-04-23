@@ -7,7 +7,8 @@ import multiprocessing as mp
 import os
 from typing import *
 
-logging.getLogger("tensorflow").disabled = True
+#logging.getLogger("tensorflow").disabled = True
+os.environ["KERAS_BACKEND"] = "torch" # use torch backend
 
 import numpy as np
 from tqdm import tqdm

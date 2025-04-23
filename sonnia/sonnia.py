@@ -5,8 +5,10 @@ import logging
 import os
 from typing import *
 
-logging.getLogger("tensorflow").disabled = True
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+#logging.getLogger("tensorflow").disabled = True
+#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+os.environ["KERAS_BACKEND"] = "torch" # use torch backend
 
 import keras
 import keras.ops as ko
@@ -74,6 +76,7 @@ class SoNNia(Sonia):
         max_depth = self.max_depth
         l_length = self.l_length
         vj_length = self.vj_length
+        activation='tanh'
 
         if initialize:
             input_l = keras.layers.Input(shape=(l_length,), dtype="float32")
@@ -88,10 +91,11 @@ class SoNNia(Sonia):
             input_layer = [input_l, input_cdr3, input_vj]
 
             if not self.deep:
-                l = input_l
+                # linear model definition
+                cdr3_length = input_l
                 cdr3 = keras.layers.Flatten()(input_cdr3)
                 vj = input_vj
-                merge = keras.layers.Concatenate()([l, cdr3, vj])
+                merge = keras.layers.Concatenate()([cdr3_length, cdr3, vj])
                 output_layer = keras.layers.Dense(
                     1,
                     use_bias=False,
@@ -100,36 +104,47 @@ class SoNNia(Sonia):
                     kernel_initializer="zeros",
                 )(merge)
             else:
-                # define encodings
-                l = keras.layers.Dense(
-                    10,
-                    activation="tanh",
+                # cdr3 length reduced to dimension 10
+                cdr3_length = keras.layers.Dense(
+                    5,
+                    activation=activation,
                     kernel_initializer="lecun_normal",
                     kernel_regularizer=keras.regularizers.l2(l2_reg),
                 )(input_l)
+
+                # cdr3 processes embeddings, flattens, and reduces to dimension 40
                 cdr3 = EmbedViaMatrix(10)(input_cdr3)
-                cdr3 = keras.layers.Activation("tanh")(cdr3)
                 cdr3 = keras.layers.Flatten()(cdr3)
                 cdr3 = keras.layers.Dense(
                     40,
-                    activation="tanh",
+                    activation=activation,
                     kernel_initializer="lecun_normal",
                     kernel_regularizer=keras.regularizers.l2(l2_reg),
                 )(cdr3)
+
+                # vj reduces to dimension 30
                 vj = keras.layers.Dense(
-                    30,
-                    activation="tanh",
+                    25,
+                    activation=activation,
                     kernel_initializer="lecun_normal",
                     kernel_regularizer=keras.regularizers.l2(l2_reg),
                 )(input_vj)
                 # merge
-                merge = keras.layers.Concatenate()([l, cdr3, vj])
-                h = keras.layers.Dense(
-                    60,
-                    activation="tanh",
-                    kernel_initializer="lecun_normal",
-                    kernel_regularizer=keras.regularizers.l2(l2_reg),
-                )(merge)
+                merge = keras.layers.Concatenate()([cdr3_length, cdr3, vj])
+
+                # 2 residual blocks of size 70
+                for _ in range(2):
+                    h = keras.layers.Dense(
+                        70,
+                        activation=activation,
+                        kernel_initializer="lecun_normal",
+                        kernel_regularizer=keras.regularizers.l2(l2_reg),
+                    )(merge)
+                    merge=keras.layers.Add()([h, merge])
+
+                h= keras.layers.Concatenate()([cdr3_length, cdr3, vj, merge])
+
+
                 output_layer = keras.layers.Dense(
                     1,
                     activation="linear",
@@ -145,7 +160,12 @@ class SoNNia(Sonia):
         )(output_layer)
 
         self.model = keras.models.Model(inputs=input_layer, outputs=clipped_out)
-        self.optimizer = keras.optimizers.RMSprop()
+        if self.optimizer_name == "adam":
+            self.optimizer = keras.optimizers.Adam()
+        elif self.optimizer_name == "rmsprop":
+            self.optimizer = keras.optimizers.RMSprop()
+        else:
+            raise RuntimeError(''f"Optimizer {self.optimizer_name} not recognized.")
 
         if self.objective == "BCE":
             self.model.compile(
@@ -222,29 +242,9 @@ class SoNNia(Sonia):
         self.a_length = np.count_nonzero(initial == "a")
         self.vj_length = np.count_nonzero((initial == "v") | (initial == "j"))
 
-        self.model = keras.models.load_model(
-            model_file,
-            custom_objects={
-                "loss": self._loss,
-                "likelihood": self._likelihood,
-                "EmbedViaMatrix": EmbedViaMatrix,
-                "clip": ko.clip,
-            },
-            compile=False,
-        )
+        self.update_model_structure(initialize=True)
+        self.model.load_weights(model_file)
 
-        if len(self.model.layers) == 3:
-            raise RuntimeError(
-                "The loaded model structure is supposed to be "
-                "for a Sonia model, but a SoNNia "
-                "model is trying to be initialized. Try loading "
-                "the model using the Sonia class instead."
-            )
-
-        self.optimizer = keras.optimizers.RMSprop()
-        self.model.compile(
-            optimizer=self.optimizer, loss=self._loss, metrics=[self._likelihood]
-        )
 
     def set_gauge(self):
         """
