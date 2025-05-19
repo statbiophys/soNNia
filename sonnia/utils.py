@@ -35,7 +35,11 @@ DEFAULT_CHAIN_TYPES = {
     "mouseTRA": "mouse_T_alpha",
     "mouse_T_alpha": "mouse_T_alpha",
     "mouse_B_heavy": "mouse_B_heavy",
-    "mouseIGH": "mouse_B_heavy"
+    "mouseIGH": "mouse_B_heavy",
+    "mouseIGK": "mouse_B_kappa",
+    "mouse_B_kappa": "mouse_B_kappa",
+    "mouseIGL": "mouse_B_lambda",
+    "mouse_B_lambda": "mouse_B_lambda",
 }
 DEFAULT_CHAIN_TYPES_PAIRED = {
     "humanTCR": "human_T_beta_alpha",
@@ -59,6 +63,8 @@ NORM_PRODUCTIVES = {
     "mouse_T_beta": 0.2727148540013573,
     "mouse_T_alpha": 0.321870924914448,
     "mouse_B_heavy": 0.22209585697567058,
+    "mouse_B_kappa": 0.3139221525354934,
+    "mouse_B_lambda": 0.2909648720316034,
 }
 
 HEAVY_CHAINS = {"TRB", "TRD", "IGH"}
