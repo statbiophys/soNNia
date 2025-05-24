@@ -29,7 +29,19 @@ classifiers=[
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-             
+
+dependencies = [
+        "numpy",
+        "scipy",
+        "tqdm",
+        "torch",
+        "keras>3",
+        "matplotlib",
+        "olga",
+        "polars",
+        "pandas",
+]
+
 [project.urls]
 Homepage = "https://github.com/statbiophys/soNNia"
 Documentation = "https://sonnia.readthedocs.io/en/latest/index.html"
