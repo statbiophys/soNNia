@@ -71,6 +71,8 @@ We offer a quick demonstration of the console scripts. This will show how to gen
 | mouseTRB | Mouse T cell beta | VDJ |
 | mouseTRA | Mouse T cell alpha | VJ |
 | mouseIGH | Mouse B cell heavy | VDJ |
+| mouseIGK | Mouse B cell kappa | VJ |
+| mouseIGL | Mouse B cell lambda | VJ |
 
 ## Python API 
 In order to incorporate the core algorithm into an analysis pipeline (or to write your own script wrappers) all that is needed is to import the modules. Each module defines some classes that only a few methods get called on.
