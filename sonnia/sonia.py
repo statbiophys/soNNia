@@ -458,7 +458,7 @@ class Sonia:
     def compute_energy(
         self,
         encoding: sparse.csr_array,
-        chunksize: int = int(1e6),
+        chunksize: int = int(1e5),
         verbose: bool = True,
     ) -> NDArray[np.float32]:
         """
