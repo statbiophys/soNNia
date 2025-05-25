@@ -500,7 +500,7 @@ class Sonia:
                 if keras.backend.backend() == "tensorflow":
                     energies_slice = self.model(dense_encoding).numpy()[:, 0]
                 else:
-                    energies_slice = self.model(dense_encoding)[:, 0].detach().numpy()
+                    energies_slice = self.model(dense_encoding)[:, 0].detach().cpu().numpy()
             except Exception as e:
                 if "Failed copying" in str(e):
                     raise RuntimeError(
