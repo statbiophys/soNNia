@@ -32,7 +32,7 @@ classifiers=[
 
 dependencies = [
         "numpy",
-        "scipy",
+        "scipy>=1.14",
         "tqdm",
         "torch",
         "keras>3",
