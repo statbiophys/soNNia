@@ -57,7 +57,7 @@ DEFAULT_CHAIN_TYPES_PAIRED = {
 NORM_PRODUCTIVES = {
     "human_T_beta": 0.2442847269027897,
     "human_T_alpha": 0.28942841130371455,
-    "human_B_heavy": 0.18819641642654822,
+    "human_B_heavy": 0.1972726650924565,
     "human_B_lambda": 0.30622624319426334,
     "human_B_kappa": 0.3036617226436746,
     "mouse_T_beta": 0.2727148540013573,
@@ -227,7 +227,6 @@ def define_pgen_model(
 
     return out_tup
 
-
 def filter_seqs(
     seqs: Sequence[Sequence[str]] | pd.DataFrame | str,
     model: str | Sonia | SoNNia,
@@ -389,7 +388,10 @@ def filter_seqs(
                     "be an integer pointing to the column containing "
                     "the abundances."
                 )
-
+    # if sequence_id is not in the dataframe, add it
+    if 'sequence_id' not in df.columns:
+        df['sequence_id'] = np.arange(len(df))
+    
     if (
         not df[seq_col]
         .str.contains(r"^[ACDEFGHIKLMNPQRSTVWY~_\*]+$", regex=True, na=False)
@@ -539,15 +541,15 @@ def filter_seqs(
         return bool_arr
 
     str_size = max(max_v_length, max_j_length, max_cdr3_length)
-    res = np.zeros((num_pass, 3), dtype=f"<U{str_size}")
+    res = np.zeros((num_pass, 4), dtype=f"<U{str_size}")
 
     res[:, 0] = df.loc[bool_arr, seq_col]
     if v_col is not None:
         res[:, 1] = df.loc[bool_arr, v_col]
     if j_col is not None:
         res[:, 2] = df.loc[bool_arr, j_col]
-
-    return res
+    res[:,3]=df.loc[bool_arr,'sequence_id'].astype(str)
+    return pd.DataFrame(res,columns=['junction_aa','v_gene','j_gene','sequence_id'])
 
 
 def sample_olga(
