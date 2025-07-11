@@ -1037,9 +1037,14 @@ class Sonia:
             logging.info("Adding gen seqs.")
             try:
                 if "Paired" not in type(self).__name__:
-                    add_gen_seqs = filter_seqs(add_gen_seqs, self.pgen_dir, **kwargs)
+                    add_gen_seqs = filter_seqs(add_gen_seqs, self.pgen_dir, **kwargs).values
                 else:
-                    pass
+                    heavy_seqs=add_gen_seqs[:,:3]
+                    light_seqs=add_gen_seqs[:,3:]
+                    heavy_seqs=filter_seqs(heavy_seqs, self.pgen_dir_heavy, **kwargs)
+                    light_seqs=filter_seqs(light_seqs, self.pgen_dir_light, **kwargs)
+                    add_gen_seqs=heavy_seqs.merge(light_seqs,on='sequence_id',how='inner',suffixes=('_heavy','_light'))
+                    add_gen_seqs=add_gen_seqs[['junction_aa_heavy','v_gene_heavy','j_gene_heavy','junction_aa_light','v_gene_light','j_gene_light','sequence_id']].values
             except Exception as e:
                 raise Exception(e)
             add_gen_seqs = np.array(
