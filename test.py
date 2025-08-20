@@ -195,16 +195,16 @@ class Test(unittest.TestCase):
         self.assertEqual(len(seq), 8)
 
     def test_evaluate_cli(self):
-        result = run_terminal("sonnia evaluate -i examples/subsample.txt --model human_T_beta -m 10")
-        self.assertTrue(len(result[0]) > 0)
+        result = run_terminal("sonnia evaluate -i examples/data_seqs.csv.gz --model human_T_beta -m 10")
+        self.assertTrue(not "\x1b" in result[1][0])
     
     def test_infer_cli(self):
-        result = run_terminal("sonnia infer -i examples/subsample.txt --model human_T_beta -m 10")
-        self.assertTrue(len(result[0]) > 0)
+        result = run_terminal("sonnia infer -i examples/data_seqs.csv.gz --model human_T_beta -m 1000")
+        self.assertTrue(not "\x1b" in result[1][0])
     
     def test_generate_cli(self):
-        result = run_terminal("sonnia generate --model human_T_beta -n 10")
-        self.assertTrue(len(result[0]) > 0)
+        result = run_terminal("sonnia generate --model human_T_beta -n 10 --pre")
+        self.assertTrue(not "\x1b" in result[1][0])
 
 if __name__ == "__main__":
     unittest.main()

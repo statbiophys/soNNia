@@ -44,10 +44,13 @@ def evaluate(
     # Load input data
     typer.echo("Loading input data...")
     try:
-        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]].values
+        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]]
+        data_seqs[v_gene_column] = data_seqs[v_gene_column].apply(lambda x: x.split("*")[0])
+        data_seqs[j_gene_column] = data_seqs[j_gene_column].apply(lambda x: x.split("*")[0])
+        data_seqs = data_seqs.values
     except:
         data_seqs = pd.read_csv(infile, delimiter=delimiter, header=None).values
-    
+
     if pd.isna(data_seqs[:,1]).all() and pd.isna(data_seqs[:,2]).all():
         typer.echo("No V or J genes found in the data.")
         include_genes=False
@@ -92,7 +95,10 @@ def infer(
     # Load input data
     typer.echo("Loading input data...")
     try:
-        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]].values.astype(str)
+        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]]
+        data_seqs[v_gene_column] = data_seqs[v_gene_column].apply(lambda x: x.split("*")[0])
+        data_seqs[j_gene_column] = data_seqs[j_gene_column].apply(lambda x: x.split("*")[0])
+        data_seqs = data_seqs.values.astype(str)
     except:
         data_seqs = pd.read_csv(infile, delimiter=delimiter, header=None).values.astype(str)
     typer.echo(f'Succesfully loaded {len(data_seqs)} sequences')
@@ -168,7 +174,7 @@ def generate(
                 num_seqs=t, nucleotide=True, upper_bound=rejection_bound
             )
         else:
-            print("ERROR: give option between --pre or --post")
+            raise ValueError("ERROR: give option between --pre or --post")
             return -1
         
         if outfile_name is not None:  # OUTFILE SPECIFIED
