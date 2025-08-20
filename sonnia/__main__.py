@@ -25,11 +25,13 @@ def evaluate(
     model: Optional[str] = typer.Option(..., "--model", help=f"Select model. If any from {MODELS.values()} then use default model. Otherwise, specify custom model folder."),
     outfile: str = typer.Option("evaluated_seqs.tsv", "--outfile", "-o", help="Path to output file"),
     max_seqs: int = typer.Option(int(1e8), "--max_seqs", "-m", help="Maximum number of sequences to evaluate"),
+    junction_column: str = typer.Option("junction_aa", "--junction_column", "-j", help="Column name for junction sequences"),
+    v_gene_column: str = typer.Option("v_gene", "--v_gene_column", "-v", help="Column name for V gene sequences"),
+    j_gene_column: str = typer.Option("j_gene", "--j_gene_column", "-j", help="Column name for J gene sequences"),
 ):
     """Infer model on input sequences."""
     
     # Determine delimiter
-    junction_column =  "amino_acid" if ".csv" in infile else "junction_aa"
     delimiter = "\t" if ".tsv" in infile else "," if ".csv" in infile else ";"
     
     # Initialize model
@@ -42,7 +44,7 @@ def evaluate(
     # Load input data
     typer.echo("Loading input data...")
     try:
-        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, 'v_gene', 'j_gene']].values
+        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]].values
     except:
         data_seqs = pd.read_csv(infile, delimiter=delimiter, header=None).values
     
@@ -79,16 +81,18 @@ def infer(
     batch_size: int = typer.Option(int(5e3), "--batch_size", "-b", help="Batch size for training model"),
     validation_split: float = typer.Option(0.2, "--validation_split", "-v", help="Validation split for training model"),
     infile_gen: Optional[str] = typer.Option(None, "--infile_gen", help="Path to input file for generated sequences"),
+    junction_column: str = typer.Option("junction_aa", "--junction_column", "-j", help="Column name for junction sequences"),
+    v_gene_column: str = typer.Option("v_gene", "--v_gene_column", "-v", help="Column name for V gene sequences"),
+    j_gene_column: str = typer.Option("j_gene", "--j_gene_column", "-j", help="Column name for J gene sequences"),
 ):
     """Evaluate sequences using a generative model."""
 
-    junction_column =  "amino_acid" if ".csv" in infile else "junction_aa"
     delimiter = "\t" if ".tsv" in infile else "," if ".csv" in infile else ";"
 
     # Load input data
     typer.echo("Loading input data...")
     try:
-        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, 'v_gene', 'j_gene']].values.astype(str)
+        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]].values.astype(str)
     except:
         data_seqs = pd.read_csv(infile, delimiter=delimiter, header=None).values.astype(str)
     typer.echo(f'Succesfully loaded {len(data_seqs)} sequences')
@@ -135,6 +139,9 @@ def generate(
     ppost: bool = typer.Option(False, "--post", help="Generate sequences using post-selection model"),
     rejection_bound: int = typer.Option(10, "--rejection_bound", "-r", help="Rejection bound for post-selection model"),
     chunck_size: int = typer.Option(1000, "--chunck_size", "-c", help="Chunck size for generating sequences"),
+    junction_column: str = typer.Option("junction_aa", "--junction_column", "-j", help="Column name for junction sequences"),
+    v_gene_column: str = typer.Option("v_gene", "--v_gene_column", "-v", help="Column name for V gene sequences"),
+    j_gene_column: str = typer.Option("j_gene", "--j_gene_column", "-j", help="Column name for J gene sequences"),
 ):
     """Generate sequences using the model"""
     
@@ -165,9 +172,9 @@ def generate(
             return -1
         
         if outfile_name is not None:  # OUTFILE SPECIFIED
-            out_df.append(pd.DataFrame(seqs,columns=['junction_aa','v_gene','j_gene','junction']))
+            out_df.append(pd.DataFrame(seqs,columns=[junction_column,v_gene_column,j_gene_column,'junction']))
         else:  # print to stdout
-            print('junction_aa','v_gene','j_gene','junction')
+            print(junction_column,v_gene_column,j_gene_column,'junction')
             for seq in seqs:
                 print(seq[0], seq[1], seq[2], seq[3])
 
