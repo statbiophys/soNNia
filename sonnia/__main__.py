@@ -5,7 +5,7 @@ from sonnia.sonia import Sonia
 from sonnia.sonnia import SoNNia
 from typing import Optional
 from sonnia.plotting import Plotter
-
+import numpy as np
 app = typer.Typer(add_completion=False)
 
 MODELS = {
@@ -46,11 +46,16 @@ def evaluate(
     except:
         data_seqs = pd.read_csv(infile, delimiter=delimiter, header=None).values
     
+    if pd.isna(data_seqs[:,1]).all() and pd.isna(data_seqs[:,2]).all():
+        typer.echo("No V or J genes found in the data.")
+        include_genes=False
+    else:
+        include_genes=True
+
     # Evaluate sequences
     typer.echo("Evaluating sequences...")
     sonia_model.update_model(add_data_seqs=data_seqs[:max_seqs])
-    Q, pgen, ppost = sonia_model.evaluate_seqs(sonia_model.data_seqs)
-    
+    Q, pgen, ppost = sonia_model.evaluate_seqs(sonia_model.data_seqs, include_genes=include_genes)
     df_out = pd.DataFrame(sonia_model.data_seqs, columns=['junction_aa', 'v_gene', 'j_gene','sequence_id'])
     df_out['Q'] = Q
     df_out['Pgen'] = pgen

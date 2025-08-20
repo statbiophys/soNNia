@@ -350,6 +350,9 @@ def filter_seqs(
                 v_col = 1
                 if verbose:
                     logging.info("Using default index (1) for V genes.")
+                if df[v_col].isna().all():
+                    logging.warning("No V genes found in the data. Setting v_col to None.")
+                    v_col = None
 
             elif not isinstance(v_col, int_tuple):
                 raise TypeError(
@@ -365,6 +368,9 @@ def filter_seqs(
                 j_col = 2
                 if verbose:
                     logging.info("Using default index (2) for J genes.")
+                if df[j_col].isna().all():
+                    logging.warning("No J genes found in the data. Setting j_col to None.")
+                    j_col = None
             elif not isinstance(j_col, int_tuple):
                 raise TypeError(
                     "Because seqs is an iterable, j_col must "
@@ -412,16 +418,17 @@ def filter_seqs(
     num_pass = len(df)
 
     # Convert genes
-    for col, gene_ref in zip((v_col, j_col), (v_genes, j_genes)):
-        df[col] = df[col].str.replace("TCR", "TR")
+    if v_col is not None and j_col is not None:
+        for col, gene_ref in zip((v_col, j_col), (v_genes, j_genes)):
+            df[col] = df[col].str.replace("TCR", "TR")
 
-        has_dash_1 = df.loc[df[col].str.contains("-1")]
-        remove_dash_1 = has_dash_1.loc[~has_dash_1[col].isin(gene_ref), col]
-        df.loc[remove_dash_1.index, col] = remove_dash_1.str.replace("-1", "")
+            has_dash_1 = df.loc[df[col].str.contains("-1")]
+            remove_dash_1 = has_dash_1.loc[~has_dash_1[col].isin(gene_ref), col]
+            df.loc[remove_dash_1.index, col] = remove_dash_1.str.replace("-1", "")
 
-        no_dash = df.loc[~df[col].str.contains("-")]
-        add_dash_1 = no_dash.loc[~no_dash[col].isin(gene_ref), col]
-        df.loc[add_dash_1.index, col] = add_dash_1 + "-1"
+            no_dash = df.loc[~df[col].str.contains("-")]
+            add_dash_1 = no_dash.loc[~no_dash[col].isin(gene_ref), col]
+            df.loc[add_dash_1.index, col] = add_dash_1 + "-1"
 
     if nt_seq_col is not None:
         if not df[nt_seq_col].str.contains("^[ACGTacgt]+$", regex=True, na=False).all():

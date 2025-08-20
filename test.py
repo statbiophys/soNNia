@@ -194,13 +194,17 @@ class Test(unittest.TestCase):
         seq = generate_paired_sequence(seqgen_model_light, seqgen_model_heavy, genomic_data_light, genomic_data_heavy)
         self.assertEqual(len(seq), 8)
 
-    def test_infer_clonality(self):
-        result = run_terminal("sonnia evalute -i examples/data_seqs.txt --model human_T_Beta -m 10")
+    def test_evaluate_cli(self):
+        result = run_terminal("sonnia evaluate -i examples/subsample.txt --model human_T_beta -m 10")
+        self.assertTrue(len(result[0]) > 0)
+    
+    def test_infer_cli(self):
+        result = run_terminal("sonnia infer -i examples/subsample.txt --model human_T_beta -m 10")
+        self.assertTrue(len(result[0]) > 0)
+    
+    def test_generate_cli(self):
+        result = run_terminal("sonnia generate --model human_T_beta -n 10")
+        self.assertTrue(len(result[0]) > 0)
 
 if __name__ == "__main__":
     unittest.main()
-
-#if __name__ == '__main__':
-#    logging.basicConfig(stream=sys.stderr)
-#    logging.getLogger('SoniaTests').setLevel(logging.DEBUG)
-#    unittest.main()
