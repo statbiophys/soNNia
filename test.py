@@ -194,6 +194,9 @@ class Test(unittest.TestCase):
         seq = generate_paired_sequence(seqgen_model_light, seqgen_model_heavy, genomic_data_light, genomic_data_heavy)
         self.assertEqual(len(seq), 8)
 
+    def test_infer_clonality(self):
+        result = run_terminal("sonnia evalute -i examples/data_seqs.txt --model human_T_Beta -m 10")
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -51,7 +51,7 @@ def evaluate(
     sonia_model.update_model(add_data_seqs=data_seqs[:max_seqs])
     Q, pgen, ppost = sonia_model.evaluate_seqs(sonia_model.data_seqs)
     
-    df_out = pd.DataFrame(sonia_model.data_seqs, columns=['junction_aa', 'v_gene', 'j_gene'])
+    df_out = pd.DataFrame(sonia_model.data_seqs, columns=['junction_aa', 'v_gene', 'j_gene','sequence_id'])
     df_out['Q'] = Q
     df_out['Pgen'] = pgen
     df_out['Ppost'] = ppost
