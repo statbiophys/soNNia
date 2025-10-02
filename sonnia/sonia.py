@@ -26,6 +26,7 @@ from keras.optimizers import RMSprop,Adam
 from keras.regularizers import l1_l2
 from numpy.typing import NDArray
 from tqdm import tqdm
+import pandas as pd
 
 from sonnia.sonia_dataset import SoniaDataset
 from sonnia.utils import (
@@ -1011,49 +1012,61 @@ class Sonia:
             logging.info("Adding data seqs.")
             try:
                 if "Paired" not in type(self).__name__:
-                    add_data_seqs = filter_seqs(add_data_seqs, self.pgen_dir, **kwargs).values
+                    add_data_seqs = filter_seqs(add_data_seqs, self.pgen_dir, **kwargs)
                 else:
-                    heavy_seqs=add_data_seqs[:,:3]
-                    light_seqs=add_data_seqs[:,3:]
+                    if type(add_data_seqs) == pd.DataFrame:
+                        try: 
+                            heavy_seqs=add_data_seqs['junction_aa_heavy','v_gene_heavy','j_gene_heavy']
+                            light_seqs=add_data_seqs['junction_aa_light','v_gene_light','j_gene_light']
+                        except:
+                            heavy_seqs=add_data_seqs.values[:,:3]
+                            light_seqs=add_data_seqs.values[:,3:]
+                    else:
+                        heavy_seqs=add_data_seqs[:,:3]
+                        light_seqs=add_data_seqs[:,3:]
                     heavy_seqs=filter_seqs(heavy_seqs, self.pgen_dir_heavy, **kwargs)
                     light_seqs=filter_seqs(light_seqs, self.pgen_dir_light, **kwargs)
                     add_data_seqs=heavy_seqs.merge(light_seqs,on='sequence_id',how='inner',suffixes=('_heavy','_light'))
-                    add_data_seqs=add_data_seqs[['junction_aa_heavy','v_gene_heavy','j_gene_heavy','junction_aa_light','v_gene_light','j_gene_light','sequence_id']].values
+                    add_data_seqs=add_data_seqs[['junction_aa_heavy','v_gene_heavy','j_gene_heavy','junction_aa_light','v_gene_light','j_gene_light','sequence_id']]
             except Exception as e:
                 raise Exception(e)
 
-            add_data_seqs = np.array(
-                [
-                    [seq, "", ""] if isinstance(seq, str) else seq
-                    for seq in add_data_seqs
-                ]
-            )
             if len(self.data_seqs) == 0:
                 self.data_seqs = add_data_seqs
             else:
-                self.data_seqs = np.concatenate([self.data_seqs, add_data_seqs])
+                max_index=self.data_seqs['sequence_id'].max()
+                add_data_seqs['sequence_id']=add_data_seqs['sequence_id']+max_index+1
+                self.data_seqs = pd.concat([self.data_seqs, add_data_seqs])
 
         if len(add_gen_seqs) > 0:
             logging.info("Adding gen seqs.")
             try:
                 if "Paired" not in type(self).__name__:
-                    add_gen_seqs = filter_seqs(add_gen_seqs, self.pgen_dir, **kwargs).values
+                    add_gen_seqs = filter_seqs(add_gen_seqs, self.pgen_dir, **kwargs)
                 else:
-                    heavy_seqs=add_gen_seqs[:,:3]
-                    light_seqs=add_gen_seqs[:,3:]
+                    if type(add_gen_seqs) == pd.DataFrame:
+                        try: 
+                            heavy_seqs=add_gen_seqs['junction_aa_heavy','v_gene_heavy','j_gene_heavy']
+                            light_seqs=add_gen_seqs['junction_aa_light','v_gene_light','j_gene_light']
+                        except:
+                            heavy_seqs=add_gen_seqs.values[:,:3]
+                            light_seqs=add_gen_seqs.values[:,3:]
+                    else:
+                        heavy_seqs=add_gen_seqs[:,:3]
+                        light_seqs=add_gen_seqs[:,3:]
                     heavy_seqs=filter_seqs(heavy_seqs, self.pgen_dir_heavy, **kwargs)
                     light_seqs=filter_seqs(light_seqs, self.pgen_dir_light, **kwargs)
                     add_gen_seqs=heavy_seqs.merge(light_seqs,on='sequence_id',how='inner',suffixes=('_heavy','_light'))
-                    add_gen_seqs=add_gen_seqs[['junction_aa_heavy','v_gene_heavy','j_gene_heavy','junction_aa_light','v_gene_light','j_gene_light','sequence_id']].values
+                    add_gen_seqs=add_gen_seqs[['junction_aa_heavy','v_gene_heavy','j_gene_heavy','junction_aa_light','v_gene_light','j_gene_light','sequence_id']]
             except Exception as e:
                 raise Exception(e)
-            add_gen_seqs = np.array(
-                [[seq, "", ""] if isinstance(seq, str) else seq for seq in add_gen_seqs]
-            )
+
             if len(self.gen_seqs) == 0:
                 self.gen_seqs = add_gen_seqs
             else:
-                self.gen_seqs = np.concatenate([self.gen_seqs, add_gen_seqs])
+                max_index=self.gen_seqs['sequence_id'].max()
+                add_gen_seqs['sequence_id']=add_gen_seqs['sequence_id']+max_index+1
+                self.gen_seqs = pd.concat([self.gen_seqs, add_gen_seqs])
 
         if (
             (
@@ -1064,7 +1077,7 @@ class Sonia:
             and len(self.data_seqs) > 0
         ):
             logging.info("Encode data seqs.")
-            self.data_encoding = self.encode_data(self.data_seqs)
+            self.data_encoding = self.encode_data(self.data_seqs.values)
 
         if (
             len(add_data_seqs) + len(add_features) + len(remove_features) > 0
@@ -1084,7 +1097,7 @@ class Sonia:
             and len(self.gen_seqs) > 0
         ):
             logging.info("Encode gen seqs.")
-            self.gen_encoding = self.encode_data(self.gen_seqs)
+            self.gen_encoding = self.encode_data(self.gen_seqs.values)
 
         if (
             len(add_gen_seqs) + len(add_features) + len(remove_features) > 0
@@ -1900,7 +1913,7 @@ class Sonia:
         """
         if self.gen_encoding.shape[0] >= int(1e4):
             encoding = self.gen_encoding[:n]
-            seqs = self.gen_seqs[:n]
+            seqs = self.gen_seqs[:n].values
         else:
             raise RuntimeError(
                 "At least 10,000 generated sequences must be used "

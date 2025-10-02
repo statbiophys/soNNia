@@ -53,7 +53,6 @@ class SoniaPaired(Sonia):
                     "must be None or be an iterable containing only "
                     f"the following strings: {options}."
                 )
-
         if ppost_model is None and (
             pgen_model_light is None or pgen_model_heavy is None
         ):

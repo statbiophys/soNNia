@@ -230,7 +230,7 @@ def define_pgen_model(
 def filter_seqs(
     seqs: Sequence[Sequence[str]] | pd.DataFrame | str,
     model: str | Sonia | SoNNia,
-    seq_col: str = "amino_acid",
+    seq_col: str = "junction_aa",
     v_col: str = "v_gene",
     j_col: str = "j_gene",
     nt_seq_col: Optional[Union[int, str]] = None,
@@ -255,7 +255,7 @@ def filter_seqs(
         an iterable of iterable of str.:
     model : str or Sonia object or SoNNia object
         The path to the Sonia model, a default Sonia model keyword, or a Sonia object.
-    seq_col : str, default 'amino_acid'
+    seq_col : str, default 'junction_aa'
         The label of the column pointing to the CDR3 nucleotide sequences.
     v_col : str, default 'v_gene'
         The label of the column pointing to the V genes.
@@ -330,7 +330,7 @@ def filter_seqs(
         df = pd.DataFrame(seqs)
 
         if seq_col is not None:
-            if seq_col == "amino_acid":
+            if seq_col == "junction_aa":
                 seq_col = 0
                 if verbose:
                     logging.info(
@@ -394,9 +394,9 @@ def filter_seqs(
                     "be an integer pointing to the column containing "
                     "the abundances."
                 )
-    # if sequence_id is not in the dataframe, add it
-    if 'sequence_id' not in df.columns:
-        df['sequence_id'] = np.arange(len(df))
+    # add sequence_id column
+    #if 'sequence_id' not in df.columns:
+    df['sequence_id'] = np.arange(len(df))
     
     if (
         not df[seq_col]
