@@ -55,7 +55,7 @@ class Test(unittest.TestCase):
             self.assertTrue(qm.feature_dict == qm1.feature_dict)
 
         for model in [SoniaPaired, SoNNiaPaired]:
-            qm = model(pgen_model_light='human_T_alpha',pgen_model_heavy='human_T_beta',data_seqs=self.seqs_paired)
+            qm = model(pgen_model='humanTCR',data_seqs=self.seqs_paired)
             qm.add_generated_seqs(10)
             qm.save_model('test')
             qm1 = model(ppost_model='test')
@@ -83,10 +83,7 @@ class Test(unittest.TestCase):
         qm2.infer_selection(epochs=5)
         self.assertTrue(len(qm2.likelihood_test) == 5)
 
-        qm3 = SoNNiaPaired(
-            gen_seqs=qm2.gen_seqs, data_seqs=qm2.data_seqs,
-            pgen_model_light=qm2.pgen_dir_light, pgen_model_heavy=qm2.pgen_dir_heavy
-        )
+        qm3 = SoNNiaPaired(gen_seqs=qm2.gen_seqs, data_seqs=qm2.data_seqs,pgen_model='humanTCR')
         qm3.infer_selection(epochs=5)
         self.assertTrue(len(qm3.likelihood_test) == 5)
 
