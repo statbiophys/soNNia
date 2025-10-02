@@ -3,6 +3,9 @@ import typer
 import pandas as pd
 from sonnia.sonia import Sonia
 from sonnia.sonnia import SoNNia
+from sonnia.sonia_paired import SoniaPaired
+from sonnia.sonnia_paired import SoNNiaPaired
+from sonnia.utils import load_sequences, chunks
 from typing import Optional
 from sonnia.plotting import Plotter
 import numpy as np
@@ -17,40 +20,61 @@ MODELS = {
     "mouseTRA": "mouse_T_alpha",
     "mouseTRB": "mouse_T_beta",
     "mouseIGH": "mouse_B_heavy",
+    "humanTCR": "human_T_beta_alpha",
+    "humanIGHK": "human_B_heavy_kappa",
+    "humanIGHL": "human_B_heavy_lambda",
 }
-
 @app.command()
 def evaluate(
     infile: str = typer.Option(..., "--infile", "-i", help="Path to input file"),
     model: Optional[str] = typer.Option(..., "--model", help=f"Select model. If any from {MODELS.values()} then use default model. Otherwise, specify custom model folder."),
     outfile: str = typer.Option("evaluated_seqs.tsv", "--outfile", "-o", help="Path to output file"),
     max_seqs: int = typer.Option(int(1e8), "--max_seqs", "-m", help="Maximum number of sequences to evaluate"),
-    junction_column: str = typer.Option("junction_aa", "--junction_column", "-j", help="Column name for junction sequences"),
-    v_gene_column: str = typer.Option("v_gene", "--v_gene_column", "-v", help="Column name for V gene sequences"),
-    j_gene_column: str = typer.Option("j_gene", "--j_gene_column", "-j", help="Column name for J gene sequences"),
+    junction_column: str = typer.Option("junction_aa", "--junction_column", "-j", help="Column name for junction sequences. Only for single chain model."),
+    v_gene_column: str = typer.Option("v_gene", "--v_gene_column", "-v", help="Column name for V gene sequences. Only for single chain model."),
+    j_gene_column: str = typer.Option("j_gene", "--j_gene_column", "-j", help="Column name for J gene sequences. Only for single chain model."),
+    paired: bool = typer.Option(False, "--paired", help="Use paired chain model. Assumes heavy and light chains are in separate columns named junction_aa_heavy, v_gene_heavy, j_gene_heavy, junction_aa_light, v_gene_light, j_gene_light."),
+    no_header: bool = typer.Option(False, "--no_header", help="Input file does not have a header"),
+    delimiter: str = typer.Option("auto", "--delimiter", "-d", help="Delimiter for input file. By default, it is inferred from the file extension."),
 ):
-    """Infer model on input sequences."""
+    """Evaluate sequences using a generative model.
+
+    Args:
+        infile: Path to input file containing sequences to evaluate
+        model: Model to use for evaluation. Can be a default model name from MODELS or path to custom model
+        outfile: Path to save evaluation results
+        max_seqs: Maximum number of sequences to evaluate
+        junction_column: Column name for CDR3 junction sequences (single chain only)
+        v_gene_column: Column name for V gene sequences (single chain only) 
+        j_gene_column: Column name for J gene sequences (single chain only)
+        paired: Whether to use paired chain model. If True, expects heavy/light chain columns
+        no_header: Whether input file has no header row
+        delimiter: Delimiter for input file. Auto-detected from extension if "auto"
+    """
     
     # Determine delimiter
-    delimiter = "\t" if ".tsv" in infile else "," if ".csv" in infile else ";"
-    
+    if delimiter == "auto":
+        delimiter = "\t" if ".tsv" in infile else "," if ".csv" in infile else ";"
+    else:
+        delimiter = delimiter
+
     # Initialize model
     typer.echo(f"Initializing model from {model}")
-    try:
-        sonia_model = SoNNia(ppost_model=model)
-    except:
-        sonia_model = Sonia(ppost_model=model)
+    if paired:
+        try:
+            sonia_model = SoNNiaPaired(ppost_model=model)
+        except:
+            sonia_model = SoniaPaired(ppost_model=model)
+    else:
+        try:
+            sonia_model = SoNNia(ppost_model=model)
+        except:
+            sonia_model = Sonia(ppost_model=model)
     
     # Load input data
     typer.echo("Loading input data...")
-    try:
-        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]]
-        data_seqs[v_gene_column] = data_seqs[v_gene_column].apply(lambda x: x.split("*")[0])
-        data_seqs[j_gene_column] = data_seqs[j_gene_column].apply(lambda x: x.split("*")[0])
-        data_seqs = data_seqs.values
-    except:
-        data_seqs = pd.read_csv(infile, delimiter=delimiter, header=None).values
-
+    data_seqs = load_sequences(infile, delimiter, no_header, paired, junction_column, v_gene_column, j_gene_column)
+    typer.echo(f'Successfully loaded {len(data_seqs)} sequences')
     if pd.isna(data_seqs[:,1]).all() and pd.isna(data_seqs[:,2]).all():
         typer.echo("No V or J genes found in the data.")
         include_genes=False
@@ -60,8 +84,11 @@ def evaluate(
     # Evaluate sequences
     typer.echo("Evaluating sequences...")
     sonia_model.update_model(add_data_seqs=data_seqs[:max_seqs])
-    Q, pgen, ppost = sonia_model.evaluate_seqs(sonia_model.data_seqs, include_genes=include_genes)
-    df_out = pd.DataFrame(sonia_model.data_seqs, columns=['junction_aa', 'v_gene', 'j_gene','sequence_id'])
+    Q, pgen, ppost = sonia_model.evaluate_seqs(sonia_model.data_seqs.values, include_genes=include_genes)
+    if paired:
+        df_out = pd.DataFrame(sonia_model.data_seqs, columns=['junction_aa_heavy', 'v_gene_heavy', 'j_gene_heavy', 'junction_aa_light', 'v_gene_light', 'j_gene_light','sequence_id'])
+    else:
+        df_out = pd.DataFrame(sonia_model.data_seqs, columns=['junction_aa', 'v_gene', 'j_gene','sequence_id'])
     df_out['Q'] = Q
     df_out['Pgen'] = pgen
     df_out['Ppost'] = ppost
@@ -87,21 +114,41 @@ def infer(
     junction_column: str = typer.Option("junction_aa", "--junction_column", "-j", help="Column name for junction sequences"),
     v_gene_column: str = typer.Option("v_gene", "--v_gene_column", "-v", help="Column name for V gene sequences"),
     j_gene_column: str = typer.Option("j_gene", "--j_gene_column", "-j", help="Column name for J gene sequences"),
+    paired: bool = typer.Option(False, "--paired", help="Use paired chain model. Assumes heavy and light chains are in separate columns named junction_aa_heavy, v_gene_heavy, j_gene_heavy, junction_aa_light, v_gene_light, j_gene_light."),
+    no_header: bool = typer.Option(False, "--no_header", help="Input file does not have a header"),
+    delimiter: str = typer.Option("auto", "--delimiter", "-d", help="Delimiter for input file. By default, it is inferred from the file extension."),
 ):
-    """Evaluate sequences using a generative model."""
+    """Infer a generative model on input sequences.
 
-    delimiter = "\t" if ".tsv" in infile else "," if ".csv" in infile else ";"
+    Args:
+        infile: Path to input file containing sequences to infer model on
+        model: Model to use for inference. Can be a default model name from MODELS or path to custom model
+        outdir: Path to output directory
+        linear: Whether to infer linear model
+        max_seqs: Maximum number of sequences to infer model on
+        recompute_norm: Whether to recompute productive normalization
+        n_gen_seqs: Number of sequences to generate
+        epochs: Number of epochs to train model
+        batch_size: Batch size for training model
+        validation_split: Validation split for training model
+        infile_gen: Path to input file for generated sequences
+        junction_column: Column name for junction sequences
+        v_gene_column: Column name for V gene sequences
+        j_gene_column: Column name for J gene sequences
+        paired: Whether to use paired chain model. If True, expects heavy/light chain columns
+        no_header: Whether input file has no header
+        delimiter: Delimiter for input file. Auto-detected from extension if "auto"
+    """
+
+    if delimiter == "auto":
+        delimiter = "\t" if ".tsv" in infile else "," if ".csv" in infile else ";"
+    else:
+        delimiter = delimiter
 
     # Load input data
     typer.echo("Loading input data...")
-    try:
-        data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]]
-        data_seqs[v_gene_column] = data_seqs[v_gene_column].apply(lambda x: x.split("*")[0])
-        data_seqs[j_gene_column] = data_seqs[j_gene_column].apply(lambda x: x.split("*")[0])
-        data_seqs = data_seqs.values.astype(str)
-    except:
-        data_seqs = pd.read_csv(infile, delimiter=delimiter, header=None).values.astype(str)
-    typer.echo(f'Succesfully loaded {len(data_seqs)} sequences')
+    data_seqs = load_sequences(infile, delimiter, no_header, paired, junction_column, v_gene_column, j_gene_column)
+    typer.echo(f'Successfully loaded {len(data_seqs)} sequences')
 
     # define number of gen_seqs:
     gen_seqs = []
@@ -111,13 +158,19 @@ def infer(
         if n_gen_seqs == 0:
             n_gen_seqs = len(data_seqs) #np.max([int(5e5), 3 * len(data_seqs)])
     else:
-        gen_seqs = pd.read_csv(infile_gen, delimiter=delimiter)[[junction_column,'v_gene','j_gene']].values.astype(str)
+        gen_seqs = load_sequences(infile_gen, delimiter, no_header, paired, junction_column, v_gene_column, j_gene_column)
 
     typer.echo(f"Initializing model from {model}")
     if not linear:
-        sonia_model = SoNNia(pgen_model=model,data_seqs=data_seqs,gen_seqs=gen_seqs)
+        if paired:
+            sonia_model = SoNNiaPaired(pgen_model=model,data_seqs=data_seqs,gen_seqs=gen_seqs)
+        else:
+            sonia_model = SoNNia(pgen_model=model,data_seqs=data_seqs,gen_seqs=gen_seqs)
     else:
-        sonia_model = Sonia(pgen_model=model,data_seqs=data_seqs,gen_seqs=gen_seqs)
+        if paired:
+            sonia_model = SoniaPaired(pgen_model=model,data_seqs=data_seqs,gen_seqs=gen_seqs)
+        else:
+            sonia_model = Sonia(pgen_model=model,data_seqs=data_seqs,gen_seqs=gen_seqs)
 
     typer.echo("Recomputing productive normalization.")
     sonia_model.norm_productive = sonia_model.pgen_model.compute_regex_CDR3_template_pgen("CX{0,}")
@@ -144,28 +197,47 @@ def generate(
     pgen: bool = typer.Option(False, "--pre", help="Generate sequences using pre-selection model"),
     ppost: bool = typer.Option(False, "--post", help="Generate sequences using post-selection model"),
     rejection_bound: int = typer.Option(10, "--rejection_bound", "-r", help="Rejection bound for post-selection model"),
-    chunck_size: int = typer.Option(1000, "--chunck_size", "-c", help="Chunck size for generating sequences"),
+    chunk_size: int = typer.Option(1000, "--chunk_size", "-c", help="Chunk size for generating sequences"),
     junction_column: str = typer.Option("junction_aa", "--junction_column", "-j", help="Column name for junction sequences"),
     v_gene_column: str = typer.Option("v_gene", "--v_gene_column", "-v", help="Column name for V gene sequences"),
     j_gene_column: str = typer.Option("j_gene", "--j_gene_column", "-j", help="Column name for J gene sequences"),
+    paired: bool = typer.Option(False, "--paired", help="Use paired chain model."),
+    no_header: bool = typer.Option(False, "--no_header", help="Input file does not have a header"),
+    delimiter: str = typer.Option("auto", "--delimiter", "-d", help="Delimiter for input file. By default, it is inferred from the file extension."),
 ):
-    """Generate sequences using the model"""
+    """Generate sequences using the model.
     
-    def chuncks(n, size):
-        if n % size:
-            return int(n / size) * [size] + [n % size]
-        else:
-            return int(n / size) * [size]
+    Args:
+        model: Model to use for generation. Can be a default model name from MODELS or path to custom model
+        number_of_seqs: Number of sequences to generate
+        outfile_name: Path to output file
+        pgen: Whether to generate sequences using pre-selection model
+        ppost: Whether to generate sequences using post-selection model
+        rejection_bound: Rejection bound for post-selection model
+        chunk_size: Chunk size for generating sequences
+        junction_column: Column name for junction sequences
+        v_gene_column: Column name for V gene sequences
+        j_gene_column: Column name for J gene sequences
+        paired: Whether to use paired chain model. If True, expects heavy/light chain columns
+        no_header: Whether input file has no header
+        delimiter: Delimiter for input file. Auto-detected from extension if "auto"
+    """
 
     # Initialize model
     typer.echo(f"Initializing model from {model}")
-    try:
-        sonia_model = SoNNia(ppost_model=model)
-    except:
-        sonia_model = Sonia(ppost_model=model)
+    if paired:
+        try:
+            sonia_model = SoNNiaPaired(ppost_model=model)
+        except:
+            sonia_model = SoniaPaired(ppost_model=model)
+    else:
+        try:
+            sonia_model = SoNNia(ppost_model=model)
+        except:
+            sonia_model = Sonia(ppost_model=model)
     
     out_df = []
-    to_generate = chuncks(number_of_seqs, chunck_size)
+    to_generate = chunks(number_of_seqs, chunk_size)
     for t in to_generate:
         if pgen:
             seqs = sonia_model.generate_sequences_pre(num_seqs=t, nucleotide=True)
@@ -174,15 +246,20 @@ def generate(
                 num_seqs=t, nucleotide=True, upper_bound=rejection_bound
             )
         else:
-            raise ValueError("ERROR: give option between --pre or --post")
-            return -1
+            raise RuntimeError("ERROR: give option between --pre or --post")
         
         if outfile_name is not None:  # OUTFILE SPECIFIED
-            out_df.append(pd.DataFrame(seqs,columns=[junction_column,v_gene_column,j_gene_column,'junction']))
+            if paired:
+                out_df.append(pd.DataFrame(seqs,columns=['junction_aa_heavy', 'v_gene_heavy', 'j_gene_heavy', 'junction_aa_light', 'v_gene_light', 'j_gene_light','junction_heavy','junction_light']))
+            else:
+                out_df.append(pd.DataFrame(seqs,columns=[junction_column,v_gene_column,j_gene_column,'junction']))
         else:  # print to stdout
-            print(junction_column,v_gene_column,j_gene_column,'junction')
+            if paired:
+                print('junction_aa_heavy', 'v_gene_heavy', 'j_gene_heavy', 'junction_aa_light', 'v_gene_light', 'j_gene_light','junction_heavy','junction_light')
+            else:
+                print(junction_column,v_gene_column,j_gene_column,'junction')
             for seq in seqs:
-                print(seq[0], seq[1], seq[2], seq[3])
+                print(*seq)
 
     if outfile_name is not None: 
         pd.concat(out_df).to_csv(outfile_name,

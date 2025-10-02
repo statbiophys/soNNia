@@ -613,7 +613,7 @@ class Sonia:
         ----------
         epochs : int, default 10
             Maximum number of learning epochs
-        intialize : bool, default True
+        initialize : bool, default True
             Resets data shuffle.
         batch_size : int, default 5000
             Size of the batches in the inference
@@ -963,7 +963,7 @@ class Sonia:
             List of CDR3 sequences to add to data_seq pool.
         add_features : list
             List of feature lists to add to self.features
-        remove_featurese : list
+        remove_features : list
             List of feature lists and/or indices to remove from self.features
         add_constant_features : list
             List of feature lists to add to constant features. (Not currently used)
@@ -1132,7 +1132,7 @@ class Sonia:
             used as a generative model. Folder must contain 'model_params.txt'
             and 'model_marginals.txt'
         add_error: bool
-            simualate sequencing error: default is false
+            simulate sequencing error: default is false
         error_rate: int
             set custom error rate for sequencing error.
             Default is the one inferred by igor.
@@ -1591,20 +1591,20 @@ class Sonia:
 
         Parameters
         ----------
-        num_seqs : int, deafult 1
+        num_seqs : int, default 1
             Number of Monte Carlo sequences to generate and add to the specified
             sequence pool.
         upper_bound : float, default 10
             The value of Q at above which all generated sequences are accepted.
         nucleotide : bool, default False
-            Return the CDR3 nulceotide sequences in addition to the CDR3 amino
+            Return the CDR3 nucleotide sequences in addition to the CDR3 amino
             acid sequence, V gene, and J gene.
         seed : int or numpy.random.Generator or numpy.random.BitGenerator or numpy.random.SeedSequence, optional
             The seed for random number generation.
         max_chunksize : int, default int(2e6)
             The maximum chunksize for generating sequences. The default is to
             generate int(1.1 * upper_bound * num_seqs) sequences and then perform
-            rejection sampling. However, if num_seqs is very large, this can ensue
+            rejection sampling. However, if num_seqs is very large, this can result
             in high memory costs. The minimum between max_chunksize and the
             aforementioned default amount is used for chunking.
 
@@ -1841,7 +1841,7 @@ class Sonia:
 
     def compute_joint_marginals(self) -> None:
         """Computes joint marginals for all.
-        Attributes Set
+        Attributes
         -------
         gen_marginals_two: array
             matrix (i,j) of joint marginals for pre-selection distribution
@@ -1960,7 +1960,7 @@ class Sonia:
         else:
             raise RuntimeError(
                 "At least 10,000 generated sequences must be used for estimating "
-                f"entropy. Only {self.gen_encoding.shape[0]} are present."
+                f"DKL. Only {self.gen_encoding.shape[0]} are present."
             )
         energies = self.compute_energy(encoding)  # compute energies
         Q = np.exp(-energies) / self.Z  # compute Q

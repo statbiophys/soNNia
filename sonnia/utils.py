@@ -15,6 +15,7 @@ import olga.sequence_generation as sequence_generation
 import pandas as pd
 from numpy.typing import NDArray
 from olga.utils import nt2aa
+import pandas as pd
 
 logging.getLogger().setLevel(logging.INFO)
 logging.basicConfig(format="%(asctime)s: %(message)s")
@@ -956,3 +957,23 @@ def partial_joint_marginals(args):
 
 def parallel_function(x):
     return x[0](x[1])
+
+
+def load_sequences(infile, delimiter, no_header, paired, junction_column, v_gene_column, j_gene_column):
+    if no_header:
+        data_seqs = pd.read_csv(infile, delimiter=delimiter, header=None).values.astype(str)
+    else:
+        if paired:
+            data_seqs = pd.read_csv(infile, delimiter=delimiter)[['junction_aa_heavy', 'v_gene_heavy', 'j_gene_heavy', 'junction_aa_light', 'v_gene_light', 'j_gene_light']].values.astype(str)
+        else:
+            data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]].values.astype(str)
+        data_seqs[v_gene_column] = data_seqs[v_gene_column].apply(lambda x: x.split("*")[0])
+        data_seqs[j_gene_column] = data_seqs[j_gene_column].apply(lambda x: x.split("*")[0])
+        data_seqs = data_seqs.values.astype(str)
+    return data_seqs
+
+def chunks(n, size):
+    if n % size:
+        return int(n / size) * [size] + [n % size]
+    else:
+        return int(n / size) * [size]

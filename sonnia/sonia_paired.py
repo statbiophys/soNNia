@@ -5,9 +5,7 @@ import itertools
 import logging
 import multiprocessing as mp
 import os
-from typing import *
-
-#logging.getLogger("tensorflow").disabled = True
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 os.environ["KERAS_BACKEND"] = "torch" # use torch backend
 
 import numpy as np
@@ -24,8 +22,7 @@ class SoniaPaired(Sonia):
         self,
         *args: Tuple[Any],
         ppost_model: Optional[str] = None,
-        pgen_model_light: Optional[str] = None,
-        pgen_model_heavy: Optional[str] = None,
+        pgen_model: Optional[str] = None,
         recompute_productive_norm: bool = False,
         across_chain_features: Optional[Iterable[str]] = None,
         **kwargs: Dict[str, Any],
@@ -38,7 +35,7 @@ class SoniaPaired(Sonia):
             else:
                 try:
                     iter(across_chain_features)
-                except Exception:
+                except TypeError:
                     raise TypeError(
                         "across_chain_features must be an iterable of strings."
                     )
@@ -53,38 +50,22 @@ class SoniaPaired(Sonia):
                     "must be None or be an iterable containing only "
                     f"the following strings: {options}."
                 )
-        if ppost_model is None and (
-            pgen_model_light is None or pgen_model_heavy is None
-        ):
+        if ppost_model is None and pgen_model is None:
             raise RuntimeError(
-                "Either ppost_model must not be None or both pgen_model_light "
-                "and pgen_model_heavy must not be None."
+                "Either ppost_model must not be None or pgen_model must not be None."
             )
-        elif (
-            ppost_model is not None
-            and pgen_model_light is not None
-            and pgen_model_heavy is not None
-        ):
+        elif ppost_model is not None and pgen_model is not None:
             raise RuntimeError(
-                "ppost_model, pgen_model_light, and pgen_model_heavy "
-                "all cannot be given. Either give ppost_model, or "
-                "give pgen_model_light and pgen_model_heavy."
+                "ppost_model and pgen_model cannot both be given. Either give ppost_model, or give pgen_model."
             )
         elif ppost_model is not None:
-            if pgen_model_light is not None:
-                raise RuntimeError(
-                    "pgen_model_light must not be None if ppost_model is given."
-                )
-            if pgen_model_heavy is not None:
-                raise RuntimeError(
-                    "pgen_model_heavy must not be None if ppost_model is given."
-                )
             model_dir = get_model_dir(ppost_model, True)
             self.pgen_model_light = os.path.join(model_dir, "light_chain")
             self.pgen_model_heavy = os.path.join(model_dir, "heavy_chain")
         else:
-            self.pgen_model_light = pgen_model_light
-            self.pgen_model_heavy = pgen_model_heavy
+            model_dir = get_model_dir(pgen_model, True)
+            self.pgen_model_light = os.path.join(model_dir, "light_chain")
+            self.pgen_model_heavy = os.path.join(model_dir, "heavy_chain")
 
         if ppost_model is None:
             self.recompute_productive_norm = True
@@ -143,7 +124,7 @@ class SoniaPaired(Sonia):
             valid_chain_pairs_str = f"{valid_chain_pairs}"[1:-1]
             raise RuntimeError(
                 f"A light-heavy chain pair of {(self.chain_light, self.chain_heavy)} "
-                "does constitute a valid receptor. Acceptable chain "
+                "does not constitute a valid receptor. Acceptable chain "
                 f"pairs: {valid_chain_pairs_str}."
             )
 
