@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import multiprocessing as mp
 import matplotlib.pyplot as plt
-from sonnia.processing import Processing
+from processing import Processing
 from sonnia.utils import run_terminal,sample_olga
 from scipy import stats
 

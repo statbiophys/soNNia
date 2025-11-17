@@ -1,27 +1,27 @@
+
+
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="./">
 <head>
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SoNNia modules in a Python script &mdash; sonnia 0.2.24 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+  <title>SoNNia modules in a Python script &mdash; sonnia 0.3.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
   
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
-  
-        <script src="_static/jquery.js?v=5d32c60e"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="_static/documentation_options.js?v=dc91f075"></script>
-        <script src="_static/doctools.js?v=9a2dae69"></script>
-        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=71d9d8e6"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="load lists of sequences with gene specification" href="sonnia_tutorial.html" />
+    <link rel="prev" title="Command line console scripts" href="commands.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -43,11 +43,34 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">SoNNia modules in a Python script</a></li>
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="commands.html">Command line console scripts</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">SoNNia modules in a Python script</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#basic-usage-examples">Basic Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#additional-utility-classes">Additional Utility Classes</a></li>
 </ul>
-</div>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html">load lists of sequences with gene specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#define-and-infer-model">define and infer model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#do-some-plotting">do some plotting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Generate-sequences">Generate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Evaluate-sequences">Evaluate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#some-utils-inherited-from-OLGA">some utils inherited from OLGA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Save-and-Load-Model">Save and Load Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Compute-Diversity-and-Distance-from-Reference-Distribution">Compute Diversity and Distance from Reference Distribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Load-Default-Sonia-Models">Load Default Sonia Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html">define and infer model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Do-some-plotting">Do some plotting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Generate-sequences">Generate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Evaluate-sequences">Evaluate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#some-utils-inherited-from-OLGA">some utils inherited from OLGA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Save-and-Load-Model">Save and Load Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Compute-Diversity-and-Distance-from-Reference-Distribution">Compute Diversity and Distance from Reference Distribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Load-default-model">Load default model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="help.html">Need Help?</a></li>
+</ul>
+
         </div>
       </div>
     </nav>
@@ -101,10 +124,6 @@
 <td>SoNNiaPaired</td>
 </tr>
 <tr>
-<td>processing.py</td>
-<td>Processing</td>
-</tr>
-<tr>
 <td>classifiers.py</td>
 <td>Linear, SoniaRatio</td>
 </tr>
@@ -113,42 +132,64 @@
 <td>Compare</td>
 </tr>
 <tr>
+<td>plotting.py</td>
+<td>Plotter</td>
+</tr>
+<tr>
 <td>utils.py</td>
 <td>N/A (contains util functions)</td>
 </tr>
 </tbody>
-</table><p>The classes SoniaPaired, SoNNiaPaired, and SoNNia have similar behaviour to the ones defined in the <a class="reference external" href="https://github.com/statbiophys/SONIA">SONIA</a> package.</p>
-<p>As an example, the basic import and initialization of the single-chain SoniaLeftposRightpos model</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sonia.sonia_leftpos_rightpos</span> <span class="kn">import</span> <span class="n">SoniaLeftposRightpos</span>
-<span class="n">qm</span><span class="o">=</span><span class="n">SoniaLeftposRightpos</span><span class="p">()</span>
+</table><p>The classes SoniaPaired, SoNNiaPaired, and SoNNia have similar behaviour to the ones defined in the <code class="docutils literal notranslate"><span class="pre">SONIA</span> <span class="pre">&lt;https://github.com/statbiophys/SONIA&gt;</span></code>_ package.</p>
+<section id="basic-usage-examples">
+<h2>Basic Usage Examples<a class="headerlink" href="#basic-usage-examples" title="Link to this heading"></a></h2>
+<p><strong>Linear single-chain model (equivalent to SONIA):</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sonnia.sonia</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sonia</span>
+<span class="n">qm</span> <span class="o">=</span> <span class="n">Sonia</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>translates here into</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sonnia.sonia</span> <span class="kn">import</span> <span class="n">Sonia</span>
-<span class="n">qm</span><span class="o">=</span><span class="n">Sonia</span><span class="p">()</span>
+<p><strong>Deep non-linear single-chain model:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sonnia.sonnia</span><span class="w"> </span><span class="kn">import</span> <span class="n">SoNNia</span>
+<span class="n">qm</span> <span class="o">=</span> <span class="n">SoNNia</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Import of the deep version becomes</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sonnia.sonnia</span> <span class="kn">import</span> <span class="n">SoNNia</span>
-<span class="n">qm</span><span class="o">=</span><span class="n">SoNNia</span><span class="p">()</span>
+<p><strong>Linear paired-chain model (e.g., alpha-beta for TCRs or heavy-light for BCRs):</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sonnia.sonia_paired</span><span class="w"> </span><span class="kn">import</span> <span class="n">SoniaPaired</span>
+<span class="n">qm</span> <span class="o">=</span> <span class="n">SoniaPaired</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>while for linear paired-chain (i.e. alpha-beta for TCRs) is</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sonnia.sonia_paired</span> <span class="kn">import</span> <span class="n">SoniaPaired</span>
-<span class="n">qm</span><span class="o">=</span><span class="n">SoniaPaired</span><span class="p">()</span>
+<p><strong>Deep non-linear paired-chain model:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sonnia.sonnia_paired</span><span class="w"> </span><span class="kn">import</span> <span class="n">SoNNiaPaired</span>
+<span class="n">qm</span> <span class="o">=</span> <span class="n">SoNNiaPaired</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>and the deep paired (i.e. alpha-beta for TCRs) version is</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sonnia.sonnia_paired</span> <span class="kn">import</span> <span class="n">SoNNiaPaired</span>
-<span class="n">qm</span><span class="o">=</span><span class="n">SoNNiaPaired</span><span class="p">()</span>
+</section>
+<section id="additional-utility-classes">
+<h2>Additional Utility Classes<a class="headerlink" href="#additional-utility-classes" title="Link to this heading"></a></h2>
+<p><strong>Plotting and visualization:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sonnia.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">Plotter</span>
+<span class="n">pl</span> <span class="o">=</span> <span class="n">Plotter</span><span class="p">(</span><span class="n">sonia_model</span><span class="p">)</span>
+<span class="n">pl</span><span class="o">.</span><span class="n">plot_model_learning</span><span class="p">(</span><span class="s2">&quot;learning_curve.png&quot;</span><span class="p">)</span>
+<span class="n">pl</span><span class="o">.</span><span class="n">plot_vjl</span><span class="p">(</span><span class="s2">&quot;marginals.png&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p><strong>Repertoire comparison:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sonnia.compare_repertoires</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compare</span>
+<span class="n">comparator</span> <span class="o">=</span> <span class="n">Compare</span><span class="p">(</span><span class="n">pgen_model</span><span class="o">=</span><span class="s2">&quot;humanTRB&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data1.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;data2.csv&quot;</span><span class="p">])</span>
+<span class="n">comparator</span><span class="o">.</span><span class="n">infer_models</span><span class="p">()</span>
+<span class="n">comparator</span><span class="o">.</span><span class="n">compute_distances</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
 </section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="commands.html" class="btn btn-neutral float-left" title="Command line console scripts" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sonnia_tutorial.html" class="btn btn-neutral float-right" title="load lists of sequences with gene specification" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 

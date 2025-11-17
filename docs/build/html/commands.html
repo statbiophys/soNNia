@@ -1,24 +1,22 @@
+
+
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="./">
 <head>
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Command line console scripts &mdash; sonnia 0.2.24 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+  <title>Command line console scripts &mdash; sonnia 0.3.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
   
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
-  
-        <script src="_static/jquery.js?v=5d32c60e"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="_static/documentation_options.js?v=dc91f075"></script>
-        <script src="_static/doctools.js?v=9a2dae69"></script>
-        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=71d9d8e6"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -47,12 +45,39 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Command line console scripts</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#specifying-a-default-v-d-j-model-or-a-custom-model-folder">Specifying a default V(D)J model (or a custom model folder)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#options-common-to-all-commands">Options common to all commands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start-examples">Quick Start Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#specifying-a-default-v-d-j-model-or-a-custom-model-folder">Specifying a default V(D)J model (or a custom model folder)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#single-chain-models">Single-chain models:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#paired-chain-models">Paired-chain models:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#custom-model-folder">Custom model folder</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#command-specific-options">Command-specific options</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sonnia-infer-options"><code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">infer</span></code> options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sonnia-evaluate-options"><code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">evaluate</span></code> options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sonnia-generate-options"><code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">generate</span></code> options</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="python_usage.html">SoNNia modules in a Python script</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html">SoNNia Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html">load lists of sequences with gene specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#define-and-infer-model">define and infer model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#do-some-plotting">do some plotting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Generate-sequences">Generate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Evaluate-sequences">Evaluate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#some-utils-inherited-from-OLGA">some utils inherited from OLGA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Save-and-Load-Model">Save and Load Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Compute-Diversity-and-Distance-from-Reference-Distribution">Compute Diversity and Distance from Reference Distribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Load-Default-Sonia-Models">Load Default Sonia Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html">define and infer model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Do-some-plotting">Do some plotting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Generate-sequences">Generate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Evaluate-sequences">Evaluate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#some-utils-inherited-from-OLGA">some utils inherited from OLGA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Save-and-Load-Model">Save and Load Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Compute-Diversity-and-Distance-from-Reference-Distribution">Compute Diversity and Distance from Reference Distribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_paired_tutorial.html#Load-default-model">Load default model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
 <li class="toctree-l1"><a class="reference internal" href="help.html">Need Help?</a></li>
 </ul>
@@ -83,160 +108,336 @@
              
   <section id="command-line-console-scripts">
 <h1>Command line console scripts<a class="headerlink" href="#command-line-console-scripts" title="Link to this heading"></a></h1>
-<p>There are three command line console scripts (the scripts can still be called as executables if SoNNia is not installed):</p>
+<p>SoNNia provides three main command line console scripts accessible via the <code class="docutils literal notranslate"><span class="pre">sonnia</span></code> command (installed via pip or can be called as executables):</p>
 <ol class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">sonnia-evaluate</span></code></p></li>
-</ol>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">infer</span></code></strong></p>
 <ul class="simple">
-<li><p>evaluates Ppost, Pgen or selection factors of sequences according to a generative V(D)J model and selection model.</p></li>
+<li><p>Infers a selection model with respect to a generative V(D)J model. Can infer both linear (Sonia) and non-linear (SoNNia) models, for both single-chain and paired-chain sequences.</p></li>
 </ul>
-<ol class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">sonnia-generate</span></code></p></li>
-</ol>
+</li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">evaluate</span></code></strong></p>
 <ul class="simple">
-<li><p>generates CDR3 sequences, before (like olga) or after selection</p></li>
+<li><p>Evaluates Ppost, Pgen, and selection factors (Q) of sequences according to a generative V(D)J model and selection model.</p></li>
 </ul>
-<ol class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">sonnia-infer</span></code></p></li>
-</ol>
+</li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">generate</span></code></strong></p>
 <ul class="simple">
-<li><p>infers a selection model with respect to a generative V(D)J model</p></li>
+<li><p>Generates CDR3 (junction) sequences, either before selection (pre-selection, like OLGA) or after selection (post-selection).</p></li>
 </ul>
-<p>For any of them you can execute with the -h or –help flags to get the options.</p>
-<p>We offer a quick demonstration of the console scripts. This will show how to generate and evaluate sequences and infer a selection model using the default generation model for human TCR beta chains that ships with the SONIA software. In order to run the commands below you need to download the examples folder.</p>
-<ol class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">$</span> <span class="pre">sonnia-infer</span> <span class="pre">--humanTRB</span> <span class="pre">-i</span> <span class="pre">examples/data_seqs.txt</span> <span class="pre">-d</span> <span class="pre">';'</span> <span class="pre">-m</span> <span class="pre">10000</span></code></p></li>
+</li>
 </ol>
-<ul class="simple">
-<li><p>This reads in the full file example_seqs.txt, infers a selection model and saves to the folder sel_model</p></li>
-</ul>
-<ol class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">$</span> <span class="pre">sonnia-generate</span> <span class="pre">--set_custom_model_VDJ</span> <span class="pre">examples/sonnia_model</span> <span class="pre">--post</span> <span class="pre">-n</span> <span class="pre">100</span></code></p></li>
+<p>For any command, you can execute with the <code class="docutils literal notranslate"><span class="pre">-h</span></code> or <code class="docutils literal notranslate"><span class="pre">--help</span></code> flags to get detailed options.</p>
+<section id="quick-start-examples">
+<h2>Quick Start Examples<a class="headerlink" href="#quick-start-examples" title="Link to this heading"></a></h2>
+<p>We offer a quick demonstration of the console scripts. This will show how to generate and evaluate sequences and infer a selection model using the default generation model for human TCR beta chains. In order to run the commands below you need to download the examples folder.</p>
+<ol>
+<li><p><strong>Infer a selection model:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sonnia<span class="w"> </span>infer<span class="w"> </span>--model<span class="w"> </span>humanTRB<span class="w"> </span>-i<span class="w"> </span>examples/data_seqs.csv.gz
+</pre></div>
+</div>
+<p>This reads in the file, infers a non-linear selection model (SoNNia) and saves to the folder <code class="docutils literal notranslate"><span class="pre">sonnia_model</span></code> (default output directory).</p>
+</li>
+<li><p><strong>Infer a linear model:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sonnia<span class="w"> </span>infer<span class="w"> </span>--model<span class="w"> </span>humanTRB<span class="w"> </span>-i<span class="w"> </span>examples/data_seqs.csv.gz<span class="w"> </span>--linear
+</pre></div>
+</div>
+<p>This infers a linear selection model (Sonia) instead.</p>
+</li>
+<li><p><strong>Generate sequences:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sonnia<span class="w"> </span>generate<span class="w"> </span>--model<span class="w"> </span>sonnia_model<span class="w"> </span>--post<span class="w"> </span>-n<span class="w"> </span><span class="m">100</span>
+</pre></div>
+</div>
+<p>Generate 100 human TRB CDR3 (junction) sequences from the post-selection repertoire and print to stdout along with the V and J genes used to generate them.</p>
+</li>
+<li><p><strong>Evaluate sequences:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sonnia<span class="w"> </span>evaluate<span class="w"> </span>--model<span class="w"> </span>sonnia_model<span class="w"> </span>-i<span class="w"> </span>examples/data_seqs.csv.gz<span class="w"> </span>-o<span class="w"> </span>evaluated_seqs.tsv
+</pre></div>
+</div>
+<p>This computes Ppost, Pgen, and Q for all sequences in the input file and saves to <code class="docutils literal notranslate"><span class="pre">evaluated_seqs.tsv</span></code>.</p>
+</li>
 </ol>
-<ul class="simple">
-<li><p>Generate 100 human TRB CDR3 sequences from the post-selection repertoire and print to stdout along with the V and J genes used to generate them.</p></li>
-</ul>
-<ol class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">$</span> <span class="pre">sonnia-evaluate</span> <span class="pre">--set_custom_model_VDJ</span> <span class="pre">examples/sonnia_model</span> <span class="pre">-i</span> <span class="pre">examples/data_seqs.txt</span> <span class="pre">--ppost</span> <span class="pre">-m</span> <span class="pre">100</span> <span class="pre">-d</span> <span class="pre">';'</span> </code></p></li>
-</ol>
-<ul class="simple">
-<li><p>This computes Ppost,Pgen and Q of the first 100 seqs in the data_seqs file.</p></li>
-</ul>
+</section>
 <section id="specifying-a-default-v-d-j-model-or-a-custom-model-folder">
 <h2>Specifying a default V(D)J model (or a custom model folder)<a class="headerlink" href="#specifying-a-default-v-d-j-model-or-a-custom-model-folder" title="Link to this heading"></a></h2>
-<p>All of the console scripts require specifying a V(D)J model. SoNNia ships with 6 default models that can be indicated by flags, or a custom model folder can be indicated.</p>
+<p>All of the console scripts require specifying a V(D)J model. SoNNia ships with several default models that can be indicated by name, or a custom model folder can be specified.</p>
+<section id="single-chain-models">
+<h3>Single-chain models:<a class="headerlink" href="#single-chain-models" title="Link to this heading"></a></h3>
 <table border="1" class="docutils">
 <thead>
 <tr>
-<th>Options</th>
+<th>Model Name</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>--humanTRA</strong></td>
+<td><strong>humanTRA</strong></td>
 <td>Default human T cell alpha chain model (VJ)</td>
 </tr>
 <tr>
-<td><strong>--humanTRB</strong></td>
+<td><strong>humanTRB</strong></td>
 <td>Default human T cell beta chain model (VDJ)</td>
 </tr>
 <tr>
-<td><strong>--mouseTRB</strong></td>
-<td>Default mouse T cell beta chain model (VDJ)</td>
-</tr>
-<tr>
-<td><strong>--humanIGH</strong></td>
+<td><strong>humanIGH</strong></td>
 <td>Default human B cell heavy chain model (VDJ)</td>
 </tr>
 <tr>
-<td><strong>--humanIGK</strong></td>
+<td><strong>humanIGK</strong></td>
 <td>Default human B cell light kappa chain model (VJ)</td>
 </tr>
 <tr>
-<td><strong>--humanIGL</strong></td>
+<td><strong>humanIGL</strong></td>
 <td>Default human B cell light lambda chain model (VJ)</td>
 </tr>
 <tr>
-<td><strong>--set_custom_model_VJ</strong> PATH/TO/MODEL_FOLDER/</td>
-<td>Specifies the directory PATH/TO/MODEL_FOLDER/ of a custom VJ generative model</td>
+<td><strong>mouseTRA</strong></td>
+<td>Default mouse T cell alpha chain model (VJ)</td>
 </tr>
 <tr>
-<td><strong>--set_custom_model_VDJ</strong> PATH/TO/MODEL_FOLDER/</td>
-<td>Specifies the directory PATH/TO/MODEL_FOLDER/ of a custom VDJ generative model</td>
+<td><strong>mouseTRB</strong></td>
+<td>Default mouse T cell beta chain model (VDJ)</td>
+</tr>
+<tr>
+<td><strong>mouseIGH</strong></td>
+<td>Default mouse B cell heavy chain model (VDJ)</td>
 </tr>
 </tbody>
-</table><p>Note, if specifying a folder for a custom VJ recombination model
-(e.g. an alpha or light chain model) or a custom VDJ recombination model
-(e.g. a beta or heavy chain model), the folder must contain the following files
-with the exact naming convention:</p>
-<ul class="simple">
-<li><p>model_params.txt</p></li>
-<li><p>model_marginals.txt</p></li>
-<li><p>V_gene_CDR3_anchors.csv (V anchor residue position and functionality file)</p></li>
-<li><p>J_gene_CDR3_anchors.csv (J anchor residue position and functionality file)</p></li>
-<li><p>features.tsv (if you want to load the selection model as well: not required for in the sonia-infer command)</p></li>
-<li><p>log.txt (if you want to load the selection model as well: not required in the sonia-infer command)</p></li>
-<li><p>model.h5 (if you want to load a non linear selection model as well: not required in the sonia-infer command)</p></li>
-</ul>
-<p>The console scripts can only read files of the assumed anchor.csv/<a class="reference external" href="https://github.com/qmarcou/IGoR">IGoR</a> syntaxes. See the default models in the sonia directory for examples.</p>
-</section>
-<section id="options-common-to-all-commands">
-<h2>Options common to all commands<a class="headerlink" href="#options-common-to-all-commands" title="Link to this heading"></a></h2>
+</table></section>
+<section id="paired-chain-models">
+<h3>Paired-chain models:<a class="headerlink" href="#paired-chain-models" title="Link to this heading"></a></h3>
 <table border="1" class="docutils">
 <thead>
 <tr>
-<th>Options</th>
+<th>Model Name</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>-h, --help</td>
-<td>show command options</td>
+<td><strong>humanTCR</strong></td>
+<td>Human T cell receptor (alpha-beta paired)</td>
 </tr>
 <tr>
-<td>--sonia_model=MODEL_TYPE</td>
-<td>specify model type: leftright or lengthpos. Default is leftright</td>
+<td><strong>humanIGHK</strong></td>
+<td>Human B cell receptor (heavy-kappa paired)</td>
 </tr>
 <tr>
-<td>-i PATH/TO/FILE, --infile=PATH/TO/FILE</td>
-<td>read in CDR3 sequences (and optionally V/J masks) from PATH/TO/FILE</td>
-</tr>
-<tr>
-<td>-o PATH/TO/FILE, --outfile=PATH/TO/FILE</td>
-<td>output to PATH/TO/FILE</td>
-</tr>
-<tr>
-<td>--seq_in=INDEX, --seq_index=INDEX</td>
-<td>specifies sequences to be read in are in column INDEX. Default is index 0 (the first column).</td>
-</tr>
-<tr>
-<td>--v_in=INDEX, --v_mask_index=INDEX</td>
-<td>specifies V_masks are found in column INDEX in the input file. Default is 1.</td>
-</tr>
-<tr>
-<td>--j_in=INDEX, --j_mask_index=INDEX</td>
-<td>specifies J_masks are found in column INDEX in the input file. Default is 2.</td>
-</tr>
-<tr>
-<td>-m N, --max_number_of_seqs=N</td>
-<td>read at most N sequences.</td>
-</tr>
-<tr>
-<td>--lines_to_skip=N</td>
-<td>skip the first N lines of the file. Default is 0.</td>
-</tr>
-<tr>
-<td>-d DELIMITER, --delimiter=DELIMITER</td>
-<td>declare infile delimiter. Default is tab for .tsv input files, comma for .csv files, and any whitespace for all others. Choices: 'tab', 'space', ',', ';', ':'</td>
-</tr>
-<tr>
-<td>--delimiter_out=DELIMITER_OUT</td>
-<td>declare outfile delimiter. Default is tab for .tsv output files, comma for .csv files, and the infile delimiter for all others. Choices: 'tab', 'space', ',', ';', ':'</td>
+<td><strong>humanIGHL</strong></td>
+<td>Human B cell receptor (heavy-lambda paired)</td>
 </tr>
 </tbody>
-</table><p>for command specific options use the –help flag.</p>
+</table></section>
+<section id="custom-model-folder">
+<h3>Custom model folder<a class="headerlink" href="#custom-model-folder" title="Link to this heading"></a></h3>
+<p>If specifying a folder for a custom VJ recombination model (e.g., an alpha or light chain model) or a custom VDJ recombination model (e.g., a beta or heavy chain model), the folder must contain the following files with the exact naming convention:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">model_params.txt</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">model_marginals.txt</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">V_gene_CDR3_anchors.csv</span></code> (V anchor residue position and functionality file)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">J_gene_CDR3_anchors.csv</span></code> (J anchor residue position and functionality file)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">features.tsv</span></code> (required to load the selection model; not required for <code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">infer</span></code> command)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">log.txt</span></code> (optional; contains training log)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">model.h5</span></code> (required to load a non-linear selection model; not required for <code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">infer</span></code> command)</p></li>
+</ul>
+<p>For paired-chain models, the folder should contain <code class="docutils literal notranslate"><span class="pre">heavy_chain/</span></code> and <code class="docutils literal notranslate"><span class="pre">light_chain/</span></code> subdirectories, each with the above files.</p>
+<p>The console scripts can read files in various formats (CSV, TSV, etc.) and automatically detect the delimiter. See the default models in the <code class="docutils literal notranslate"><span class="pre">sonnia/default_models/</span></code> directory for examples.</p>
+</section>
+</section>
+<section id="command-specific-options">
+<h2>Command-specific options<a class="headerlink" href="#command-specific-options" title="Link to this heading"></a></h2>
+<section id="sonnia-infer-options">
+<h3><code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">infer</span></code> options<a class="headerlink" href="#sonnia-infer-options" title="Link to this heading"></a></h3>
+<table border="1" class="docutils">
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i, --infile</code></td>
+<td>Path to input file (required)</td>
+</tr>
+<tr>
+<td><code>--model</code></td>
+<td>Model name or path to custom model folder</td>
+</tr>
+<tr>
+<td><code>-o, --outdir</code></td>
+<td>Output directory (default: <code>sonnia_model</code>)</td>
+</tr>
+<tr>
+<td><code>--linear</code></td>
+<td>Infer linear model instead of non-linear</td>
+</tr>
+<tr>
+<td><code>--paired</code></td>
+<td>Use paired-chain model</td>
+</tr>
+<tr>
+<td><code>--max_seqs</code></td>
+<td>Maximum number of sequences to use (default: 1e8)</td>
+</tr>
+<tr>
+<td><code>--max_gen_seqs</code></td>
+<td>Maximum number of sequences to generate (default: 1e6)</td>
+</tr>
+<tr>
+<td><code>--n_gen_seqs</code></td>
+<td>Number of sequences to generate (default: auto)</td>
+</tr>
+<tr>
+<td><code>--epochs</code></td>
+<td>Number of training epochs (default: 50)</td>
+</tr>
+<tr>
+<td><code>--batch_size</code></td>
+<td>Batch size for training (default: 5000)</td>
+</tr>
+<tr>
+<td><code>--validation_split</code></td>
+<td>Validation split ratio (default: 0.2)</td>
+</tr>
+<tr>
+<td><code>--infile_gen</code></td>
+<td>Path to pre-generated sequences file (optional)</td>
+</tr>
+<tr>
+<td><code>--junction_column</code></td>
+<td>Column name for junction sequences (default: <code>junction_aa</code>)</td>
+</tr>
+<tr>
+<td><code>--v_gene_column</code></td>
+<td>Column name for V gene (default: <code>v_gene</code>)</td>
+</tr>
+<tr>
+<td><code>--j_gene_column</code></td>
+<td>Column name for J gene (default: <code>j_gene</code>)</td>
+</tr>
+<tr>
+<td><code>--no_header</code></td>
+<td>Input file does not have a header</td>
+</tr>
+<tr>
+<td><code>--delimiter</code></td>
+<td>File delimiter (default: auto-detect)</td>
+</tr>
+</tbody>
+</table></section>
+<section id="sonnia-evaluate-options">
+<h3><code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">evaluate</span></code> options<a class="headerlink" href="#sonnia-evaluate-options" title="Link to this heading"></a></h3>
+<table border="1" class="docutils">
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i, --infile</code></td>
+<td>Path to input file (required)</td>
+</tr>
+<tr>
+<td><code>--model</code></td>
+<td>Model name or path to model folder (required)</td>
+</tr>
+<tr>
+<td><code>-o, --outfile</code></td>
+<td>Output file path (default: <code>evaluated_seqs.tsv</code>)</td>
+</tr>
+<tr>
+<td><code>-m, --max_seqs</code></td>
+<td>Maximum number of sequences to evaluate</td>
+</tr>
+<tr>
+<td><code>--paired</code></td>
+<td>Use paired-chain model</td>
+</tr>
+<tr>
+<td><code>--junction_column</code></td>
+<td>Column name for junction sequences</td>
+</tr>
+<tr>
+<td><code>--v_gene_column</code></td>
+<td>Column name for V gene</td>
+</tr>
+<tr>
+<td><code>--j_gene_column</code></td>
+<td>Column name for J gene</td>
+</tr>
+<tr>
+<td><code>--no-header</code></td>
+<td>Input file does not have a header</td>
+</tr>
+<tr>
+<td><code>--delimiter</code></td>
+<td>File delimiter (default: auto-detect)</td>
+</tr>
+</tbody>
+</table></section>
+<section id="sonnia-generate-options">
+<h3><code class="docutils literal notranslate"><span class="pre">sonnia</span> <span class="pre">generate</span></code> options<a class="headerlink" href="#sonnia-generate-options" title="Link to this heading"></a></h3>
+<table border="1" class="docutils">
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--model</code></td>
+<td>Model name or path to model folder (required)</td>
+</tr>
+<tr>
+<td><code>-n, --number_of_seqs</code></td>
+<td>Number of sequences to generate (required)</td>
+</tr>
+<tr>
+<td><code>-o, --outfile</code></td>
+<td>Output file path (optional; prints to stdout if not specified)</td>
+</tr>
+<tr>
+<td><code>--pre</code></td>
+<td>Generate sequences using pre-selection model</td>
+</tr>
+<tr>
+<td><code>--post</code></td>
+<td>Generate sequences using post-selection model</td>
+</tr>
+<tr>
+<td><code>--rejection_bound</code></td>
+<td>Rejection bound for post-selection (default: 10)</td>
+</tr>
+<tr>
+<td><code>--chunk_size</code></td>
+<td>Chunk size for generation (default: 1000)</td>
+</tr>
+<tr>
+<td><code>--paired</code></td>
+<td>Use paired-chain model</td>
+</tr>
+<tr>
+<td><code>--junction_column</code></td>
+<td>Column name for junction sequences</td>
+</tr>
+<tr>
+<td><code>--v_gene_column</code></td>
+<td>Column name for V gene</td>
+</tr>
+<tr>
+<td><code>--j_gene_column</code></td>
+<td>Column name for J gene</td>
+</tr>
+</tbody>
+</table><p>For detailed help on any command, use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sonnia<span class="w"> </span>&lt;command&gt;<span class="w"> </span>--help
+</pre></div>
+</div>
+</section>
 </section>
 </section>
 
