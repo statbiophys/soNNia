@@ -135,7 +135,7 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sonnia<span class="w"> </span>infer<span class="w"> </span>--model<span class="w"> </span>humanTRB<span class="w"> </span>-i<span class="w"> </span>examples/data_seqs.csv.gz
 </pre></div>
 </div>
-<p>This reads in the file, infers a non-linear selection model (SoNNia) and saves to the folder <code class="docutils literal notranslate"><span class="pre">sonnia_model</span></code> (default output directory).</p>
+<p>This reads in the file, infers a non-linear selection model (SoNNia) and saves to the folder <code class="docutils literal notranslate"><span class="pre">sonnia_model</span></code> (default output directory). The command also generates several plot files: <code class="docutils literal notranslate"><span class="pre">model_learning.png</span></code>, <code class="docutils literal notranslate"><span class="pre">marginals.png</span></code>, <code class="docutils literal notranslate"><span class="pre">log_Q.png</span></code>, and <code class="docutils literal notranslate"><span class="pre">Q_ratio.png</span></code>.</p>
 </li>
 <li><p><strong>Infer a linear model:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>sonnia<span class="w"> </span>infer<span class="w"> </span>--model<span class="w"> </span>humanTRB<span class="w"> </span>-i<span class="w"> </span>examples/data_seqs.csv.gz<span class="w"> </span>--linear
@@ -262,7 +262,7 @@
 </tr>
 <tr>
 <td><code>--model</code></td>
-<td>Model name or path to custom model folder</td>
+<td>Model name or path to custom model folder (optional)</td>
 </tr>
 <tr>
 <td><code>-o, --outdir</code></td>
@@ -274,55 +274,55 @@
 </tr>
 <tr>
 <td><code>--paired</code></td>
-<td>Use paired-chain model</td>
+<td>Use paired-chain model. Assumes heavy and light chains are in separate columns named <code>junction_aa_heavy</code>, <code>v_gene_heavy</code>, <code>j_gene_heavy</code>, <code>junction_aa_light</code>, <code>v_gene_light</code>, <code>j_gene_light</code>.</td>
 </tr>
 <tr>
-<td><code>--max_seqs</code></td>
+<td><code>--max-seqs</code></td>
 <td>Maximum number of sequences to use (default: 1e8)</td>
 </tr>
 <tr>
-<td><code>--max_gen_seqs</code></td>
+<td><code>--max-gen-seqs</code></td>
 <td>Maximum number of sequences to generate (default: 1e6)</td>
 </tr>
 <tr>
-<td><code>--n_gen_seqs</code></td>
-<td>Number of sequences to generate (default: auto)</td>
+<td><code>--n-gen-seqs</code></td>
+<td>Number of sequences to generate (default: 0, which auto-calculates as min(max_gen_seqs, 3 * len(data_seqs)))</td>
 </tr>
 <tr>
 <td><code>--epochs</code></td>
 <td>Number of training epochs (default: 50)</td>
 </tr>
 <tr>
-<td><code>--batch_size</code></td>
+<td><code>--batch-size</code></td>
 <td>Batch size for training (default: 5000)</td>
 </tr>
 <tr>
-<td><code>--validation_split</code></td>
+<td><code>--validation-split</code></td>
 <td>Validation split ratio (default: 0.2)</td>
 </tr>
 <tr>
-<td><code>--infile_gen</code></td>
-<td>Path to pre-generated sequences file (optional)</td>
+<td><code>--infile-gen</code></td>
+<td>Path to pre-generated sequences file (optional). If provided, uses these sequences instead of generating new ones.</td>
 </tr>
 <tr>
-<td><code>--junction_column</code></td>
+<td><code>--junction-column</code></td>
 <td>Column name for junction sequences (default: <code>junction_aa</code>)</td>
 </tr>
 <tr>
-<td><code>--v_gene_column</code></td>
+<td><code>--v-gene-column</code></td>
 <td>Column name for V gene (default: <code>v_gene</code>)</td>
 </tr>
 <tr>
-<td><code>--j_gene_column</code></td>
+<td><code>--j-gene-column</code></td>
 <td>Column name for J gene (default: <code>j_gene</code>)</td>
 </tr>
 <tr>
-<td><code>--no_header</code></td>
+<td><code>--no-header</code></td>
 <td>Input file does not have a header</td>
 </tr>
 <tr>
 <td><code>--delimiter</code></td>
-<td>File delimiter (default: auto-detect)</td>
+<td>File delimiter (default: <code>auto</code>, inferred from file extension)</td>
 </tr>
 </tbody>
 </table></section>
@@ -350,31 +350,31 @@
 </tr>
 <tr>
 <td><code>-m, --max_seqs</code></td>
-<td>Maximum number of sequences to evaluate</td>
+<td>Maximum number of sequences to evaluate (default: 1e8)</td>
 </tr>
 <tr>
 <td><code>--paired</code></td>
-<td>Use paired-chain model</td>
+<td>Use paired-chain model. Assumes heavy and light chains are in separate columns named <code>junction_aa_heavy</code>, <code>v_gene_heavy</code>, <code>j_gene_heavy</code>, <code>junction_aa_light</code>, <code>v_gene_light</code>, <code>j_gene_light</code>.</td>
 </tr>
 <tr>
-<td><code>--junction_column</code></td>
-<td>Column name for junction sequences</td>
+<td><code>--junction-column</code></td>
+<td>Column name for junction sequences (default: <code>junction_aa</code>, single chain only)</td>
 </tr>
 <tr>
-<td><code>--v_gene_column</code></td>
-<td>Column name for V gene</td>
+<td><code>-v, --v-gene-column</code></td>
+<td>Column name for V gene (default: <code>v_gene</code>, single chain only)</td>
 </tr>
 <tr>
-<td><code>--j_gene_column</code></td>
-<td>Column name for J gene</td>
+<td><code>-j, --j-gene-column</code></td>
+<td>Column name for J gene (default: <code>j_gene</code>, single chain only)</td>
 </tr>
 <tr>
 <td><code>--no-header</code></td>
 <td>Input file does not have a header</td>
 </tr>
 <tr>
-<td><code>--delimiter</code></td>
-<td>File delimiter (default: auto-detect)</td>
+<td><code>-d, --delimiter</code></td>
+<td>File delimiter (default: <code>auto</code>, inferred from file extension)</td>
 </tr>
 </tbody>
 </table></section>
@@ -402,18 +402,18 @@
 </tr>
 <tr>
 <td><code>--pre</code></td>
-<td>Generate sequences using pre-selection model</td>
+<td>Generate sequences using pre-selection model (required: either <code>--pre</code> or <code>--post</code> must be specified)</td>
 </tr>
 <tr>
 <td><code>--post</code></td>
-<td>Generate sequences using post-selection model</td>
+<td>Generate sequences using post-selection model (required: either <code>--pre</code> or <code>--post</code> must be specified)</td>
 </tr>
 <tr>
-<td><code>--rejection_bound</code></td>
+<td><code>--rejection-bound</code></td>
 <td>Rejection bound for post-selection (default: 10)</td>
 </tr>
 <tr>
-<td><code>--chunk_size</code></td>
+<td><code>--chunk-size</code></td>
 <td>Chunk size for generation (default: 1000)</td>
 </tr>
 <tr>
@@ -421,16 +421,24 @@
 <td>Use paired-chain model</td>
 </tr>
 <tr>
-<td><code>--junction_column</code></td>
-<td>Column name for junction sequences</td>
+<td><code>--junction-column</code></td>
+<td>Column name for junction sequences (default: <code>junction_aa</code>)</td>
 </tr>
 <tr>
-<td><code>--v_gene_column</code></td>
-<td>Column name for V gene</td>
+<td><code>--v-gene-column</code></td>
+<td>Column name for V gene (default: <code>v_gene</code>)</td>
 </tr>
 <tr>
-<td><code>--j_gene_column</code></td>
-<td>Column name for J gene</td>
+<td><code>--j-gene-column</code></td>
+<td>Column name for J gene (default: <code>j_gene</code>)</td>
+</tr>
+<tr>
+<td><code>--no-header</code></td>
+<td>Input file does not have a header</td>
+</tr>
+<tr>
+<td><code>--delimiter</code></td>
+<td>File delimiter (default: <code>auto</code>, inferred from file extension)</td>
 </tr>
 </tbody>
 </table><p>For detailed help on any command, use:</p>

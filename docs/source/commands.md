@@ -21,7 +21,7 @@ We offer a quick demonstration of the console scripts. This will show how to gen
    ```bash
    $ sonnia infer --model humanTRB -i examples/data_seqs.csv.gz
    ```
-   This reads in the file, infers a non-linear selection model (SoNNia) and saves to the folder `sonnia_model` (default output directory).
+   This reads in the file, infers a non-linear selection model (SoNNia) and saves to the folder `sonnia_model` (default output directory). The command also generates several plot files: `model_learning.png`, `marginals.png`, `log_Q.png`, and `Q_ratio.png`.
 
 2. **Infer a linear model:**
    ```bash
@@ -89,22 +89,22 @@ The console scripts can read files in various formats (CSV, TSV, etc.) and autom
 | Option                                          | Description                                      |
 |-------------------------------------------------|--------------------------------------------------|
 | `-i, --infile`                                  | Path to input file (required)                   |
-| `--model`                                       | Model name or path to custom model folder       |
+| `--model`                                       | Model name or path to custom model folder (optional) |
 | `-o, --outdir`                                  | Output directory (default: `sonnia_model`)      |
 | `--linear`                                      | Infer linear model instead of non-linear        |
-| `--paired`                                      | Use paired-chain model                          |
-| `--max_seqs`                                    | Maximum number of sequences to use (default: 1e8)|
-| `--max_gen_seqs`                                | Maximum number of sequences to generate (default: 1e6)|
-| `--n_gen_seqs`                                  | Number of sequences to generate (default: auto) |
+| `--paired`                                      | Use paired-chain model. Assumes heavy and light chains are in separate columns named `junction_aa_heavy`, `v_gene_heavy`, `j_gene_heavy`, `junction_aa_light`, `v_gene_light`, `j_gene_light`. |
+| `--max-seqs`                                    | Maximum number of sequences to use (default: 1e8)|
+| `--max-gen-seqs`                                | Maximum number of sequences to generate (default: 1e6)|
+| `--n-gen-seqs`                                  | Number of sequences to generate (default: 0, which auto-calculates as min(max_gen_seqs, 3 * len(data_seqs))) |
 | `--epochs`                                      | Number of training epochs (default: 50)         |
-| `--batch_size`                                  | Batch size for training (default: 5000)         |
-| `--validation_split`                            | Validation split ratio (default: 0.2)           |
-| `--infile_gen`                                  | Path to pre-generated sequences file (optional) |
-| `--junction_column`                             | Column name for junction sequences (default: `junction_aa`)|
-| `--v_gene_column`                               | Column name for V gene (default: `v_gene`)      |
-| `--j_gene_column`                               | Column name for J gene (default: `j_gene`)      |
-| `--no_header`                                   | Input file does not have a header               |
-| `--delimiter`                                   | File delimiter (default: auto-detect)           |
+| `--batch-size`                                  | Batch size for training (default: 5000)         |
+| `--validation-split`                            | Validation split ratio (default: 0.2)           |
+| `--infile-gen`                                  | Path to pre-generated sequences file (optional). If provided, uses these sequences instead of generating new ones. |
+| `--junction-column`                             | Column name for junction sequences (default: `junction_aa`)|
+| `--v-gene-column`                               | Column name for V gene (default: `v_gene`)      |
+| `--j-gene-column`                               | Column name for J gene (default: `j_gene`)      |
+| `--no-header`                                   | Input file does not have a header               |
+| `--delimiter`                                   | File delimiter (default: `auto`, inferred from file extension) |
 
 #### `sonnia evaluate` options
 
@@ -113,13 +113,13 @@ The console scripts can read files in various formats (CSV, TSV, etc.) and autom
 | `-i, --infile`                                  | Path to input file (required)                   |
 | `--model`                                       | Model name or path to model folder (required)   |
 | `-o, --outfile`                                 | Output file path (default: `evaluated_seqs.tsv`)|
-| `-m, --max_seqs`                                | Maximum number of sequences to evaluate         |
-| `--paired`                                      | Use paired-chain model                          |
-| `--junction_column`                             | Column name for junction sequences              |
-| `--v_gene_column`                               | Column name for V gene                          |
-| `--j_gene_column`                               | Column name for J gene                          |
+| `-m, --max_seqs`                                | Maximum number of sequences to evaluate (default: 1e8) |
+| `--paired`                                      | Use paired-chain model. Assumes heavy and light chains are in separate columns named `junction_aa_heavy`, `v_gene_heavy`, `j_gene_heavy`, `junction_aa_light`, `v_gene_light`, `j_gene_light`. |
+| `--junction-column`                             | Column name for junction sequences (default: `junction_aa`, single chain only) |
+| `-v, --v-gene-column`                           | Column name for V gene (default: `v_gene`, single chain only) |
+| `-j, --j-gene-column`                           | Column name for J gene (default: `j_gene`, single chain only) |
 | `--no-header`                                   | Input file does not have a header               |
-| `--delimiter`                                   | File delimiter (default: auto-detect)           |
+| `-d, --delimiter`                               | File delimiter (default: `auto`, inferred from file extension) |
 
 #### `sonnia generate` options
 
@@ -128,14 +128,16 @@ The console scripts can read files in various formats (CSV, TSV, etc.) and autom
 | `--model`                                       | Model name or path to model folder (required)   |
 | `-n, --number_of_seqs`                          | Number of sequences to generate (required)      |
 | `-o, --outfile`                                 | Output file path (optional; prints to stdout if not specified)|
-| `--pre`                                         | Generate sequences using pre-selection model   |
-| `--post`                                        | Generate sequences using post-selection model  |
-| `--rejection_bound`                             | Rejection bound for post-selection (default: 10)|
-| `--chunk_size`                                  | Chunk size for generation (default: 1000)      |
+| `--pre`                                         | Generate sequences using pre-selection model (required: either `--pre` or `--post` must be specified) |
+| `--post`                                        | Generate sequences using post-selection model (required: either `--pre` or `--post` must be specified) |
+| `--rejection-bound`                             | Rejection bound for post-selection (default: 10)|
+| `--chunk-size`                                  | Chunk size for generation (default: 1000)      |
 | `--paired`                                      | Use paired-chain model                          |
-| `--junction_column`                             | Column name for junction sequences              |
-| `--v_gene_column`                               | Column name for V gene                          |
-| `--j_gene_column`                               | Column name for J gene                          |
+| `--junction-column`                             | Column name for junction sequences (default: `junction_aa`) |
+| `--v-gene-column`                               | Column name for V gene (default: `v_gene`)      |
+| `--j-gene-column`                               | Column name for J gene (default: `j_gene`)      |
+| `--no-header`                                   | Input file does not have a header               |
+| `--delimiter`                                   | File delimiter (default: `auto`, inferred from file extension) |
 
 For detailed help on any command, use:
 ```bash
