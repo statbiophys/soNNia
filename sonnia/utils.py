@@ -16,6 +16,7 @@ import pandas as pd
 from numpy.typing import NDArray
 from olga.utils import nt2aa
 import pandas as pd
+from olga.performance.fast_pgen import FastPgen
 
 logging.getLogger().setLevel(logging.INFO)
 logging.basicConfig(format="%(asctime)s: %(message)s")
@@ -203,6 +204,7 @@ def define_pgen_model(
     pgen_model = getattr(pgen, f"GenerationProbability{recomb_type}")(
         generative_model, genomic_data
     )
+    pgen_model = FastPgen(pgen_model)
     seqgen_model = getattr(seq_gen, f"SequenceGeneration{recomb_type}")(
         generative_model, genomic_data
     )
@@ -959,17 +961,40 @@ def parallel_function(x):
     return x[0](x[1])
 
 
-def load_sequences(infile, delimiter, no_header, paired, junction_column, v_gene_column, j_gene_column):
+def load_sequences(
+    infile: str,
+    delimiter: str = "auto",
+    no_header: bool = False,
+    paired: bool = False,
+    junction_column: str = "junction_aa",
+    v_gene_column: str = "v_gene",
+    j_gene_column: str = "j_gene",
+    shuffle: bool = False,
+) -> np.ndarray:
+    """
+    Load sequences from a file.
+    """
+    if delimiter == "auto":
+        delimiter = "\t" if ".tsv" in infile else "," if ".csv" in infile else ";"
+    else:
+        delimiter = delimiter
     if no_header:
         data_seqs = pd.read_csv(infile, delimiter=delimiter, header=None).values.astype(str)
     else:
         if paired:
-            data_seqs = pd.read_csv(infile, delimiter=delimiter)[['junction_aa_heavy', 'v_gene_heavy', 'j_gene_heavy', 'junction_aa_light', 'v_gene_light', 'j_gene_light']].values.astype(str)
+            data_df = pd.read_csv(infile, delimiter=delimiter)[['junction_aa_heavy', 'v_gene_heavy', 'j_gene_heavy', 'junction_aa_light', 'v_gene_light', 'j_gene_light']]
+            data_df['v_gene_heavy'] = data_df['v_gene_heavy'].apply(lambda x: x.split("*")[0])
+            data_df['j_gene_heavy'] = data_df['j_gene_heavy'].apply(lambda x: x.split("*")[0])
+            data_df['v_gene_light'] = data_df['v_gene_light'].apply(lambda x: x.split("*")[0])
+            data_df['j_gene_light'] = data_df['j_gene_light'].apply(lambda x: x.split("*")[0])
+            data_seqs = data_df.values.astype(str)
         else:
-            data_seqs = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]].values.astype(str)
-        data_seqs[v_gene_column] = data_seqs[v_gene_column].apply(lambda x: x.split("*")[0])
-        data_seqs[j_gene_column] = data_seqs[j_gene_column].apply(lambda x: x.split("*")[0])
-        data_seqs = data_seqs.values.astype(str)
+            data_df = pd.read_csv(infile, delimiter=delimiter)[[junction_column, v_gene_column, j_gene_column]]
+            data_df[v_gene_column] = data_df[v_gene_column].apply(lambda x: x.split("*")[0])
+            data_df[j_gene_column] = data_df[j_gene_column].apply(lambda x: x.split("*")[0])
+            data_seqs = data_df.values.astype(str)
+    if shuffle:
+        np.random.shuffle(data_seqs)
     return data_seqs
 
 def chunks(n, size):

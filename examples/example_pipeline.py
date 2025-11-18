@@ -8,7 +8,6 @@ from sonnia.sonnia import SoNNia
 from sonia.plotting import Plotter
 from sonia.evaluate_model import EvaluateModel
 from sonia.sequence_generation import SequenceGeneration
-from sonnia.processing import Processing
 import numpy as np
 import pandas as pd
 
@@ -16,12 +15,6 @@ import pandas as pd
 # # load lists of sequences with gene specification
 # this assume data sequences are in semi-colon separated text file, with gene specification
 data_seqs = pd.read_csv('data_seqs.csv.gz')
-
-# preprocess data
-processor=Processing(chain_type='humanTRB')
-filtered=processor.filter_dataframe(data_seqs)
-
-data_seqs=list(filtered.values.astype(np.str))
 print(data_seqs[:3])
 
 # initialize model

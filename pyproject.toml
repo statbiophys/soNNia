@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sonnia"
-version = "0.3.2"
+version = "0.4.0"
 requires-python = ">=3.9"
 authors = [ {name = "Giulio Isacchini", email = "giulioisac@gmail.com"}]
 maintainers = [{name = "Giulio Isacchini", email = "giulioisac@gmail.com"}]
@@ -37,7 +37,7 @@ dependencies = [
         "torch",
         "keras>3",
         "matplotlib",
-        "olga",
+        "olga>=1.3.0",
         "polars",
         "pandas",
         "typer",

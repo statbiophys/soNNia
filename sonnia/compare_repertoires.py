@@ -10,10 +10,9 @@ import seaborn as sns
 from sklearn.metrics import auc, roc_curve
 from scipy.stats import pearsonr
 from sonnia.plotting import Plotter
-from sonnia.processing import Processing
 from sonnia import Sonia,SoNNia
 from tqdm import tqdm
-
+from sonnia.utils import filter_seqs
 class Compare:
     """
     A class to compare repertoires using various statistical and machine learning methods.
@@ -22,8 +21,6 @@ class Compare:
     ----------
     pgen_model : object
         Pgen model, default is the same as chain_type.
-    processor : Processing
-        An instance of the Processing class.
     data : list
         List of data file paths.
     datasets : list
@@ -91,7 +88,6 @@ class Compare:
         Attributes
         ----------
         pgen_model: The model used for generating sequences.
-        processor: An instance of the Processing class initialized with the pgen_model.
         data (list): A list containing the string "$P_{gen}$" followed by the file paths
                      provided in the data parameter.
         datasets (list): A list of datasets, where the first element is the generated
@@ -110,14 +106,13 @@ class Compare:
         else:
             qm = Sonia(pgen_model=self.pgen_model)
             gen_seqs = qm.generate_sequences_pre(int(1e6))
-        self.processor = Processing(pgen_model=self.pgen_model)
 
         self.data = data
         self.len_data=len(data)+1
         self.datasets = []
         for d in data:
             dataset = pd.read_csv(d).sample(frac=1)[["amino_acid", "v_gene", "j_gene"]]
-            self.datasets.append(list(self.processor.filter_dataframe(dataset).values))
+            self.datasets.append(list(filter_seqs(dataset, qm).values))
         self.data = [r"$P_{gen}$"] + self.data
         self.labels = [r"$P_{gen}$"] + [
             " ".join(d.split("/")[-1].split(".")[0].split("_")) for d in data

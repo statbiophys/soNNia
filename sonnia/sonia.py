@@ -27,8 +27,9 @@ from keras.regularizers import l1_l2
 from numpy.typing import NDArray
 from tqdm import tqdm
 import pandas as pd
-
+from sonnia.chunked_pgen import compute_all_pgens_chunked
 from sonnia.sonia_dataset import SoniaDataset
+
 from sonnia.utils import (
     CSV_READER_PARAMS,
     compute_pgen_expand,
@@ -1888,18 +1889,14 @@ class Sonia:
         pgens: array
             generation probabilities of the sequences.
         """
-        if include_genes:
-            with mp.Pool(processes=self.processes) as pool:
-                f = pool.map(
-                    compute_pgen_expand, zip(seqs, itertools.repeat(self.pgen_model))
-                )
-            return np.array(f)
+        if len(seqs) < 1000:
+            if include_genes:
+                return np.array([self.pgen_model.compute_aa_CDR3_pgen(seq[0],seq[1],seq[2]) for seq in seqs])
+            else:
+                return np.array([self.pgen_model.compute_aa_CDR3_pgen(seq[0]) for seq in seqs])
+        else:
+            return compute_all_pgens_chunked(seqs, self.pgen_model, include_genes=include_genes)
 
-        with mp.Pool(processes=self.processes) as pool:
-            f = pool.map(
-                compute_pgen_expand_novj, zip(seqs, itertools.repeat(self.pgen_model))
-            )
-        return np.array(f)
 
     def entropy(
         self, n: int = int(2e4), include_genes: bool = True, remove_zeros: bool = True

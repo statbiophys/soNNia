@@ -10,44 +10,59 @@ The modules are:
 | sonnia.py                                      | SoNNia                                           |
 | sonia_paired.py                                | SoniaPaired                                      |
 | sonnia_paired.py                               | SoNNiaPaired                                     |
-| processing.py                                  | Processing                                       |
 | classifiers.py                                 | Linear, SoniaRatio                               |
 | compare_repertoires.py                         | Compare                                          |
+| plotting.py                                    | Plotter                                          |
 | utils.py                                       | N/A (contains util functions)                    |
 
-The classes SoniaPaired, SoNNiaPaired, and SoNNia have similar behaviour to the ones defined in the [SONIA](https://github.com/statbiophys/SONIA) package.
+The classes SoniaPaired, SoNNiaPaired, and SoNNia have similar behaviour to the ones defined in the `SONIA <https://github.com/statbiophys/SONIA>`_ package.
 
-As an example, the basic import and initialization of the single-chain SoniaLeftposRightpos model
+### Basic Usage Examples
 
-```
-from sonia.sonia_leftpos_rightpos import SoniaLeftposRightpos
-qm=SoniaLeftposRightpos()
-```
+**Linear single-chain model (equivalent to SONIA):**
 
-translates here into
-
-```
+```python
 from sonnia.sonia import Sonia
-qm=Sonia()
-``` 
-
-Import of the deep version becomes 
-
+qm = Sonia()
 ```
+
+**Deep non-linear single-chain model:**
+
+```python
 from sonnia.sonnia import SoNNia
-qm=SoNNia()
+qm = SoNNia()
 ```
 
-while for linear paired-chain (i.e. alpha-beta for TCRs) is 
+**Linear paired-chain model (e.g., alpha-beta for TCRs or heavy-light for BCRs):**
 
-```
+```python
 from sonnia.sonia_paired import SoniaPaired
-qm=SoniaPaired()
+qm = SoniaPaired()
 ```
 
-and the deep paired (i.e. alpha-beta for TCRs) version is 
+**Deep non-linear paired-chain model:**
 
-```
+```python
 from sonnia.sonnia_paired import SoNNiaPaired
-qm=SoNNiaPaired()
+qm = SoNNiaPaired()
+```
+
+### Additional Utility Classes
+
+**Plotting and visualization:**
+
+```python
+from sonnia.plotting import Plotter
+pl = Plotter(sonia_model)
+pl.plot_model_learning("learning_curve.png")
+pl.plot_vjl("marginals.png")
+```
+
+**Repertoire comparison:**
+
+```python
+from sonnia.compare_repertoires import Compare
+comparator = Compare(pgen_model="humanTRB", data=["data1.csv", "data2.csv"])
+comparator.infer_models()
+comparator.compute_distances()
 ```

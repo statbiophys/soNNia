@@ -1,0 +1,714 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>define and infer model &mdash; sonnia 0.3.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/nbsphinx-code-cells.css?v=2aa19091" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=71d9d8e6"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="License" href="license.html" />
+    <link rel="prev" title="load lists of sequences with gene specification" href="sonnia_tutorial.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            sonnia
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="commands.html">Command line console scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="python_usage.html">SoNNia modules in a Python script</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html">load lists of sequences with gene specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#define-and-infer-model">define and infer model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#do-some-plotting">do some plotting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Generate-sequences">Generate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Evaluate-sequences">Evaluate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#some-utils-inherited-from-OLGA">some utils inherited from OLGA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Save-and-Load-Model">Save and Load Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Compute-Diversity-and-Distance-from-Reference-Distribution">Compute Diversity and Distance from Reference Distribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonnia_tutorial.html#Load-Default-Sonia-Models">Load Default Sonia Models</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">define and infer model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Do-some-plotting">Do some plotting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Generate-sequences">Generate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Evaluate-sequences">Evaluate sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#some-utils-inherited-from-OLGA">some utils inherited from OLGA</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Save-and-Load-Model">Save and Load Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Compute-Diversity-and-Distance-from-Reference-Distribution">Compute Diversity and Distance from Reference Distribution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#Load-default-model">Load default model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="help.html">Need Help?</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">sonnia</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">define and infer model</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/sonnia_paired_tutorial.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sonia</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sonnia.sonia</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sonia</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sonnia.sonia_paired</span><span class="w"> </span><span class="kn">import</span> <span class="n">SoniaPaired</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sonia.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">Plotter</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sonia</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</pre></div>
+</div>
+</div>
+<section id="define-and-infer-model">
+<h1>define and infer model<a class="headerlink" href="#define-and-infer-model" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data_seqs</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s1">&#39;data_seqs_paired.txt&#39;</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">data_seqs</span><span class="p">[:</span><span class="mi">5</span><span class="p">])</span>
+<span class="n">qm</span> <span class="o">=</span> <span class="n">SoniaPaired</span><span class="p">(</span><span class="n">data_seqs</span><span class="o">=</span><span class="n">data_seqs</span><span class="p">,</span><span class="n">ppost_model</span><span class="o">=</span><span class="s1">&#39;humanTCR&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[[&#39;CASSEGGGSSYEQYF&#39; &#39;TRBV7-2&#39; &#39;TRBJ2-7&#39; &#39;CAMRGPFNKFYF&#39; &#39;TRAV14/DV4&#39;
+  &#39;TRAJ21&#39;]
+ [&#39;CASRGSGGEIGYTF&#39; &#39;TRBV5-8&#39; &#39;TRBJ1-2&#39; &#39;CAMSVKGAGQNFVF&#39; &#39;TRAV12-3&#39;
+  &#39;TRAJ26&#39;]
+ [&#39;CASSQAWALTYEQYF&#39; &#39;TRBV4-1&#39; &#39;TRBJ2-7&#39; &#39;CLEHLTGGFKTIF&#39; &#39;TRAV4&#39; &#39;TRAJ9&#39;]
+ [&#39;CASSPRTGTVGNTIYF&#39; &#39;TRBV2&#39; &#39;TRBJ1-3&#39; &#39;CAAQGSSNTGKLIF&#39; &#39;TRAV13-1&#39;
+  &#39;TRAJ37&#39;]
+ [&#39;CASRTGGGGYTF&#39; &#39;TRBV28&#39; &#39;TRBJ1-2&#39; &#39;CAGFKTIF&#39; &#39;TRAV13-2&#39; &#39;TRAJ9&#39;]]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+2025-11-17 13:03:45,011: Adding data seqs.
+2025-11-17 13:03:45,045: Using default index (0) for amino acid CDR3 sequences.
+2025-11-17 13:03:45,045: Using default index (1) for V genes.
+2025-11-17 13:03:45,051: Using default index (2) for J genes.
+2025-11-17 13:03:45,103: 100000 sequences before filtering. Using /home/ubuntu/soNNia/sonnia/default_models/human_T_beta_alpha/heavy_chain for filtering.
+2025-11-17 13:03:45,286: 100000 sequences remain after removing sequences with V genes inconsistent with the model.
+2025-11-17 13:03:45,294: 100000 sequences remain after removing sequences with J genes inconsistent with the model.
+2025-11-17 13:03:45,330: 100000 sequences remain after removing data which are unproductive amino acid sequences.
+2025-11-17 13:03:45,404: 100000 sequences remain after removing sequences that do not begin with a &#39;C&#39; or end in a [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;E&#39;, &#39;D&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;, &#39;O&#39;, &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;].
+2025-11-17 13:03:45,437: 100000 sequences remain after removing sequences with CDR3 length larger than 30.
+2025-11-17 13:03:45,438: 100000 sequences remain. Filtering completed.
+2025-11-17 13:03:45,640: Using default index (0) for amino acid CDR3 sequences.
+2025-11-17 13:03:45,641: Using default index (1) for V genes.
+2025-11-17 13:03:45,647: Using default index (2) for J genes.
+2025-11-17 13:03:45,701: 100000 sequences before filtering. Using /home/ubuntu/soNNia/sonnia/default_models/human_T_beta_alpha/light_chain for filtering.
+2025-11-17 13:03:45,901: 100000 sequences remain after removing sequences with V genes inconsistent with the model.
+2025-11-17 13:03:45,910: 99986 sequences remain after removing sequences with J genes inconsistent with the model.
+2025-11-17 13:03:45,947: 99986 sequences remain after removing data which are unproductive amino acid sequences.
+2025-11-17 13:03:46,023: 99986 sequences remain after removing sequences that do not begin with a &#39;C&#39; or end in a [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;E&#39;, &#39;D&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;, &#39;O&#39;, &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;].
+2025-11-17 13:03:46,054: 99986 sequences remain after removing sequences with CDR3 length larger than 30.
+2025-11-17 13:03:46,055: 99986 sequences remain. Filtering completed.
+2025-11-17 13:03:46,318: Encode data seqs.
+Encoding sequence features: 100%|██████████| 99986/99986 [00:03&lt;00:00, 32628.96it/s]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># add generated sequences (you can add them from file too, more is better.)</span>
+<span class="n">qm</span><span class="o">.</span><span class="n">add_generated_seqs</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="mf">2e5</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+2025-11-17 13:03:51,284: Generating 200000 using the light pgen model in /home/ubuntu/soNNia/sonnia/default_models/human_T_beta_alpha/light_chain and the heavy pgen model in /home/ubuntu/soNNia/sonnia/default_models/human_T_beta_alpha/heavy_chain.
+2025-11-17 13:03:55,400: Adding gen seqs.
+2025-11-17 13:03:55,496: Using default index (0) for amino acid CDR3 sequences.
+2025-11-17 13:03:55,497: Using default index (1) for V genes.
+2025-11-17 13:03:55,512: Using default index (2) for J genes.
+2025-11-17 13:03:55,615: 200000 sequences before filtering. Using /home/ubuntu/soNNia/sonnia/default_models/human_T_beta_alpha/heavy_chain for filtering.
+2025-11-17 13:03:56,010: 200000 sequences remain after removing sequences with V genes inconsistent with the model.
+2025-11-17 13:03:56,028: 200000 sequences remain after removing sequences with J genes inconsistent with the model.
+2025-11-17 13:03:56,099: 200000 sequences remain after removing data which are unproductive amino acid sequences.
+2025-11-17 13:03:56,250: 200000 sequences remain after removing sequences that do not begin with a &#39;C&#39; or end in a [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;E&#39;, &#39;D&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;, &#39;O&#39;, &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;].
+2025-11-17 13:03:56,318: 200000 sequences remain after removing sequences with CDR3 length larger than 30.
+2025-11-17 13:03:56,319: 200000 sequences remain. Filtering completed.
+2025-11-17 13:03:56,727: Using default index (0) for amino acid CDR3 sequences.
+2025-11-17 13:03:56,728: Using default index (1) for V genes.
+2025-11-17 13:03:56,740: Using default index (2) for J genes.
+2025-11-17 13:03:56,841: 200000 sequences before filtering. Using /home/ubuntu/soNNia/sonnia/default_models/human_T_beta_alpha/light_chain for filtering.
+2025-11-17 13:03:57,211: 200000 sequences remain after removing sequences with V genes inconsistent with the model.
+2025-11-17 13:03:57,225: 200000 sequences remain after removing sequences with J genes inconsistent with the model.
+2025-11-17 13:03:57,297: 200000 sequences remain after removing data which are unproductive amino acid sequences.
+2025-11-17 13:03:57,446: 200000 sequences remain after removing sequences that do not begin with a &#39;C&#39; or end in a [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;E&#39;, &#39;D&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;, &#39;O&#39;, &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;].
+2025-11-17 13:03:57,512: 200000 sequences remain after removing sequences with CDR3 length larger than 30.
+2025-11-17 13:03:57,512: 200000 sequences remain. Filtering completed.
+2025-11-17 13:03:58,066: Encode gen seqs.
+Encoding sequence features: 100%|██████████| 200000/200000 [00:06&lt;00:00, 30997.91it/s]
+Computing energies: 100%|██████████| 2/2 [00:01&lt;00:00,  1.13it/s]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1">#define and train model</span>
+<span class="n">qm</span><span class="o">.</span><span class="n">infer_selection</span><span class="p">(</span><span class="n">epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span><span class="n">batch_size</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e4</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+2025-11-17 13:05:31,661: Finished training.
+Computing energies: 100%|██████████| 2/2 [00:01&lt;00:00,  1.09it/s]
+2025-11-17 13:05:33,539: Updating marginals.
+Computing energies: 100%|██████████| 2/2 [00:01&lt;00:00,  1.08it/s]
+2025-11-17 13:05:35,530: Finished updating marginals.
+</pre></div></div>
+</div>
+</section>
+<section id="Do-some-plotting">
+<h1>Do some plotting<a class="headerlink" href="#Do-some-plotting" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_sonia</span><span class="o">=</span><span class="n">Plotter</span><span class="p">(</span><span class="n">qm</span><span class="p">)</span>
+<span class="n">plot_sonia</span><span class="o">.</span><span class="n">plot_model_learning</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/sonnia_paired_tutorial_6_0.png" src="_images/sonnia_paired_tutorial_6_0.png" />
+</div>
+</div>
+</section>
+<section id="Generate-sequences">
+<h1>Generate sequences<a class="headerlink" href="#Generate-sequences" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pre_seqs</span><span class="o">=</span><span class="n">qm</span><span class="o">.</span><span class="n">generate_sequences_pre</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e5</span><span class="p">),</span><span class="n">nucleotide</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">pre_seqs</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([[&#39;CASPRQPQPQHF&#39;, &#39;TRBV14&#39;, &#39;TRBJ1-5&#39;, &#39;CAGAVTNAGKSTF&#39;, &#39;TRAV27&#39;,
+        &#39;TRAJ27&#39;],
+       [&#39;CSASHDHILYEKLFF&#39;, &#39;TRBV20-1&#39;, &#39;TRBJ1-4&#39;, &#39;CAAGVMDSSYKLIF&#39;,
+        &#39;TRAV13-1&#39;, &#39;TRAJ12&#39;],
+       [&#39;CASSWDYQGILNYEQYF&#39;, &#39;TRBV5-4&#39;, &#39;TRBJ2-7&#39;, &#39;CGTNAGKSTF&#39;,
+        &#39;TRAV27&#39;, &#39;TRAJ27&#39;]], dtype=&#39;&lt;U93&#39;)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">post_seqs</span><span class="o">=</span><span class="n">qm</span><span class="o">.</span><span class="n">generate_sequences_post</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e5</span><span class="p">),</span><span class="n">nucleotide</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">post_seqs</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Encoding sequence features: 100%|██████████| 1100000/1100000 [00:39&lt;00:00, 27907.16it/s]
+Computing energies: 100%|██████████| 11/11 [00:09&lt;00:00,  1.12it/s]
+Encoding sequence features: 100%|██████████| 1100000/1100000 [00:39&lt;00:00, 27659.77it/s]
+Computing energies: 100%|██████████| 11/11 [00:10&lt;00:00,  1.09it/s]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([[&#39;CASSPPPDTQYF&#39;, &#39;TRBV7-2&#39;, &#39;TRBJ2-3&#39;, &#39;CADSRGSQGNLIF&#39;, &#39;TRAV41&#39;,
+        &#39;TRAJ42&#39;],
+       [&#39;CATSSGNTIYF&#39;, &#39;TRBV15&#39;, &#39;TRBJ1-3&#39;, &#39;CAANRGGKLIF&#39;, &#39;TRAV13-1&#39;,
+        &#39;TRAJ23&#39;],
+       [&#39;CASSPWPGQGHTIYF&#39;, &#39;TRBV2&#39;, &#39;TRBJ1-3&#39;, &#39;CAVRPGNTPLVF&#39;,
+        &#39;TRAV12-2&#39;, &#39;TRAJ29&#39;],
+       [&#39;CASSLGQFNTEAFF&#39;, &#39;TRBV11-3&#39;, &#39;TRBJ1-1&#39;, &#39;CAATKGGGNKLTF&#39;,
+        &#39;TRAV13-1&#39;, &#39;TRAJ10&#39;],
+       [&#39;CASSLRPGQAFF&#39;, &#39;TRBV5-1&#39;, &#39;TRBJ1-1&#39;, &#39;CLLGDGGGSNYKLTF&#39;,
+        &#39;TRAV40&#39;, &#39;TRAJ53&#39;]], dtype=&#39;&lt;U93&#39;)
+</pre></div></div>
+</div>
+</section>
+<section id="Evaluate-sequences">
+<h1>Evaluate sequences<a class="headerlink" href="#Evaluate-sequences" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Q_data</span><span class="p">,</span><span class="n">pgen_data</span><span class="p">,</span><span class="n">ppost_data</span><span class="o">=</span><span class="n">qm</span><span class="o">.</span><span class="n">evaluate_seqs</span><span class="p">(</span><span class="n">qm</span><span class="o">.</span><span class="n">data_seqs</span><span class="p">[:</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e5</span><span class="p">)]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+<span class="n">Q_gen</span><span class="p">,</span><span class="n">pgen_gen</span><span class="p">,</span><span class="n">ppost_gen</span><span class="o">=</span><span class="n">qm</span><span class="o">.</span><span class="n">evaluate_seqs</span><span class="p">(</span><span class="n">pre_seqs</span><span class="p">)</span>
+<span class="n">Q_model</span><span class="p">,</span><span class="n">pgen_model</span><span class="p">,</span><span class="n">ppost_model</span><span class="o">=</span><span class="n">qm</span><span class="o">.</span><span class="n">evaluate_seqs</span><span class="p">(</span><span class="n">post_seqs</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">Q_model</span><span class="p">[:</span><span class="mi">3</span><span class="p">]),</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pgen_model</span><span class="p">[:</span><span class="mi">3</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ppost_model</span><span class="p">[:</span><span class="mi">3</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Encoding sequence features:   3%|▎         | 3242/99986 [00:00&lt;00:02, 32416.48it/s]Encoding sequence features: 100%|██████████| 99986/99986 [00:03&lt;00:00, 32209.16it/s]
+Computing energies: 100%|██████████| 1/1 [00:00&lt;00:00,  1.21it/s]
+Encoding sequence features: 100%|██████████| 100000/100000 [00:03&lt;00:00, 25189.45it/s]
+Computing energies: 100%|██████████| 1/1 [00:00&lt;00:00,  1.21it/s]
+Encoding sequence features: 100%|██████████| 100000/100000 [00:03&lt;00:00, 28078.54it/s]
+Computing energies: 100%|██████████| 1/1 [00:00&lt;00:00,  1.18it/s]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[0.5769772 3.9851768 3.6605735]
+[1.26058019e-15 2.72032238e-15 3.89377588e-19]
+[7.27326022e-16 1.08409657e-14 1.42534527e-18]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_sonia</span><span class="o">.</span><span class="n">plot_prob</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">pgen_data</span><span class="p">,</span><span class="n">gen</span><span class="o">=</span><span class="n">pgen_gen</span><span class="p">,</span><span class="n">model</span><span class="o">=</span><span class="n">pgen_model</span><span class="p">,</span><span class="n">ptype</span><span class="o">=</span><span class="s1">&#39;P_</span><span class="si">{pre}</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">bin_min</span><span class="o">=-</span><span class="mi">40</span><span class="p">,</span><span class="n">bin_max</span><span class="o">=-</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/sonnia_paired_tutorial_12_0.png" src="_images/sonnia_paired_tutorial_12_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_sonia</span><span class="o">.</span><span class="n">plot_prob</span><span class="p">(</span><span class="n">ppost_data</span><span class="p">,</span><span class="n">ppost_gen</span><span class="p">,</span><span class="n">ppost_model</span><span class="p">,</span><span class="n">ptype</span><span class="o">=</span><span class="s1">&#39;P_</span><span class="si">{post}</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">bin_min</span><span class="o">=-</span><span class="mi">40</span><span class="p">,</span><span class="n">bin_max</span><span class="o">=-</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/sonnia_paired_tutorial_13_0.png" src="_images/sonnia_paired_tutorial_13_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_sonia</span><span class="o">.</span><span class="n">plot_prob</span><span class="p">(</span><span class="n">Q_data</span><span class="p">,</span><span class="n">Q_gen</span><span class="p">,</span><span class="n">Q_model</span><span class="p">,</span><span class="n">ptype</span><span class="o">=</span><span class="s1">&#39;Q&#39;</span><span class="p">,</span><span class="n">bin_min</span><span class="o">=-</span><span class="mi">4</span><span class="p">,</span><span class="n">bin_max</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/sonnia_paired_tutorial_14_0.png" src="_images/sonnia_paired_tutorial_14_0.png" />
+</div>
+</div>
+</section>
+<section id="some-utils-inherited-from-OLGA">
+<h1>some utils inherited from OLGA<a class="headerlink" href="#some-utils-inherited-from-OLGA" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># olga functionality can be directly accessed throu2gh the main SoNNia model</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">qm</span><span class="o">.</span><span class="n">seqgen_model_light</span><span class="o">.</span><span class="n">gen_rnd_prod_CDR3</span><span class="p">(),</span><span class="n">qm</span><span class="o">.</span><span class="n">seqgen_model_heavy</span><span class="o">.</span><span class="n">gen_rnd_prod_CDR3</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+((&#39;TGCATCTCCCGGCCCCTCACCTTT&#39;, &#39;CISRPLTF&#39;, 43, 2),
+ (&#39;TGTGCCAGCAGCCATGTACCAACGGACGCTTATAGCAATCAGCCCCAGCATTTT&#39;,
+  &#39;CASSHVPTDAYSNQPQHF&#39;,
+  46,
+  4))
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">qm</span><span class="o">.</span><span class="n">genomic_data_light</span><span class="o">.</span><span class="n">genJ</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">qm</span><span class="o">.</span><span class="n">genomic_data_heavy</span><span class="o">.</span><span class="n">genJ</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+([&#39;TRAJ10*01&#39;,
+  &#39;ATACTCACGGGAGGAGGAAACAAACTCACCTTT&#39;,
+  &#39;ATACTCACGGGAGGAGGAAACAAACTCACCTTTGGGACAGGCACTCAGCTAAAAGTGGAACTCA&#39;],
+ [&#39;TRBJ1-2*01&#39;,
+  &#39;CTAACTATGGCTACACCTTC&#39;,
+  &#39;CTAACTATGGCTACACCTTCGGTTCGGGGACCAGGTTAACCGTTGTAG&#39;])
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">qm</span><span class="o">.</span><span class="n">pgen_model_heavy</span><span class="o">.</span><span class="n">PinsDJ</span><span class="p">,</span><span class="n">qm</span><span class="o">.</span><span class="n">pgen_model_light</span><span class="o">.</span><span class="n">PinsVJ</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(array([7.19554e-02, 5.63345e-02, 8.55143e-02, 1.27028e-01, 1.21860e-01,
+        1.08232e-01, 8.59492e-02, 7.45618e-02, 5.07897e-02, 3.88103e-02,
+        3.57069e-02, 2.68135e-02, 2.15603e-02, 1.95199e-02, 1.66126e-02,
+        1.44175e-02, 1.02015e-02, 9.54077e-03, 7.30822e-03, 5.44689e-03,
+        4.32498e-03, 2.46807e-03, 1.75657e-03, 9.34188e-04, 5.72187e-04,
+        7.20642e-04, 4.44661e-04, 1.06769e-04, 7.10554e-05, 3.08047e-04,
+        1.29150e-04, 0.00000e+00, 0.00000e+00, 0.00000e+00, 0.00000e+00]),
+ array([2.80720e-02, 3.70881e-02, 7.18272e-02, 1.11361e-01, 1.45677e-01,
+        1.17451e-01, 9.39653e-02, 8.25969e-02, 7.71960e-02, 5.37416e-02,
+        4.99160e-02, 3.79668e-02, 2.58719e-02, 1.95766e-02, 1.36449e-02,
+        8.74302e-03, 5.57685e-03, 3.94724e-03, 2.88705e-03, 1.72847e-03,
+        1.77234e-03, 1.44091e-03, 1.39968e-03, 1.40263e-03, 1.25466e-03,
+        6.01223e-04, 1.11938e-03, 7.01411e-04, 3.20548e-04, 2.40517e-04,
+        3.74385e-05, 8.82230e-05, 8.38335e-05, 1.07031e-07, 3.11986e-05,
+        5.83995e-06, 2.36875e-05, 1.06530e-10, 7.64546e-09, 2.24623e-04,
+        4.17104e-04, 0.00000e+00, 0.00000e+00, 0.00000e+00, 0.00000e+00]))
+</pre></div></div>
+</div>
+</section>
+<section id="Save-and-Load-Model">
+<h1>Save and Load Model<a class="headerlink" href="#Save-and-Load-Model" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">qm</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="s1">&#39;test_paired&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">qm_new</span><span class="o">=</span><span class="n">SoniaPaired</span><span class="p">(</span><span class="n">ppost_model</span><span class="o">=</span><span class="s1">&#39;test_paired&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># By default sequences are not added. Adding them now.</span>
+<span class="n">qm_new</span><span class="o">.</span><span class="n">update_model</span><span class="p">(</span><span class="n">add_data_seqs</span><span class="o">=</span><span class="n">qm</span><span class="o">.</span><span class="n">data_seqs</span><span class="p">,</span><span class="n">add_gen_seqs</span><span class="o">=</span><span class="n">qm</span><span class="o">.</span><span class="n">gen_seqs</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+2025-11-17 13:11:05,081: Adding data seqs.
+2025-11-17 13:11:05,144: Using default index (0) for amino acid CDR3 sequences.
+2025-11-17 13:11:05,145: Using default index (1) for V genes.
+2025-11-17 13:11:05,151: Using default index (2) for J genes.
+2025-11-17 13:11:05,205: 99986 sequences before filtering. Using test_paired/heavy_chain for filtering.
+2025-11-17 13:11:05,391: 99986 sequences remain after removing sequences with V genes inconsistent with the model.
+2025-11-17 13:11:05,399: 99986 sequences remain after removing sequences with J genes inconsistent with the model.
+2025-11-17 13:11:05,436: 99986 sequences remain after removing data which are unproductive amino acid sequences.
+2025-11-17 13:11:05,508: 99986 sequences remain after removing sequences that do not begin with a &#39;C&#39; or end in a [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;E&#39;, &#39;D&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;, &#39;O&#39;, &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;].
+2025-11-17 13:11:05,540: 99986 sequences remain after removing sequences with CDR3 length larger than 30.
+2025-11-17 13:11:05,540: 99986 sequences remain. Filtering completed.
+2025-11-17 13:11:05,709: Using default index (0) for amino acid CDR3 sequences.
+2025-11-17 13:11:05,710: Using default index (1) for V genes.
+2025-11-17 13:11:05,717: Using default index (2) for J genes.
+2025-11-17 13:11:05,769: 99986 sequences before filtering. Using test_paired/light_chain for filtering.
+2025-11-17 13:11:05,976: 99986 sequences remain after removing sequences with V genes inconsistent with the model.
+2025-11-17 13:11:05,984: 99986 sequences remain after removing sequences with J genes inconsistent with the model.
+2025-11-17 13:11:06,021: 99986 sequences remain after removing data which are unproductive amino acid sequences.
+2025-11-17 13:11:06,096: 99986 sequences remain after removing sequences that do not begin with a &#39;C&#39; or end in a [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;E&#39;, &#39;D&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;, &#39;O&#39;, &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;].
+2025-11-17 13:11:06,126: 99986 sequences remain after removing sequences with CDR3 length larger than 30.
+2025-11-17 13:11:06,126: 99986 sequences remain. Filtering completed.
+2025-11-17 13:11:06,388: Adding gen seqs.
+2025-11-17 13:11:06,541: Using default index (0) for amino acid CDR3 sequences.
+2025-11-17 13:11:06,542: Using default index (1) for V genes.
+2025-11-17 13:11:06,555: Using default index (2) for J genes.
+2025-11-17 13:11:06,659: 200000 sequences before filtering. Using test_paired/heavy_chain for filtering.
+2025-11-17 13:11:07,042: 200000 sequences remain after removing sequences with V genes inconsistent with the model.
+2025-11-17 13:11:07,059: 200000 sequences remain after removing sequences with J genes inconsistent with the model.
+2025-11-17 13:11:07,131: 200000 sequences remain after removing data which are unproductive amino acid sequences.
+2025-11-17 13:11:07,281: 200000 sequences remain after removing sequences that do not begin with a &#39;C&#39; or end in a [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;E&#39;, &#39;D&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;, &#39;O&#39;, &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;].
+2025-11-17 13:11:07,344: 200000 sequences remain after removing sequences with CDR3 length larger than 30.
+2025-11-17 13:11:07,345: 200000 sequences remain. Filtering completed.
+2025-11-17 13:11:07,660: Using default index (0) for amino acid CDR3 sequences.
+2025-11-17 13:11:07,661: Using default index (1) for V genes.
+2025-11-17 13:11:07,676: Using default index (2) for J genes.
+2025-11-17 13:11:07,782: 200000 sequences before filtering. Using test_paired/light_chain for filtering.
+2025-11-17 13:11:08,223: 200000 sequences remain after removing sequences with V genes inconsistent with the model.
+2025-11-17 13:11:08,247: 200000 sequences remain after removing sequences with J genes inconsistent with the model.
+2025-11-17 13:11:08,319: 200000 sequences remain after removing data which are unproductive amino acid sequences.
+2025-11-17 13:11:08,463: 200000 sequences remain after removing sequences that do not begin with a &#39;C&#39; or end in a [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;E&#39;, &#39;D&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;, &#39;O&#39;, &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;].
+2025-11-17 13:11:08,560: 200000 sequences remain after removing sequences with CDR3 length larger than 30.
+2025-11-17 13:11:08,561: 200000 sequences remain. Filtering completed.
+2025-11-17 13:11:09,165: Encode data seqs.
+Encoding sequence features: 100%|██████████| 99986/99986 [00:03&lt;00:00, 30649.70it/s]
+2025-11-17 13:11:13,070: Encode gen seqs.
+Encoding sequence features: 100%|██████████| 200000/200000 [00:06&lt;00:00, 30692.48it/s]
+Computing energies: 100%|██████████| 2/2 [00:01&lt;00:00,  1.10it/s]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Continue inference</span>
+<span class="n">qm_new</span><span class="o">.</span><span class="n">infer_selection</span><span class="p">(</span><span class="n">epochs</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="n">qm_new</span><span class="o">.</span><span class="n">learning_history</span><span class="o">.</span><span class="n">history</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+2025-11-17 13:11:35,447: Finished training.
+Computing energies: 100%|██████████| 2/2 [00:01&lt;00:00,  1.07it/s]
+2025-11-17 13:11:37,360: Updating marginals.
+Computing energies: 100%|██████████| 2/2 [00:01&lt;00:00,  1.07it/s]
+2025-11-17 13:11:39,346: Finished updating marginals.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;_likelihood&#39;: [-1.7416709661483765,
+  -1.7556878328323364,
+  -1.7678178548812866,
+  -1.7807191610336304,
+  -1.7920759916305542],
+ &#39;binary_crossentropy&#39;: [0.3523142635822296,
+  0.3505375385284424,
+  0.34897327423095703,
+  0.3475055992603302,
+  0.3461282253265381],
+ &#39;loss&#39;: [0.3523143529891968,
+  0.3505374491214752,
+  0.3489736020565033,
+  0.34750598669052124,
+  0.3461282551288605],
+ &#39;val__likelihood&#39;: [-1.761418342590332,
+  -1.7723807096481323,
+  -1.7818650007247925,
+  -1.7898236513137817,
+  -1.7986449003219604],
+ &#39;val_binary_crossentropy&#39;: [0.3517608642578125,
+  0.35050806403160095,
+  0.34941861033439636,
+  0.34838756918907166,
+  0.34734925627708435],
+ &#39;val_loss&#39;: [0.3517608344554901,
+  0.35050803422927856,
+  0.349418580532074,
+  0.3483875095844269,
+  0.34734922647476196]}
+</pre></div></div>
+</div>
+</section>
+<section id="Compute-Diversity-and-Distance-from-Reference-Distribution">
+<h1>Compute Diversity and Distance from Reference Distribution<a class="headerlink" href="#Compute-Diversity-and-Distance-from-Reference-Distribution" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;model entropy is: &#39;</span><span class="p">,</span> <span class="n">qm_new</span><span class="o">.</span><span class="n">entropy</span><span class="p">(),</span> <span class="s1">&#39;[bits]&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Computing energies:   0%|          | 0/1 [00:00&lt;?, ?it/s]Computing energies: 100%|██████████| 1/1 [00:00&lt;00:00,  5.63it/s]
+2025-11-17 13:12:18,373: 2 sequences have zero Pgen, we remove them in the evaluation of the entropy
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+model entropy is:  56.75602773959275 [bits]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Dkl post gen is: &#39;</span><span class="p">,</span> <span class="n">qm_new</span><span class="o">.</span><span class="n">dkl_post_gen</span><span class="p">(),</span> <span class="s1">&#39;[bits]&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Dkl post gen is:  2.0906377 [bits]
+</pre></div></div>
+</div>
+</section>
+<section id="Load-default-model">
+<h1>Load default model<a class="headerlink" href="#Load-default-model" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">default_model</span><span class="o">=</span><span class="n">SoniaPaired</span><span class="p">(</span><span class="n">ppost_model</span><span class="o">=</span><span class="s1">&#39;humanTCR&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sonnia_tutorial.html" class="btn btn-neutral float-left" title="load lists of sequences with gene specification" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="license.html" class="btn btn-neutral float-right" title="License" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Giulio Isacchini.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
